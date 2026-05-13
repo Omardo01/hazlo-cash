@@ -100,8 +100,10 @@ Este ejemplo es el que usamos para explicar el modelo porque es tangible, viral,
 
 | Capa | Candidatos | Notas |
 |------|-----------|-------|
-| Frontend | **Next.js 14+ (App Router) + TypeScript** | ✅ **CONFIRMADO**. Framework principal. Elegido por compatibilidad con React Native para transición móvil futura. |
-| Estilos | Tailwind CSS (probable) | Fuerte candidato, por definir. |
+| Frontend | **Next.js 16.2.3 (App Router) + TypeScript** | ✅ **CONFIRMADO**. Framework principal. Elegido por compatibilidad con React Native para transición móvil futura. |
+| Estilos | **Tailwind CSS 4 + shadcn/ui** | ✅ **CONFIRMADO**. Ya instalados y en uso. Componentes base en `src/components/ui/`. |
+| Iconos | **Lucide React** | ✅ **CONFIRMADO**. En uso en toda la app. |
+| Gráficos | **Recharts** | ✅ **CONFIRMADO**. En uso en dashboards. |
 | Auth | Supabase Auth, NextAuth, Clerk, otros | Por definir. Necesita soportar múltiples roles. |
 | Base de datos | PostgreSQL (via Supabase o Neon), PlanetScale, otros | Por definir. Necesita soporte geo (PostGIS o equivalente). |
 | Realtime | Supabase Realtime, Pusher, Socket.io, otros | Por definir. Necesario para chat y notificaciones. |
@@ -297,55 +299,131 @@ El sistema de pagos es crucial para el modelo. Estos son los requerimientos func
 
 ---
 
-## ESTRUCTURA DEL PROYECTO (SUGERIDA — se adaptará según las herramientas elegidas)
+## ESTRUCTURA DEL PROYECTO (ESTADO REAL — actualizado)
 
 ```
-hazlo-cash/
+hazlocash/
 ├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── (auth)/             # Rutas de autenticación
-│   │   │   ├── login/
-│   │   │   ├── register/
-│   │   │   └── onboarding/
-│   │   ├── (dashboard)/        # Rutas protegidas
-│   │   │   ├── client/         # Vista del cliente
-│   │   │   ├── business/       # Vista del negocio
-│   │   │   ├── ambassador/     # Vista del embajador
-│   │   │   └── admin/          # Panel admin
-│   │   ├── (public)/           # Rutas públicas
-│   │   │   ├── explore/        # Explorar negocios
-│   │   │   ├── business/[id]/  # Perfil público del negocio
-│   │   │   └── r/[code]/       # Deep link de referido
-│   │   ├── api/                # API routes
-│   │   ├── layout.tsx
-│   │   └── page.tsx
+│   ├── app/
+│   │   ├── (dashboard)/                  # Vista del Embajador
+│   │   │   ├── layout.tsx                # Layout con AppSidebar + TooltipProvider
+│   │   │   └── ambassador/
+│   │   │       ├── page.tsx              # ✅ Dashboard principal del embajador
+│   │   │       ├── comisiones/page.tsx   # ✅ Historial y detalle de comisiones
+│   │   │       ├── perfil/page.tsx       # ✅ Perfil del embajador (v1)
+│   │   │       └── perfil2/page.tsx      # ✅ Perfil del embajador (v2 alternativa)
+│   │   ├── (negocio)/                    # Vista del Negocio
+│   │   │   ├── layout.tsx                # Layout con NegocioSidebar + TooltipProvider
+│   │   │   └── negocio/
+│   │   │       ├── page.tsx              # ✅ Dashboard inicio del negocio
+│   │   │       ├── solicitudes/page.tsx  # ✅ Gestión de solicitudes (expandible, filtros, acciones)
+│   │   │       ├── embajadores/page.tsx  # ✅ Lista de embajadores con ranking y actividad
+│   │   │       └── perfil/page.tsx       # ✅ Mi Negocio (tabs: Info / Servicios / Horarios / Oferta)
+│   │   ├── globals.css                   # Variables CSS: brand-purple, brand-teal, brand-orange, brand-dark
+│   │   ├── layout.tsx                    # Root layout
+│   │   └── page.tsx                      # ✅ Landing page pública
 │   ├── components/
-│   │   ├── ui/                 # Componentes base reutilizables
-│   │   ├── forms/              # Formularios
-│   │   ├── maps/               # Componentes de mapa
-│   │   ├── chat/               # Componentes de chat
-│   │   └── dashboard/          # Componentes de dashboards
-│   ├── lib/
-│   │   ├── db/                 # Cliente de BD (según proveedor elegido)
-│   │   ├── auth/               # Configuración de auth
-│   │   ├── payments/           # Integración de pagos
-│   │   ├── utils/              # Utilidades generales
-│   │   └── constants.ts        # Constantes del proyecto
-│   ├── hooks/                  # Custom React hooks
-│   ├── types/                  # Tipos TypeScript globales
-│   └── styles/
-│       └── globals.css         # Estilos globales
-├── public/
-│   └── icons/                  # Iconos de la app
-├── .env.local                  # Variables de entorno (NO commitear)
-├── .env.example                # Template de variables de entorno
+│   │   ├── ui/                           # Componentes shadcn/ui instalados:
+│   │   │   ├── avatar.tsx                #   Avatar
+│   │   │   ├── badge.tsx                 #   Badge
+│   │   │   ├── card.tsx                  #   Card
+│   │   │   ├── chart.tsx                 #   ChartContainer (Recharts wrapper)
+│   │   │   ├── dialog.tsx                #   Dialog / Modal
+│   │   │   ├── dropdown-menu.tsx         #   DropdownMenu
+│   │   │   ├── input.tsx                 #   Input
+│   │   │   ├── progress.tsx              #   Progress bar
+│   │   │   ├── scroll-area.tsx           #   ScrollArea
+│   │   │   ├── separator.tsx             #   Separator
+│   │   │   ├── sheet.tsx                 #   Sheet (drawer)
+│   │   │   ├── sidebar.tsx               #   Sidebar primitivo
+│   │   │   ├── skeleton.tsx              #   Skeleton loader
+│   │   │   ├── tabs.tsx                  #   Tabs
+│   │   │   └── tooltip.tsx               #   Tooltip
+│   │   └── dashboard/                    # Componentes de negocio / embajador:
+│   │       ├── AppSidebar.tsx            #   Sidebar del embajador (íconos + nav)
+│   │       ├── NegocioSidebar.tsx        #   Sidebar del negocio (íconos + nav)
+│   │       ├── DashboardHeader.tsx       #   Header reutilizable
+│   │       ├── StatCard.tsx              #   Tarjeta de estadística
+│   │       ├── EarningsChart.tsx         #   Gráfico de ingresos (Recharts)
+│   │       ├── ReferralDistribution.tsx  #   Distribución de referidos
+│   │       ├── LevelProgress.tsx         #   Progreso de nivel embajador
+│   │       ├── RecentActivity.tsx        #   Actividad reciente
+│   │       ├── QuickActions.tsx          #   Acciones rápidas
+│   │       ├── RightPanel.tsx            #   Panel derecho genérico
+│   │       └── ShareCodeDialog.tsx       #   Dialog para compartir código QR
+│   ├── hooks/                            # Custom hooks (por poblar)
+│   └── lib/
+│       └── utils.ts                      # cn() helper (clsx + tailwind-merge)
+├── .claude/
+│   └── launch.json                       # Config dev server (puerto 3000)
 ├── next.config.ts
 ├── tsconfig.json
 ├── package.json
-└── CLAUDE.md                   # Este archivo
+└── CLAUDE.md
 ```
 
-> La estructura de `lib/` se adaptará según los servicios que se elijan (Supabase, Neon, Clerk, etc.).
+---
+
+## ESTADO ACTUAL DEL DESARROLLO
+
+> Fecha de última actualización: Abril 2026 (Mes 1 del roadmap)
+
+### Decisiones de stack YA tomadas (no reabrir)
+
+| Capa | Decisión | Notas |
+|------|----------|-------|
+| Framework | Next.js 16.2.3 + App Router + TypeScript | Instalado y corriendo |
+| Estilos | Tailwind CSS 4 | Instalado. Variables CSS en `globals.css` |
+| Componentes UI | shadcn/ui | 15 componentes instalados en `src/components/ui/` |
+| Iconos | Lucide React | En uso en toda la app |
+| Gráficos | Recharts | Wrapper `ChartContainer` en `src/components/ui/chart.tsx` |
+| Animaciones | motion (Framer Motion) | Instalado, en uso en `perfil2` |
+
+### Rutas implementadas
+
+#### Vista Negocio — `/negocio/*`
+| Ruta | Estado | Descripción |
+|------|--------|-------------|
+| `/negocio` | ✅ Listo | Dashboard: stats, gráfico semanal, solicitudes recientes, top embajadores |
+| `/negocio/solicitudes` | ✅ Listo | Tabla completa, filas expandibles, acciones (Aceptar/Confirmar/Rechazar), filtros, búsqueda |
+| `/negocio/embajadores` | ✅ Listo | Ranking con niveles (bronce/plata/oro), copiar código, actividad reciente |
+| `/negocio/perfil` | ✅ Listo | Tabs: Información básica, Servicios/Menú, Horarios, Oferta Hazlo Cash |
+
+#### Vista Embajador — `/ambassador/*`
+| Ruta | Estado | Descripción |
+|------|--------|-------------|
+| `/ambassador` | ✅ Listo | Dashboard: nivel, stats, gráfico de ingresos, distribución de referidos, panel derecho |
+| `/ambassador/comisiones` | ✅ Listo | Historial de comisiones con detalle |
+| `/ambassador/perfil` | ✅ Listo | Perfil del embajador v1 |
+| `/ambassador/perfil2` | ✅ Listo | Perfil del embajador v2 (alternativa con animaciones) |
+
+#### Rutas pendientes (aún no implementadas)
+| Ruta | Prioridad | Descripción |
+|------|-----------|-------------|
+| `/negocio/estadisticas` | Media | Estadísticas detalladas del negocio |
+| `/negocio/resenas` | Media | Gestión de reseñas y calificaciones |
+| `/negocio/mensajes` | Alta | Chat con clientes (anti-bypass) |
+| `/negocio/ajustes` | Baja | Configuración de cuenta |
+| `/ambassador/stats` | Media | Estadísticas detalladas |
+| `/ambassador/referrals` | Media | Historial completo de referidos |
+| `/ambassador/businesses` | Media | Negocios afiliados |
+| Rutas de `/auth` | Alta | Login, registro, onboarding por rol |
+| Landing page completa | Alta | Página pública con waitlist |
+| `/r/[code]` | Alta | Deep link de referido |
+
+### Patrones de UI establecidos (seguir estos para consistencia)
+
+1. **Layout de página**: `NegocioHeader` sticky + `div.flex.flex-1.min-h-0` con contenido principal + panel derecho (270px, oculto en mobile).
+2. **Header de nav**: Tabs de navegación con underline naranja en activo. Siempre recibe `activeHref` como prop.
+3. **Cards**: `rounded-2xl border border-border bg-white` con padding `p-4` o `p-5`.
+4. **Pills de estado**: `rounded-full px-2.5 py-1 text-[10px] font-semibold` con dot de color.
+5. **Botones primarios**: `bg-brand-orange text-white rounded-xl px-4 py-2.5 text-[12px] font-semibold`.
+6. **Breadcrumb**: `text-[11px] font-semibold uppercase tracking-wider` con naranja para la sección.
+7. **Gradiente de negocio**: `linear-gradient(135deg, #1A1840 0%, #2D2B8F 60%, #F5A623 200%)`.
+8. **Toggle custom**: Componente local (no shadcn) en `bg-brand-teal` cuando activo.
+9. **Datos de negocio en UI**: Usar datos mock mientras no haya backend. Negocio demo: "Tacos El Güero", código "TG".
+
+> La estructura de `lib/` se poblará conforme se definan los servicios de backend (BaaS, auth, pagos).
 
 ---
 

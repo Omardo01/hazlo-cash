@@ -1,0 +1,251 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import {
+  MenuIcon,
+  XIcon,
+  LayoutDashboardIcon,
+  ClipboardListIcon,
+  UsersIcon,
+  StarIcon,
+  SettingsIcon,
+  MessageSquareIcon,
+  StoreIcon,
+  BarChart2Icon,
+} from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+const quickItems = [
+  { icon: StoreIcon,          label: "Mi Negocio",  href: "/negocio",             bg: "bg-brand-dark"   },
+  { icon: ClipboardListIcon,  label: "Solicitudes", href: "/negocio/solicitudes", bg: "bg-brand-orange" },
+  { icon: UsersIcon,          label: "Embajadores", href: "/negocio/embajadores", bg: "bg-brand-teal"   },
+];
+
+const navItems = [
+  { icon: LayoutDashboardIcon, label: "Inicio",       href: "/negocio"               },
+  { icon: ClipboardListIcon,   label: "Solicitudes",  href: "/negocio/solicitudes"   },
+  { icon: BarChart2Icon,       label: "Estadísticas", href: "/negocio/estadisticas"  },
+  { icon: StarIcon,            label: "Reseñas",      href: "/negocio/resenas"       },
+  { icon: SettingsIcon,        label: "Ajustes",      href: "/negocio/ajustes"       },
+];
+
+// Bottom nav items (mobile)
+const bottomNavItems = [
+  { icon: LayoutDashboardIcon, label: "Inicio",      href: "/negocio"               },
+  { icon: ClipboardListIcon,   label: "Solicitudes", href: "/negocio/solicitudes"   },
+  { icon: UsersIcon,           label: "Embajadores", href: "/negocio/embajadores"   },
+  { icon: BarChart2Icon,       label: "Stats",       href: "/negocio/estadisticas"  },
+  { icon: SettingsIcon,        label: "Ajustes",     href: "/negocio/ajustes"       },
+];
+
+function Separator() {
+  return (
+    <div className="flex h-[15px] w-full items-center justify-center px-[10px]">
+      <div className="h-px w-full rounded-full bg-gradient-to-r from-transparent via-[#EBEBF0] to-transparent" />
+    </div>
+  );
+}
+
+export function NegocioSidebar() {
+  const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Close drawer on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Prevent body scroll when drawer open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileOpen]);
+
+  const activeNav = navItems.find((item) =>
+    item.href === "/negocio"
+      ? pathname === "/negocio"
+      : pathname.startsWith(item.href)
+  );
+
+  const sidebarContent = (
+    <>
+      {/* ── Hamburger / Close ── */}
+      <div className="flex h-20 w-full items-center justify-center shrink-0">
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary transition-colors md:hidden"
+        >
+          <XIcon className="h-5 w-5" />
+        </button>
+        <div className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground">
+          <MenuIcon className="h-5 w-5" />
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* ── Top colored icons ── */}
+      <div className="flex flex-col items-center gap-0">
+        {quickItems.map((item) => (
+          <Tooltip key={item.href}>
+            <TooltipTrigger>
+              <Link
+                href={item.href}
+                className="flex h-[66px] w-20 items-center justify-center"
+              >
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-[14px] text-white transition-transform hover:scale-105 active:scale-95 ${item.bg}`}
+                >
+                  <item.icon className="h-[18px] w-[18px]" />
+                </div>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-xs">
+              {item.label}
+            </TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
+
+      <Separator />
+
+      {/* ── Middle nav group ── */}
+      <div className="mt-3 flex flex-col items-center">
+        <div className="flex flex-col items-center gap-2 rounded-[15px] bg-[#f8f9fe] p-[3px]">
+          {navItems.map((item) => {
+            const isActive = activeNav?.href === item.href;
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger>
+                  <Link
+                    href={item.href}
+                    className={`flex items-center justify-center rounded-[13px] p-[13px] transition-all ${
+                      isActive
+                        ? "bg-white shadow-[0px_4px_8px_rgba(50,50,71,0.08),0px_4px_4px_rgba(0,0,0,0.06)] border border-[#f2f2f7]"
+                        : "hover:bg-white/60"
+                    }`}
+                  >
+                    <item.icon
+                      className={`h-[14px] w-[14px] ${
+                        isActive ? "text-brand-orange" : "text-muted-foreground"
+                      }`}
+                    />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-xs">
+                  {item.label}
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex-1" />
+
+      <Separator />
+      <div className="mb-4 mt-3 flex flex-col items-center">
+        <div className="flex flex-col items-center rounded-[15px] bg-[#f8f9fe] p-[3px]">
+          <Tooltip>
+            <TooltipTrigger>
+              <Link
+                href="/negocio/mensajes"
+                className={`flex items-center justify-center rounded-[13px] p-[13px] transition-all ${
+                  pathname === "/negocio/mensajes"
+                    ? "bg-white shadow-[0px_4px_8px_rgba(50,50,71,0.08)] border border-[#f2f2f7]"
+                    : "hover:bg-white/60"
+                }`}
+              >
+                <MessageSquareIcon
+                  className={`h-[14px] w-[14px] ${
+                    pathname === "/negocio/mensajes"
+                      ? "text-brand-orange"
+                      : "text-muted-foreground"
+                  }`}
+                />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-xs">
+              Mensajes
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* ── Desktop sidebar (md+) ── */}
+      <aside className="hidden md:flex h-screen w-20 shrink-0 flex-col items-center bg-white border-r border-border overflow-hidden">
+        {sidebarContent}
+      </aside>
+
+      {/* ── Mobile: hamburger trigger ── */}
+      <button
+        id="mobile-negocio-sidebar-trigger"
+        onClick={() => setMobileOpen(true)}
+        className="md:hidden fixed top-3.5 left-4 z-40 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary transition-colors bg-white border border-border shadow-sm"
+        aria-label="Abrir menú"
+      >
+        <MenuIcon className="h-5 w-5" />
+      </button>
+
+      {/* ── Mobile overlay ── */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* ── Mobile drawer ── */}
+      <aside
+        className={`md:hidden fixed top-0 left-0 z-50 h-full w-20 flex flex-col items-center bg-white border-r border-border overflow-hidden transition-transform duration-300 ease-in-out ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* ── Mobile bottom nav bar ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around bg-white border-t border-border px-2 pb-safe">
+        {bottomNavItems.map((item) => {
+          const isActive = item.href === "/negocio"
+            ? pathname === "/negocio"
+            : pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex flex-col items-center gap-1 py-2.5 px-3 min-w-0"
+            >
+              <item.icon
+                className={`h-5 w-5 transition-colors ${
+                  isActive ? "text-brand-orange" : "text-muted-foreground"
+                }`}
+              />
+              <span
+                className={`text-[9px] font-semibold leading-none ${
+                  isActive ? "text-brand-orange" : "text-muted-foreground"
+                }`}
+              >
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
+    </>
+  );
+}
