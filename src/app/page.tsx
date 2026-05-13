@@ -198,10 +198,10 @@ const heroVariants = {
     opacity: 1, y: 0,
     transition: { duration: 0.8, staggerChildren: 0.13 },
   },
-};
+} as const;
 const heroItem = {
   hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
 };
 
 function HeroSection() {
@@ -327,10 +327,7 @@ function HeroSection() {
           Tu recomendación
           <br />
           <span className="relative inline-block">
-            <span
-              className="relative z-10"
-              className="text-brand-gradient"
-            >
+            <span className="relative z-10 text-brand-gradient">
               vale dinero
             </span>
           </span>

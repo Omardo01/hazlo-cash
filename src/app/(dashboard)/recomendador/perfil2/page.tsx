@@ -42,18 +42,18 @@ const fadeUp = {
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.07, duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+    transition: { delay: i * 0.07, duration: 0.45, ease: [0.22, 1, 0.36, 1] as const },
   }),
 };
 
 const walletVariants = {
   hidden:  { opacity: 0, y: 40, scale: 0.96 },
-  visible: { opacity: 1, y: 0,  scale: 1, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+  visible: { opacity: 1, y: 0,  scale: 1, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const } },
 };
 
 const cardVariants = {
   hidden:  { opacity: 0, y: -20, rotate: -3 },
-  visible: { opacity: 1, y: 0,   rotate: -2, transition: { duration: 0.55, delay: 0.15, ease: [0.22, 1, 0.36, 1] } },
+  visible: { opacity: 1, y: 0,   rotate: -2, transition: { duration: 0.55, delay: 0.15, ease: [0.22, 1, 0.36, 1] as const } },
 };
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ export default function PerfilWallet() {
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: "48%" }}
-          transition={{ duration: 1, delay: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 1, delay: 0.6, ease: [0.22, 1, 0.36, 1] as const }}
           className="h-full rounded-full"
           style={{ background: "linear-gradient(90deg, var(--brand-purple), #6366F1)" }}
         />
