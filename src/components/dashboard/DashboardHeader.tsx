@@ -34,7 +34,7 @@ export function DashboardHeader({
   tabs = defaultTabs,
   userName = "Omar M.",
   userInitials = "OM",
-  avatarColor = "bg-brand-teal/10 text-brand-teal",
+  avatarColor = "bg-[#FE7801]/10 text-[#FE7801]",
   notificationColor = "bg-brand-orange",
 }: DashboardHeaderProps) {
   const pathname = usePathname();

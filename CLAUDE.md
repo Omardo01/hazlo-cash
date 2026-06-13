@@ -1,6 +1,96 @@
-# CLAUDE.md — Contexto del Proyecto Hazlo Cash
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+---
+
+# Contexto del Proyecto Hazlo Cash
 
 > Este documento es la fuente de verdad para cualquier agente de IA que trabaje en este proyecto. Contiene el contexto completo del negocio, la arquitectura técnica, las decisiones tomadas, el roadmap, y el perfil del fundador técnico. Léelo completo antes de escribir cualquier línea de código.
+
+---
+
+## COMANDOS ESENCIALES
+
+```bash
+npm run dev      # Servidor de desarrollo en http://localhost:3000
+npm run build    # Build de producción (obligatorio antes de hacer PR — detecta errores TS)
+npm run lint     # ESLint sobre todo el proyecto
+```
+
+No hay tests automatizados configurados todavía. Validar manualmente en el browser.
+
+---
+
+## ARQUITECTURA TÉCNICA REAL (estado actual)
+
+### Grupos de rutas y layouts
+
+El proyecto usa Route Groups de Next.js App Router. Cada grupo tiene su propio layout con su sidebar/nav:
+
+| Grupo | Ruta base | Layout | Sidebar |
+|-------|-----------|--------|---------|
+| `(dashboard)` | `/recomendador/*` | `AppSidebar` + `TooltipProvider` | Icónico, icon-only con tooltips |
+| `(negocio)` | `/negocio/*` | `NegocioSidebar` + `TooltipProvider` | Icónico, icon-only con tooltips |
+| `(admin)` | `/admin/*` | `AdminSidebar` + `TooltipProvider` | Panel administrativo |
+| `(cliente)` | `/cliente/*` | Bottom nav + phone shell | Simula teléfono en desktop |
+
+El layout de `(cliente)` es especial: en desktop muestra un "phone shell" (390×844px con notch simulado) centrado sobre fondo zinc. En mobile es full-screen.
+
+### Rutas implementadas (estado real)
+
+**Vista Recomendador (`(dashboard)`):**
+- `/recomendador` — Dashboard principal
+- `/recomendador/comisiones` — Historial de comisiones
+- `/recomendador/perfil` — Perfil v1
+- `/recomendador/perfil2` — Perfil v2 con animaciones (alternativa en evaluación)
+
+**Vista Negocio (`(negocio)`):**
+- `/negocio` — Dashboard
+- `/negocio/solicitudes` — Gestión de solicitudes (filas expandibles)
+- `/negocio/embajadores` — Ranking de embajadores
+- `/negocio/perfil` — Mi Negocio (tabs: Info / Servicios / Horarios / Oferta)
+
+**Vista Admin (`(admin)`):**
+- `/admin` — Dashboard admin
+- `/admin/negocios` — Gestión de negocios
+- `/admin/negocios/nuevo` — Formulario de alta de negocio
+- `/admin/users` — Gestión de usuarios
+- `/admin/finanzas` — Panel financiero
+
+**Vista Cliente (`(cliente)`):**
+- `/cliente` — Inicio (catálogo de negocios)
+- `/cliente/negocio` — Detalle de negocio
+
+**Rutas públicas:**
+- `/` — Landing page
+- `/r/[code]` — Deep link de referido (ej: `/r/HAZLO-OD42`). Muestra el negocio y la oferta asociados al código. Tiene pantalla "Mostrar al negocio" full-screen.
+- `/landing2` — Landing alternativa (experimental)
+- `/ambassador2` — Dashboard embajador alternativo (experimental)
+
+### Estado de los datos
+
+**Todo el proyecto usa mock data por ahora.** No hay backend, base de datos ni autenticación conectados. Los datos están hardcodeados en cada `page.tsx`. La ruta `/r/[code]` tiene un `MOCK_DATA` con dos códigos de ejemplo: `HAZLO-OD42` y `HAZLO-MR18`.
+
+### Importación de animaciones
+
+El paquete instalado es `motion` (no `framer-motion`). Importar así:
+```ts
+import { motion, AnimatePresence } from "motion/react";
+// NO: import { motion } from "framer-motion"
+```
+
+### Colores de marca (Tailwind)
+
+Disponibles como clases Tailwind vía CSS custom properties en `globals.css`:
+- `text-brand-purple` / `bg-brand-purple` → `#2D2B8F`
+- `text-brand-teal` / `bg-brand-teal` → `#00A896`
+- `text-brand-orange` / `bg-brand-orange` → `#F5A623`
+- `text-brand-dark` / `bg-brand-dark` → `#1A1840`
+
+Gradiente estándar de negocio: `linear-gradient(135deg, #1A1840 0%, #2D2B8F 60%, #F5A623 200%)`
+
+---
 
 ---
 
@@ -305,13 +395,13 @@ El sistema de pagos es crucial para el modelo. Estos son los requerimientos func
 hazlocash/
 ├── src/
 │   ├── app/
-│   │   ├── (dashboard)/                  # Vista del Embajador
+│   │   ├── (dashboard)/                  # Vista del Recomendador/Embajador
 │   │   │   ├── layout.tsx                # Layout con AppSidebar + TooltipProvider
-│   │   │   └── ambassador/
-│   │   │       ├── page.tsx              # ✅ Dashboard principal del embajador
+│   │   │   └── recomendador/
+│   │   │       ├── page.tsx              # ✅ Dashboard principal del recomendador
 │   │   │       ├── comisiones/page.tsx   # ✅ Historial y detalle de comisiones
-│   │   │       ├── perfil/page.tsx       # ✅ Perfil del embajador (v1)
-│   │   │       └── perfil2/page.tsx      # ✅ Perfil del embajador (v2 alternativa)
+│   │   │       ├── perfil/page.tsx       # ✅ Perfil del recomendador (v1)
+│   │   │       └── perfil2/page.tsx      # ✅ Perfil del recomendador (v2 alternativa)
 │   │   ├── (negocio)/                    # Vista del Negocio
 │   │   │   ├── layout.tsx                # Layout con NegocioSidebar + TooltipProvider
 │   │   │   └── negocio/
@@ -389,13 +479,13 @@ hazlocash/
 | `/negocio/embajadores` | ✅ Listo | Ranking con niveles (bronce/plata/oro), copiar código, actividad reciente |
 | `/negocio/perfil` | ✅ Listo | Tabs: Información básica, Servicios/Menú, Horarios, Oferta Hazlo Cash |
 
-#### Vista Embajador — `/ambassador/*`
+#### Vista Recomendador — `/recomendador/*`
 | Ruta | Estado | Descripción |
 |------|--------|-------------|
-| `/ambassador` | ✅ Listo | Dashboard: nivel, stats, gráfico de ingresos, distribución de referidos, panel derecho |
-| `/ambassador/comisiones` | ✅ Listo | Historial de comisiones con detalle |
-| `/ambassador/perfil` | ✅ Listo | Perfil del embajador v1 |
-| `/ambassador/perfil2` | ✅ Listo | Perfil del embajador v2 (alternativa con animaciones) |
+| `/recomendador` | ✅ Listo | Dashboard: nivel, stats, gráfico de ingresos, distribución de referidos, panel derecho |
+| `/recomendador/comisiones` | ✅ Listo | Historial de comisiones con detalle |
+| `/recomendador/perfil` | ✅ Listo | Perfil del recomendador v1 |
+| `/recomendador/perfil2` | ✅ Listo | Perfil del recomendador v2 (alternativa con animaciones) |
 
 #### Rutas pendientes (aún no implementadas)
 | Ruta | Prioridad | Descripción |

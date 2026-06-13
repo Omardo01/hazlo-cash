@@ -17,7 +17,7 @@ const activities = [
     amount: "+$25.00",
     status: "pendiente" as const,
     initials: "ML",
-    bg: "bg-brand-purple/10 text-brand-purple",
+    bg: "bg-[#FE7801]/10 text-[#FE7801]",
   },
   {
     id: 3,

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -24,7 +25,7 @@ import {
 // ── Top quick-access icons (3 items, like ambassador & negocio) ──
 const quickItems = [
   { icon: ShieldAlertIcon,  label: "Panel",    href: "/admin",          bg: "bg-brand-dark"   },
-  { icon: UsersIcon,        label: "Usuarios", href: "/admin/users",    bg: "bg-brand-purple" },
+  { icon: UsersIcon,        label: "Usuarios", href: "/admin/users",    bg: "bg-[#FE7801]"    },
   { icon: CreditCardIcon,   label: "Finanzas", href: "/admin/finanzas", bg: "bg-brand-teal"   },
 ];
 
@@ -78,16 +79,17 @@ export function AdminSidebar() {
 
   const sidebarContent = (
     <>
-      {/* ── Hamburger / Close ── */}
+      {/* ── Logo / Close ── */}
       <div className="flex h-20 w-full items-center justify-center shrink-0">
         <button
           onClick={() => setMobileOpen(false)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary transition-colors md:hidden"
+          className="flex flex-col items-center gap-1.5 md:hidden"
         >
-          <XIcon className="h-5 w-5" />
+          <Image src="/hazlo.svg" alt="Hazlo Cash" width={28} height={23} />
+          <XIcon className="h-3.5 w-3.5 text-muted-foreground" />
         </button>
-        <div className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground">
-          <MenuIcon className="h-5 w-5" />
+        <div className="hidden md:flex items-center justify-center">
+          <Image src="/hazlo.svg" alt="Hazlo Cash" width={28} height={23} />
         </div>
       </div>
 
@@ -130,7 +132,7 @@ export function AdminSidebar() {
                     }`}
                   >
                     <item.icon
-                      className={`h-[14px] w-[14px] ${isActive ? "text-brand-dark" : "text-muted-foreground"}`}
+                      className={`h-[14px] w-[14px] ${isActive ? "text-[#FE7801]" : "text-muted-foreground"}`}
                     />
                   </Link>
                 </TooltipTrigger>
@@ -218,8 +220,8 @@ export function AdminSidebar() {
           const isActive = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
           return (
             <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1 py-2.5 px-3 min-w-0">
-              <item.icon className={`h-5 w-5 transition-colors ${isActive ? "text-brand-dark" : "text-muted-foreground"}`} />
-              <span className={`text-[9px] font-semibold leading-none ${isActive ? "text-brand-dark" : "text-muted-foreground"}`}>
+              <item.icon className={`h-5 w-5 transition-colors ${isActive ? "text-[#FE7801]" : "text-muted-foreground"}`} />
+              <span className={`text-[9px] font-semibold leading-none ${isActive ? "text-[#FE7801]" : "text-muted-foreground"}`}>
                 {item.label}
               </span>
             </Link>

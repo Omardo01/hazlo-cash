@@ -11,6 +11,8 @@ const adminTabs = [
 ];
 import { StatCard } from "@/components/dashboard/StatCard";
 import { cn } from "@/lib/utils";
+import { useSimulatedLoading } from "@/hooks/useSimulatedLoading";
+import { AdminTableSkeleton } from "@/components/ui/skeletons";
 
 const transacciones = [
   { id: "TX-9901", date: "15 Abr, 10:24", desc: "Pago a Embajador Ana L.", type: "out", amount: "$1,200.00", fee: "$0.00" },
@@ -21,6 +23,14 @@ const transacciones = [
 ];
 
 export default function AdminFinanzasPage() {
+  const loading = useSimulatedLoading();
+  if (loading) return (
+    <>
+      <DashboardHeader title="Admin" tabs={adminTabs} userName="Super Admin" userInitials="SA" avatarColor="bg-brand-dark text-white" notificationColor="bg-brand-dark" />
+      <div className="flex flex-1 min-h-0 gap-0 bg-[#fbfbfd]"><AdminTableSkeleton /></div>
+    </>
+  );
+
   return (
     <>
       <DashboardHeader
@@ -80,8 +90,8 @@ export default function AdminFinanzasPage() {
               change="+14% vs anterior"
               changeType="positive"
               icon={TrendingUpIcon}
-              iconColor="text-brand-purple"
-              iconBg="bg-brand-purple/10"
+              iconColor="text-[#FE7801]"
+              iconBg="bg-[#FE7801]/10"
             />
             <StatCard
               title="Facturas / Docs"

@@ -39,7 +39,7 @@ const revenueData = [
 ];
 
 const chartConfig = {
-  revenue: { label: "Ingresos (MXN)", color: "var(--brand-purple)" },
+  revenue: { label: "Ingresos (MXN)", color: "#FE7801" },
 } satisfies ChartConfig;
 
 const pendingActions = [
@@ -56,6 +56,8 @@ const recentActivity = [
 ];
 
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { useSimulatedLoading } from "@/hooks/useSimulatedLoading";
+import { AdminDashboardSkeleton } from "@/components/ui/skeletons";
 
 const adminTabs = [
   { label: "Overview",  href: "/admin" },
@@ -67,6 +69,14 @@ const adminTabs = [
 // ── Page Component ────────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
+  const loading = useSimulatedLoading();
+  if (loading) return (
+    <>
+      <DashboardHeader title="Admin" tabs={adminTabs} userName="Super Admin" userInitials="SA" avatarColor="bg-brand-dark text-white" notificationColor="bg-brand-dark" />
+      <div className="flex flex-1 min-h-0 gap-0 bg-[#fbfbfd]"><AdminDashboardSkeleton /></div>
+    </>
+  );
+
   return (
     <>
       <DashboardHeader
@@ -106,8 +116,8 @@ export default function AdminDashboard() {
               change="+22% mes pasado"
               changeType="positive"
               icon={DollarSignIcon}
-              iconColor="text-brand-purple"
-              iconBg="bg-brand-purple/10"
+              iconColor="text-[#FE7801]"
+              iconBg="bg-[#FE7801]/10"
             />
             <StatCard
               title="Embajadores Activos"
@@ -157,8 +167,8 @@ export default function AdminDashboard() {
                   <AreaChart data={revenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--brand-purple)" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="var(--brand-purple)" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#FE7801" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#FE7801" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" />
@@ -175,7 +185,7 @@ export default function AdminDashboard() {
                         );
                       }}
                     />
-                    <Area type="monotone" dataKey="revenue" stroke="var(--brand-purple)" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                    <Area type="monotone" dataKey="revenue" stroke="#FE7801" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
                   </AreaChart>
                 </ChartContainer>
               </div>
@@ -191,7 +201,7 @@ export default function AdminDashboard() {
                   </h3>
                   <p className="text-[11px] text-muted-foreground mt-0.5">{pendingActions.length} tareas pendientes</p>
                 </div>
-                <button className="text-xs font-semibold text-brand-purple hover:underline">Ver todas</button>
+                <button className="text-xs font-semibold text-[#FE7801] hover:underline">Ver todas</button>
               </div>
               <div className="flex flex-col p-2">
                 {pendingActions.map((action) => (
@@ -254,7 +264,7 @@ export default function AdminDashboard() {
                     <span className="sm:hidden text-[10px] text-muted-foreground">{act.date}</span>
                   </div>
                   <div className="flex items-center gap-2 mt-1 sm:mt-0">
-                    {act.type === "income" ? <div className="h-1.5 w-1.5 rounded-full bg-brand-purple" /> :
+                    {act.type === "income" ? <div className="h-1.5 w-1.5 rounded-full bg-[#FE7801]" /> :
                      act.type === "payout" ? <div className="h-1.5 w-1.5 rounded-full bg-brand-orange" /> :
                      <div className="h-1.5 w-1.5 rounded-full bg-slate-300" />}
                     <span className="text-xs font-semibold text-foreground">{act.desc}</span>
@@ -263,7 +273,7 @@ export default function AdminDashboard() {
                     <span className="sm:hidden text-[10px] uppercase text-muted-foreground">Monto</span>
                     <span className={cn(
                       "text-xs font-bold font-mono",
-                      act.amount.startsWith("+") ? "text-brand-purple" : act.amount.startsWith("-") ? "text-foreground" : "text-muted-foreground"
+                      act.amount.startsWith("+") ? "text-[#FE7801]" : act.amount.startsWith("-") ? "text-foreground" : "text-muted-foreground"
                     )}>{act.amount}</span>
                   </div>
                   <div className="hidden sm:block w-32 text-right">

@@ -10,16 +10,26 @@ const adminTabs = [
   { label: "Finanzas",  href: "/admin/finanzas" },
 ];
 import { cn } from "@/lib/utils";
+import { useSimulatedLoading } from "@/hooks/useSimulatedLoading";
+import { AdminTableSkeleton } from "@/components/ui/skeletons";
 
 const usersData = [
   { id: "USR-001", name: "Omar Domínguez", type: "Embajador", refCount: 14, earned: "$2,450", status: "active", iconBg: "bg-brand-dark" },
-  { id: "USR-002", name: "Ana López", type: "Embajador", refCount: 32, earned: "$5,100", status: "active", iconBg: "bg-brand-purple" },
+  { id: "USR-002", name: "Ana López", type: "Embajador", refCount: 32, earned: "$5,100", status: "active", iconBg: "bg-indigo-600" },
   { id: "USR-003", name: "Carlos Mendoza", type: "Embajador", refCount: 8, earned: "$980", status: "inactive", iconBg: "bg-brand-teal" },
   { id: "USR-004", name: "Luis Pérez", type: "Embajador", refCount: 104, earned: "$18,500", status: "banned", iconBg: "bg-red-500" },
   { id: "USR-005", name: "María Gómez", type: "Embajador", refCount: 22, earned: "$3,300", status: "active", iconBg: "bg-brand-orange" },
 ];
 
 export default function AdminUsersPage() {
+  const loading = useSimulatedLoading();
+  if (loading) return (
+    <>
+      <DashboardHeader title="Admin" tabs={adminTabs} userName="Super Admin" userInitials="SA" avatarColor="bg-brand-dark text-white" notificationColor="bg-brand-dark" />
+      <div className="flex flex-1 min-h-0 gap-0 bg-[#fbfbfd]"><AdminTableSkeleton /></div>
+    </>
+  );
+
   return (
     <>
       <DashboardHeader
@@ -62,7 +72,7 @@ export default function AdminUsersPage() {
                 <input
                   type="text"
                   placeholder="Buscar usuario, ID o correo..."
-                  className="h-9 w-full rounded-lg border border-border bg-secondary/50 pl-9 pr-3 text-sm focus:outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple"
+                  className="h-9 w-full rounded-lg border border-border bg-secondary/50 pl-9 pr-3 text-sm focus:outline-none focus:border-[#FE7801] focus:ring-1 focus:ring-[#FE7801]"
                 />
               </div>
               <button className="flex items-center gap-2 h-9 px-3 rounded-lg border border-border text-xs font-medium hover:bg-secondary">
@@ -94,7 +104,7 @@ export default function AdminUsersPage() {
                       </div>
                     </div>
                     <div className="text-center font-semibold text-sm">{usr.refCount}</div>
-                    <div className="text-right font-bold text-sm text-brand-purple">{usr.earned}</div>
+                    <div className="text-right font-bold text-sm text-[#FE7801]">{usr.earned}</div>
                     <div className="flex justify-center">
                       <span className={cn(
                         "px-2 py-1 rounded-md text-[10px] font-bold uppercase",

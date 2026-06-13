@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hazlo Cash — Prototipo (PDF)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #ECEAE6; }
+    body {
+      font-family: 'Poppins', -apple-system, system-ui, sans-serif;
+      color: #0D0D0D;
+      -webkit-font-smoothing: antialiased;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .page {
+      width: 1480px;
+      min-height: 940px;
+      padding: 56px 64px 48px;
+      background: #F5F3F0;
+      page-break-after: always;
+      break-after: page;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .page:last-child { page-break-after: auto; break-after: auto; }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    .page-meta {
+      font-size: 11px;
+      color: rgba(13,13,13,0.5);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .page-title {
+      margin: 0 0 26px;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: #0D0D0D;
+    }
+
+    .phone-row {
+      display: flex;
+      gap: 40px;
+      flex: 1;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .phone-row.centered {
+      gap: 48px;
+      align-items: stretch;
+    }
+
+    .phone-card {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      align-items: center;
+    }
+    .phone-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(13,13,13,0.6);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .phone-wrap {
+      transform: scale(0.85);
+      transform-origin: top center;
+      filter: drop-shadow(0 20px 50px rgba(0,0,0,0.12));
+    }
+
+    .notes {
+      flex: 1;
+      max-width: 460px;
+      padding: 32px;
+      background: #fff;
+      border-radius: 24px;
+      border: 0.5px solid rgba(0,0,0,0.06);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.04);
+      align-self: center;
+    }
+    .notes h2 {
+      font-size: 13px; font-weight: 700; margin: 0 0 12px;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: #FE7801;
+    }
+    .notes h2:not(:first-child) { margin-top: 24px; }
+    .notes ol, .notes ul {
+      margin: 0; padding-left: 18px;
+      font-size: 13px; line-height: 1.6; color: #2A2A2A;
+    }
+    .notes li { margin-bottom: 8px; }
+    .notes b { font-weight: 600; color: #0D0D0D; }
+
+    /* Print rules */
+    @page {
+      size: landscape;
+      margin: 0;
+    }
+    @media print {
+      html, body { background: #F5F3F0; }
+      .page {
+        width: 100%;
+        min-height: 100vh;
+        padding: 40px 48px;
+      }
+      .phone-wrap { transform: scale(0.78); }
+    }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="brand.jsx"></script>
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="screens.jsx"></script>
+  <script type="text/babel" src="app-print.jsx"></script>
+</body>
+</html>

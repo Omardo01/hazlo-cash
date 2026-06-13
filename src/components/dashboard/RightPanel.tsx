@@ -5,8 +5,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 const negocios = [
   { name: "Tacos El Güero",    category: "Comida",     initials: "TG", bg: "bg-brand-orange", refs: "48 ref." },
-  { name: "Estética Luna",     category: "Belleza",    initials: "EL", bg: "bg-brand-teal",   refs: "31 ref." },
-  { name: "Plomería Express",  category: "Hogar",      initials: "PE", bg: "bg-brand-purple", refs: "27 ref." },
+  { name: "Estética Luna",     category: "Belleza",    initials: "EL", bg: "bg-[#F5A623]",    refs: "31 ref." },
+  { name: "Plomería Express",  category: "Hogar",      initials: "PE", bg: "bg-brand-dark",   refs: "27 ref." },
   { name: "Mecánica Pérez",    category: "Automotriz", initials: "MP", bg: "bg-brand-dark",   refs: "19 ref." },
 ];
 
@@ -37,12 +37,12 @@ export function RightPanel() {
         <div className="h-px bg-white/[0.07]" />
         <div className="px-4 py-3 flex items-center gap-2">
           <span className="text-[11px] text-white/60">Comisión acumulada</span>
-          <span className="ml-auto text-sm font-bold text-brand-teal">+$720 MXN</span>
+          <span className="ml-auto text-sm font-bold text-[#FE7801]">+$720 MXN</span>
         </div>
       </div>
 
       {/* ── Link ── */}
-      <button className="flex items-center gap-1.5 text-[12px] text-brand-purple font-medium hover:underline transition-colors -mt-1 w-fit">
+      <button className="flex items-center gap-1.5 text-[12px] text-[#FE7801] font-medium hover:underline transition-colors -mt-1 w-fit">
         <ExternalLinkIcon className="h-3 w-3" />
         Ver perfil del negocio
       </button>
@@ -93,21 +93,21 @@ export function RightPanel() {
                 dataKey="v"
                 strokeWidth={0}
               >
-                <Cell fill="#7459D9" />
+                <Cell fill="#FE7801" />
                 <Cell fill="rgba(120,114,128,0.16)" />
               </Pie>
             </PieChart>
           </ResponsiveContainer>
           {/* % dentro del ring */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span className="text-[10px] font-bold" style={{ color: "#112638" }}>{ingresosPct}%</span>
+            <span className="text-[10px] font-bold" style={{ color: "#1A1840" }}>{ingresosPct}%</span>
           </div>
         </div>
 
         {/* Texto — empieza después del ring (ring termina en ~85px desde izquierda) */}
         <div className="flex h-full items-center justify-between pl-[96px] pr-5">
           <span className="text-sm" style={{ color: "rgba(60,60,67,0.6)" }}>Meta mensual</span>
-          <span className="text-[13px] font-semibold" style={{ color: "#7459D9" }}>+25%</span>
+          <span className="text-[13px] font-semibold" style={{ color: "#FE7801" }}>+25%</span>
         </div>
       </div>
 

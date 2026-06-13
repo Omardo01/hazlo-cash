@@ -172,7 +172,7 @@ function TabInfo({
       <div className="rounded-2xl border border-border bg-white overflow-hidden">
         <div
           className="h-28 flex items-center justify-center relative"
-          style={{ background: "linear-gradient(135deg, #1A1840 0%, #2D2B8F 60%, #F5A623 200%)" }}
+          style={{ background: "linear-gradient(135deg, #0A0A0A 0%, #1A1000 60%, #FE7801 200%)" }}
         >
           <div className="text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-orange mx-auto mb-1.5 text-lg font-black text-white">
@@ -718,7 +718,7 @@ export default function PerfilNegocioPage() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold">Vista previa pública</h3>
-                <button className="text-[11px] text-brand-purple font-medium hover:underline flex items-center gap-0.5">
+                <button className="text-[11px] text-[#FE7801] font-medium hover:underline flex items-center gap-0.5">
                   Abrir <ExternalLinkIcon className="h-2.5 w-2.5" />
                 </button>
               </div>
@@ -726,7 +726,7 @@ export default function PerfilNegocioPage() {
                 {/* Banner */}
                 <div
                   className="h-16 flex items-center px-4 gap-3"
-                  style={{ background: "linear-gradient(135deg, #1A1840 0%, #2D2B8F 100%)" }}
+                  style={{ background: "linear-gradient(135deg, #FE7801 0%, #EB4E00 73%)" }}
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-orange text-sm font-black text-white shrink-0">
                     TG
@@ -761,7 +761,7 @@ export default function PerfilNegocioPage() {
               <h3 className="text-sm font-semibold mb-3">Rendimiento del perfil</h3>
               <div className="rounded-2xl border border-border bg-white p-4 space-y-3">
                 {[
-                  { label: "Visitas este mes",     value: "248",  icon: EyeIcon,        color: "text-brand-purple", bg: "bg-brand-purple/8" },
+                  { label: "Visitas este mes",     value: "248",  icon: EyeIcon,        color: "text-[#FE7801]", bg: "bg-[#FE7801]/8" },
                   { label: "Solicitudes recibidas", value: "24",  icon: TrendingUpIcon,  color: "text-brand-teal",   bg: "bg-brand-teal/8"   },
                   { label: "Tasa de conversión",   value: "9.7%", icon: ZapIcon,        color: "text-brand-orange", bg: "bg-brand-orange/8" },
                 ].map((stat) => (
@@ -782,7 +782,7 @@ export default function PerfilNegocioPage() {
             <div className="rounded-2xl border border-border bg-white p-4">
               <p className="text-[11px] font-semibold text-muted-foreground mb-2">Tu URL pública</p>
               <div className="flex items-center gap-2 rounded-xl bg-secondary px-3 py-2">
-                <code className="text-[11px] text-brand-purple font-mono flex-1 truncate">
+                <code className="text-[11px] text-[#FE7801] font-mono flex-1 truncate">
                   hazlocash.mx/b/tacos-el-guero
                 </code>
                 <ExternalLinkIcon className="h-3 w-3 text-muted-foreground shrink-0" />

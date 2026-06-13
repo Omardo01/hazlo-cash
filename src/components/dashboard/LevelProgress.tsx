@@ -16,7 +16,7 @@ export function LevelProgress() {
 
       {/* Level */}
       <div className="mb-4 flex items-baseline gap-2">
-        <span className="text-2xl font-black text-brand-purple">{currentLevel}</span>
+        <span className="text-2xl font-black text-[#FE7801]">{currentLevel}</span>
         <span className="text-sm text-muted-foreground">→ {nextLevel}</span>
       </div>
 
@@ -27,7 +27,7 @@ export function LevelProgress() {
             className="h-full rounded-full transition-all duration-500"
             style={{
               width: `${progress}%`,
-              background: "linear-gradient(90deg, var(--brand-purple), #6366F1)",
+              background: "linear-gradient(90deg, #FE7801, #EB4E00)",
             }}
           />
         </div>
@@ -35,7 +35,7 @@ export function LevelProgress() {
           <span className="text-muted-foreground">
             {currentReferrals}/{requiredReferrals} referidos
           </span>
-          <span className="font-semibold text-brand-purple">{Math.round(progress)}%</span>
+          <span className="font-semibold text-[#FE7801]">{Math.round(progress)}%</span>
         </div>
       </div>
 
@@ -50,10 +50,10 @@ export function LevelProgress() {
             key={tier.level}
             className={`flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-center transition-all ${
               tier.active
-                ? "bg-brand-purple text-white"
+                ? "text-white"
                 : "bg-secondary text-muted-foreground"
             }`}
-            style={tier.active ? { boxShadow: "0 3px 12px rgba(45, 43, 143, 0.25)" } : {}}
+            style={tier.active ? { background: "linear-gradient(135deg, #FE7801 0%, #EB4E00 73%)", boxShadow: "0 3px 12px rgba(254,120,1,0.3)" } : {}}
           >
             <StarIcon
               className={`h-3.5 w-3.5 ${tier.active ? "fill-white/30" : ""}`}

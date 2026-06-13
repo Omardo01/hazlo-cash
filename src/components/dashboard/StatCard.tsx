@@ -17,8 +17,8 @@ export function StatCard({
   change,
   changeType = "neutral",
   icon: Icon,
-  iconColor = "text-brand-purple",
-  iconBg = "bg-brand-purple/8",
+  iconColor = "text-[#FE7801]",
+  iconBg = "bg-[#FE7801]/8",
 }: StatCardProps) {
   return (
     <div className="rounded-2xl border border-border bg-white p-3 sm:p-5">

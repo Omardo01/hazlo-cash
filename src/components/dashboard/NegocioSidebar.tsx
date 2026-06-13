@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -79,16 +80,17 @@ export function NegocioSidebar() {
 
   const sidebarContent = (
     <>
-      {/* ── Hamburger / Close ── */}
+      {/* ── Logo / Close ── */}
       <div className="flex h-20 w-full items-center justify-center shrink-0">
         <button
           onClick={() => setMobileOpen(false)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary transition-colors md:hidden"
+          className="flex flex-col items-center gap-1.5 md:hidden"
         >
-          <XIcon className="h-5 w-5" />
+          <Image src="/hazlo.svg" alt="Hazlo Cash" width={28} height={23} />
+          <XIcon className="h-3.5 w-3.5 text-muted-foreground" />
         </button>
-        <div className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground">
-          <MenuIcon className="h-5 w-5" />
+        <div className="hidden md:flex items-center justify-center">
+          <Image src="/hazlo.svg" alt="Hazlo Cash" width={28} height={23} />
         </div>
       </div>
 
@@ -137,7 +139,7 @@ export function NegocioSidebar() {
                   >
                     <item.icon
                       className={`h-[14px] w-[14px] ${
-                        isActive ? "text-brand-orange" : "text-muted-foreground"
+                        isActive ? "text-[#FE7801]" : "text-muted-foreground"
                       }`}
                     />
                   </Link>
@@ -232,12 +234,12 @@ export function NegocioSidebar() {
             >
               <item.icon
                 className={`h-5 w-5 transition-colors ${
-                  isActive ? "text-brand-orange" : "text-muted-foreground"
+                  isActive ? "text-[#FE7801]" : "text-muted-foreground"
                 }`}
               />
               <span
                 className={`text-[9px] font-semibold leading-none ${
-                  isActive ? "text-brand-orange" : "text-muted-foreground"
+                  isActive ? "text-[#FE7801]" : "text-muted-foreground"
                 }`}
               >
                 {item.label}

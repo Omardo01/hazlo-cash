@@ -23,6 +23,8 @@ import {
   AwardIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSimulatedLoading } from "@/hooks/useSimulatedLoading";
+import { EmbajadoresSkeleton } from "@/components/ui/skeletons";
 
 // ── Types & Data ──────────────────────────────────────────────────────────────
 
@@ -44,7 +46,7 @@ interface Embajador {
 
 const embajadoresData: Embajador[] = [
   { id: "e1", codigo: "HAZLO-OD42", iniciales: "OD", bg: "bg-brand-dark",    nivel: "oro",    referidos: 14, completadas: 12, comisionTotal: 2940, comisionMes: 560, ultimaRef: "Hoy",         activo: true  },
-  { id: "e2", codigo: "HAZLO-MR18", iniciales: "MR", bg: "bg-brand-purple",  nivel: "plata",  referidos: 9,  completadas: 7,  comisionTotal: 1260, comisionMes: 320, ultimaRef: "Hoy",         activo: true  },
+  { id: "e2", codigo: "HAZLO-MR18", iniciales: "MR", bg: "bg-indigo-600",  nivel: "plata",  referidos: 9,  completadas: 7,  comisionTotal: 1260, comisionMes: 320, ultimaRef: "Hoy",         activo: true  },
   { id: "e3", codigo: "HAZLO-LP05", iniciales: "LP", bg: "bg-brand-teal",    nivel: "plata",  referidos: 7,  completadas: 6,  comisionTotal: 1050, comisionMes: 280, ultimaRef: "Ayer",        activo: true  },
   { id: "e4", codigo: "HAZLO-JV29", iniciales: "JV", bg: "bg-indigo-500",    nivel: "bronce", referidos: 4,  completadas: 3,  comisionTotal: 480,  comisionMes: 80,  ultimaRef: "9 Abr",       activo: false },
   { id: "e5", codigo: "HAZLO-AG11", iniciales: "AG", bg: "bg-rose-500",      nivel: "bronce", referidos: 2,  completadas: 2,  comisionTotal: 200,  comisionMes: 0,   ultimaRef: "5 Abr",       activo: false },
@@ -165,7 +167,7 @@ function EmbajadorRow({ emb, rank }: { emb: Embajador; rank: number }) {
             <p className="font-mono text-[12px] font-bold text-foreground">{emb.codigo}</p>
             <button
               onClick={handleCopy}
-              className="text-muted-foreground hover:text-brand-purple transition-colors"
+              className="text-muted-foreground hover:text-[#FE7801] transition-colors"
             >
               {copied ? <CheckCircle2Icon className="h-3 w-3 text-brand-teal" /> : <CopyIcon className="h-3 w-3" />}
             </button>
@@ -215,6 +217,7 @@ function EmbajadorRow({ emb, rank }: { emb: Embajador; rank: number }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function EmbajadoresPage() {
+  const loading = useSimulatedLoading();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterNivel, setFilterNivel] = useState<"todos" | NivelKey>("todos");
 
@@ -231,6 +234,8 @@ export default function EmbajadoresPage() {
   const totalComisiones  = embajadoresData.reduce((a, e) => a + e.comisionTotal, 0);
   const activos          = embajadoresData.filter((e) => e.activo).length;
   const topEmbajador     = embajadoresData[0];
+
+  if (loading) return <><NegocioHeader activeHref="/negocio/embajadores" /><EmbajadoresSkeleton /></>;
 
   return (
     <>
@@ -263,7 +268,7 @@ export default function EmbajadoresPage() {
           {/* Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              { label: "Total embajadores",    value: embajadoresData.length, sub: `${activos} activos este mes`, icon: UsersIcon,     color: "text-brand-purple", bg: "bg-brand-purple/8" },
+              { label: "Total embajadores",    value: embajadoresData.length, sub: `${activos} activos este mes`, icon: UsersIcon,     color: "text-[#FE7801]", bg: "bg-[#FE7801]/8" },
               { label: "Referidos totales",     value: totalReferidos,         sub: "Clientes traídos",            icon: TrendingUpIcon, color: "text-brand-teal",   bg: "bg-brand-teal/8"   },
               { label: "Comisiones pagadas",    value: `$${totalComisiones.toLocaleString("es-MX")}`, sub: "Acumulado histórico", icon: WalletIcon, color: "text-brand-orange", bg: "bg-brand-orange/8" },
               { label: "Nivel más alto",        value: "Oro 🥇",               sub: topEmbajador.codigo,           icon: AwardIcon,     color: "text-amber-500",    bg: "bg-amber-50"       },
@@ -345,7 +350,7 @@ export default function EmbajadoresPage() {
           {/* How it works */}
           <div
             className="rounded-2xl p-5"
-            style={{ background: "linear-gradient(135deg, #1A1840 0%, #2D2B8F 100%)" }}
+            style={{ background: "linear-gradient(135deg, #FE7801 0%, #EB4E00 73%)" }}
           >
             <div className="flex items-start gap-4 flex-wrap">
               <div className="flex-1 min-w-[200px]">
@@ -416,7 +421,7 @@ export default function EmbajadoresPage() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold">Actividad reciente</h3>
-                <button className="text-[11px] text-brand-purple font-medium hover:underline flex items-center gap-0.5">
+                <button className="text-[11px] text-[#FE7801] font-medium hover:underline flex items-center gap-0.5">
                   Ver todo <ExternalLinkIcon className="h-2.5 w-2.5" />
                 </button>
               </div>
@@ -431,7 +436,7 @@ export default function EmbajadoresPage() {
                           <Icon className="h-3.5 w-3.5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-mono text-[11px] font-bold text-brand-purple">{act.codigo}</p>
+                          <p className="font-mono text-[11px] font-bold text-[#FE7801]">{act.codigo}</p>
                           <p className="text-[11px] text-foreground font-medium leading-tight">{act.servicio}</p>
                           <div className="flex items-center justify-between mt-0.5">
                             <span className="text-[10px] text-muted-foreground">{act.tiempo}</span>
@@ -479,13 +484,13 @@ export default function EmbajadoresPage() {
             </div>
 
             {/* Invitar */}
-            <div className="rounded-2xl border border-dashed border-brand-purple/30 bg-brand-purple/3 p-4 text-center">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-purple/10 mx-auto mb-2">
-                <ShareIcon className="h-4 w-4 text-brand-purple" />
+            <div className="rounded-2xl border border-dashed border-[#FE7801]/30 bg-[#FE7801]/3 p-4 text-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FE7801]/10 mx-auto mb-2">
+                <ShareIcon className="h-4 w-4 text-[#FE7801]" />
               </div>
               <p className="text-[12px] font-semibold text-foreground mb-1">¿Conoces a alguien?</p>
               <p className="text-[11px] text-muted-foreground mb-3">Invita a más embajadores y crece tu red de recomendaciones.</p>
-              <button className="w-full rounded-xl bg-brand-purple text-white py-2 text-[12px] font-semibold hover:bg-brand-purple/90 transition-colors flex items-center justify-center gap-1.5">
+              <button className="w-full rounded-xl bg-[#FE7801] text-white py-2 text-[12px] font-semibold hover:bg-[#FE7801]/90 transition-colors flex items-center justify-center gap-1.5">
                 <ShareIcon className="h-3.5 w-3.5" />
                 Invitar embajador
               </button>

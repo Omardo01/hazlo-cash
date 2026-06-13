@@ -19,6 +19,8 @@ import {
   ChevronRightIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSimulatedLoading } from "@/hooks/useSimulatedLoading";
+import { ComisionesSkeleton } from "@/components/ui/skeletons";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -32,17 +34,17 @@ const monthlyData = [
 ];
 
 const chartConfig = {
-  ganado: { label: "Ganado", color: "var(--brand-purple)" },
+  ganado: { label: "Ganado", color: "#FE7801" },
 } satisfies ChartConfig;
 
 const transactions = [
   { id: "T001", negocio: "Tacos El Güero",   iniciales: "TG", bg: "bg-brand-orange",  categoria: "Comida",      fecha: "Hoy, 14:32",       monto: 120,  comision: 6,     estado: "confirmada" },
-  { id: "T002", negocio: "Estética Luna",    iniciales: "EL", bg: "bg-brand-teal",    categoria: "Belleza",     fecha: "Hoy, 11:20",       monto: 350,  comision: 17.50, estado: "pendiente"  },
-  { id: "T003", negocio: "Plomería Express", iniciales: "PE", bg: "bg-brand-purple",  categoria: "Hogar",       fecha: "Ayer, 18:05",      monto: 800,  comision: 40,    estado: "pagada"     },
+  { id: "T002", negocio: "Estética Luna",    iniciales: "EL", bg: "bg-[#F5A623]",     categoria: "Belleza",     fecha: "Hoy, 11:20",       monto: 350,  comision: 17.50, estado: "pendiente"  },
+  { id: "T003", negocio: "Plomería Express", iniciales: "PE", bg: "bg-brand-dark",    categoria: "Hogar",       fecha: "Ayer, 18:05",      monto: 800,  comision: 40,    estado: "pagada"     },
   { id: "T004", negocio: "Mecánica Pérez",   iniciales: "MP", bg: "bg-brand-dark",    categoria: "Automotriz",  fecha: "Ayer, 10:48",      monto: 1200, comision: 60,    estado: "pagada"     },
   { id: "T005", negocio: "Tacos El Güero",   iniciales: "TG", bg: "bg-brand-orange",  categoria: "Comida",      fecha: "9 Abr, 20:15",     monto: 90,   comision: 4.50,  estado: "pagada"     },
-  { id: "T006", negocio: "Lavandería Clean", iniciales: "LC", bg: "bg-indigo-500",    categoria: "Servicios",   fecha: "8 Abr, 09:30",     monto: 180,  comision: 9,     estado: "confirmada" },
-  { id: "T007", negocio: "Estética Luna",    iniciales: "EL", bg: "bg-brand-teal",    categoria: "Belleza",     fecha: "7 Abr, 16:00",     monto: 450,  comision: 22.50, estado: "pendiente"  },
+  { id: "T006", negocio: "Lavandería Clean", iniciales: "LC", bg: "bg-[#E55000]",     categoria: "Servicios",   fecha: "8 Abr, 09:30",     monto: 180,  comision: 9,     estado: "confirmada" },
+  { id: "T007", negocio: "Estética Luna",    iniciales: "EL", bg: "bg-[#F5A623]",     categoria: "Belleza",     fecha: "7 Abr, 16:00",     monto: 450,  comision: 22.50, estado: "pendiente"  },
   { id: "T008", negocio: "Mecánica Pérez",   iniciales: "MP", bg: "bg-brand-dark",    categoria: "Automotriz",  fecha: "5 Abr, 12:10",     monto: 650,  comision: 32.50, estado: "pagada"     },
 ] as const;
 
@@ -50,16 +52,16 @@ type EstadoKey = "confirmada" | "pendiente" | "pagada";
 type Filter = "todos" | EstadoKey;
 
 const estadoConfig: Record<EstadoKey, { label: string; dot: string; text: string; bg: string }> = {
-  confirmada: { label: "Confirmada", dot: "bg-brand-teal",   text: "text-brand-teal",   bg: "bg-brand-teal/10"   },
+  confirmada: { label: "Confirmada", dot: "bg-[#F5A623]",     text: "text-[#E55000]",    bg: "bg-[#F5A623]/10"    },
   pendiente:  { label: "Pendiente",  dot: "bg-brand-orange", text: "text-brand-orange", bg: "bg-brand-orange/10" },
-  pagada:     { label: "Pagada",     dot: "bg-brand-purple", text: "text-brand-purple", bg: "bg-brand-purple/10" },
+  pagada:     { label: "Pagada",     dot: "bg-[#1A1840]",    text: "text-[#1A1840]",    bg: "bg-[#1A1840]/8"     },
 };
 
 const ingresosPorNegocio = [
   { neg: "Tacos El Güero",   bg: "bg-brand-orange",  ini: "TG", pct: 38, monto: "$720"  },
   { neg: "Mecánica Pérez",   bg: "bg-brand-dark",    ini: "MP", pct: 28, monto: "$530"  },
-  { neg: "Estética Luna",    bg: "bg-brand-teal",    ini: "EL", pct: 21, monto: "$398"  },
-  { neg: "Plomería Express", bg: "bg-brand-purple",  ini: "PE", pct: 13, monto: "$246"  },
+  { neg: "Estética Luna",    bg: "bg-[#F5A623]",     ini: "EL", pct: 21, monto: "$398"  },
+  { neg: "Plomería Express", bg: "bg-brand-dark",    ini: "PE", pct: 13, monto: "$246"  },
 ];
 
 const ultimosRetiros = [
@@ -71,11 +73,14 @@ const ultimosRetiros = [
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ComisionesPage() {
+  const loading = useSimulatedLoading();
   const [filter, setFilter] = useState<Filter>("todos");
 
   const filteredTx = filter === "todos"
     ? transactions
     : transactions.filter((t) => t.estado === filter);
+
+  if (loading) return <><DashboardHeader title="Comisiones" /><ComisionesSkeleton /></>;
 
   return (
     <>
@@ -88,7 +93,7 @@ export default function ComisionesPage() {
 
           {/* Breadcrumb */}
           <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider">
-            <span className="text-brand-purple">Ambassador</span>
+            <span className="text-[#FE7801]">Recomendador</span>
             <ChevronRightIcon className="h-3 w-3 text-muted-foreground" />
             <span className="text-muted-foreground">Comisiones</span>
           </div>
@@ -101,8 +106,8 @@ export default function ComisionesPage() {
               change="+18% vs año pasado"
               changeType="positive"
               icon={WalletIcon}
-              iconColor="text-brand-teal"
-              iconBg="bg-brand-teal/8"
+              iconColor="text-[#F5A623]"
+              iconBg="bg-[#F5A623]/8"
             />
             <StatCard
               title="Pendiente"
@@ -119,8 +124,8 @@ export default function ComisionesPage() {
               change="Último: 1 Abr"
               changeType="neutral"
               icon={ArrowDownToLineIcon}
-              iconColor="text-brand-purple"
-              iconBg="bg-brand-purple/8"
+              iconColor="text-[#FE7801]"
+              iconBg="bg-[#FE7801]/8"
             />
             <StatCard
               title="Este mes"
@@ -128,8 +133,8 @@ export default function ComisionesPage() {
               change="+$420 vs mes anterior"
               changeType="positive"
               icon={TrendingUpIcon}
-              iconColor="text-indigo-500"
-              iconBg="bg-indigo-500/8"
+              iconColor="text-[#1A1840]"
+              iconBg="bg-[#1A1840]/8"
             />
           </div>
 
@@ -177,7 +182,7 @@ export default function ComisionesPage() {
                   {monthlyData.map((entry) => (
                     <Cell
                       key={entry.mes}
-                      fill={entry.current ? "var(--brand-purple)" : "rgba(45,43,143,0.15)"}
+                      fill={entry.current ? "#FE7801" : "rgba(254,120,1,0.15)"}
                     />
                   ))}
                 </Bar>
@@ -198,9 +203,10 @@ export default function ComisionesPage() {
                     className={cn(
                       "rounded-full px-3 py-1 text-[11px] font-semibold transition-all",
                       filter === f
-                        ? "bg-brand-purple text-white shadow-sm"
+                        ? "text-white shadow-sm"
                         : "bg-secondary text-muted-foreground hover:bg-border"
                     )}
+                    style={filter === f ? { background: "linear-gradient(135deg, #FE7801 0%, #EB4E00 73%)" } : {}}
                   >
                     {f === "todos" ? "Todos" : estadoConfig[f].label}
                   </button>
@@ -237,7 +243,7 @@ export default function ComisionesPage() {
                   <span className="text-xs font-medium text-foreground">
                     ${tx.monto.toLocaleString("es-MX")}
                   </span>
-                  <span className="text-xs font-bold text-brand-teal">
+                  <span className="text-xs font-bold text-[#FE7801]">
                     +${tx.comision.toFixed(2)}
                   </span>
                   <div className={cn(
@@ -268,7 +274,7 @@ export default function ComisionesPage() {
             {/* Withdraw card */}
             <div
               className="rounded-2xl p-5 text-white"
-              style={{ background: "linear-gradient(135deg, var(--brand-dark) 0%, var(--brand-purple) 100%)" }}
+              style={{ background: "linear-gradient(135deg, #FE7801 0%, #EB4E00 73%)" }}
             >
               <p className="text-[10px] font-semibold uppercase tracking-wider text-white/50 mb-1">
                 Disponible para retirar
@@ -293,7 +299,7 @@ export default function ComisionesPage() {
                     <p className="text-xs font-semibold text-foreground">{r.monto}</p>
                     <p className="text-[11px] text-muted-foreground">{r.fecha} · {r.estado}</p>
                   </div>
-                  <CheckCircle2Icon className="h-4 w-4 text-brand-teal shrink-0" />
+                  <CheckCircle2Icon className="h-4 w-4 text-[#FE7801] shrink-0" />
                 </div>
               ))}
             </div>
@@ -315,12 +321,12 @@ export default function ComisionesPage() {
                             className="h-full rounded-full transition-all"
                             style={{
                               width: `${b.pct}%`,
-                              background: "linear-gradient(90deg, var(--brand-purple), #6366F1)",
+                              background: "linear-gradient(90deg, #FE7801, #EB4E00)",
                             }}
                           />
                         </div>
                       </div>
-                      <span className="text-[11px] font-semibold text-brand-teal shrink-0">{b.monto}</span>
+                      <span className="text-[11px] font-semibold text-[#FE7801] shrink-0">{b.monto}</span>
                     </div>
                     {i < arr.length - 1 && <div className="mx-4 h-px bg-border" />}
                   </div>

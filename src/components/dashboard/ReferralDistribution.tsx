@@ -4,9 +4,9 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 // ── Donut data ──────────────────────────────────────────────────────────────
 const donutData = [
-  { name: "Comida", value: 3124213, color: "var(--brand-purple)" },
-  { name: "Flujo recomendado", value: 1523151, color: "rgba(45,43,143,0.45)" },
-  { name: "Otros", value: 948213, color: "rgba(45,43,143,0.15)" },
+  { name: "Comida", value: 3124213, color: "#FE7801" },
+  { name: "Flujo recomendado", value: 1523151, color: "rgba(254,120,1,0.45)" },
+  { name: "Otros", value: 948213, color: "rgba(254,120,1,0.15)" },
 ];
 
 const totalDonut = donutData.reduce((s, d) => s + d.value, 0);
@@ -118,9 +118,9 @@ export function ReferralDistribution() {
         </div>
 
         {/* Progress bar */}
-        <div className="relative mb-5 h-[4px] w-full overflow-hidden rounded-full bg-brand-purple/20">
+        <div className="relative mb-5 h-[4px] w-full overflow-hidden rounded-full bg-[#FE7801]/20">
           <div
-            className="absolute left-0 top-0 h-full rounded-full bg-brand-purple transition-all duration-700"
+            className="absolute left-0 top-0 h-full rounded-full bg-[#FE7801] transition-all duration-700"
             style={{ width: `${activePct}%` }}
           />
         </div>
@@ -128,12 +128,12 @@ export function ReferralDistribution() {
         {/* Online / Offline */}
         <div className="flex items-start gap-10">
           <LegendItem
-            color="var(--brand-purple)"
+            color="#FE7801"
             label="Activos"
             value={`${activeUsers} ref.`}
           />
           <LegendItem
-            color="rgba(45,43,143,0.2)"
+            color="rgba(254,120,1,0.2)"
             label="Inactivos"
             value={`${inactiveUsers} ref.`}
           />

@@ -1,3 +1,7 @@
+"use client";
+
+import { useSimulatedLoading } from "@/hooks/useSimulatedLoading";
+import { RecomendadorDashboardSkeleton } from "@/components/ui/skeletons";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { EarningsChart } from "@/components/dashboard/EarningsChart";
@@ -6,6 +10,9 @@ import { RightPanel } from "@/components/dashboard/RightPanel";
 import { ChevronRightIcon, PlusIcon, WalletIcon, UsersIcon, TrendingUpIcon, QrCodeIcon } from "lucide-react";
 
 export default function AmbassadorDashboard() {
+  const loading = useSimulatedLoading();
+  if (loading) return <><DashboardHeader title="Dashboard" /><RecomendadorDashboardSkeleton /></>;
+
   return (
     <>
       <DashboardHeader title="Dashboard" />
@@ -19,7 +26,7 @@ export default function AmbassadorDashboard() {
           {/* Breadcrumb + profile name */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider">
-              <span className="text-brand-purple">Dashboard</span>
+              <span className="text-[#FE7801]">Dashboard</span>
               <ChevronRightIcon className="h-3 w-3 text-muted-foreground" />
               <span className="text-muted-foreground">Omar Domínguez</span>
             </div>
@@ -27,7 +34,10 @@ export default function AmbassadorDashboard() {
 
           {/* Site / profile header */}
           <div className="flex items-center gap-3 -mt-1">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-purple text-white text-lg font-black">
+            <div
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white text-lg font-black"
+              style={{ background: "linear-gradient(135deg, #FE7801 0%, #EB4E00 73%)" }}
+            >
               H
             </div>
             <span className="text-2xl font-black tracking-tight text-foreground">Hazlo Cash</span>
@@ -44,8 +54,8 @@ export default function AmbassadorDashboard() {
               change="+$420 este mes"
               changeType="positive"
               icon={WalletIcon}
-              iconColor="text-brand-teal"
-              iconBg="bg-brand-teal/8"
+              iconColor="text-[#F5A623]"
+              iconBg="bg-[#F5A623]/8"
             />
             <StatCard
               title="Referidos"
@@ -53,8 +63,8 @@ export default function AmbassadorDashboard() {
               change="+3 esta semana"
               changeType="positive"
               icon={UsersIcon}
-              iconColor="text-brand-purple"
-              iconBg="bg-brand-purple/8"
+              iconColor="text-[#FE7801]"
+              iconBg="bg-[#FE7801]/8"
             />
             <StatCard
               title="Conversión"
@@ -71,8 +81,8 @@ export default function AmbassadorDashboard() {
               change="2 usados hoy"
               changeType="neutral"
               icon={QrCodeIcon}
-              iconColor="text-indigo-500"
-              iconBg="bg-indigo-500/8"
+              iconColor="text-[#1A1840]"
+              iconBg="bg-[#1A1840]/8"
             />
           </div>
 

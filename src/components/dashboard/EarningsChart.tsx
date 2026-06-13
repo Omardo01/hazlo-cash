@@ -20,8 +20,8 @@ const chartData = [
 ];
 
 const chartConfig = {
-  thisMes: { label: "Este mes", color: "var(--brand-purple)" },
-  mesPasado: { label: "Mes pasado", color: "rgba(45,43,143,0.25)" },
+  thisMes: { label: "Este mes", color: "#FE7801" },
+  mesPasado: { label: "Mes pasado", color: "rgba(254,120,1,0.25)" },
 } satisfies ChartConfig;
 
 export function EarningsChart() {
@@ -47,12 +47,12 @@ export function EarningsChart() {
         <AreaChart data={chartData} margin={{ top: 8, right: 0, bottom: 0, left: -14 }}>
           <defs>
             <linearGradient id="gradThisMes" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--brand-purple)" stopOpacity={0.18} />
-              <stop offset="95%" stopColor="var(--brand-purple)" stopOpacity={0} />
+              <stop offset="5%" stopColor="#FE7801" stopOpacity={0.18} />
+              <stop offset="95%" stopColor="#FE7801" stopOpacity={0} />
             </linearGradient>
             <linearGradient id="gradMesPasado" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--brand-purple)" stopOpacity={0.07} />
-              <stop offset="95%" stopColor="var(--brand-purple)" stopOpacity={0} />
+              <stop offset="5%" stopColor="#FE7801" stopOpacity={0.07} />
+              <stop offset="95%" stopColor="#FE7801" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
@@ -69,7 +69,7 @@ export function EarningsChart() {
             tickFormatter={(v: number) => `$${v}`}
           />
           <ChartTooltip
-            cursor={{ stroke: "var(--brand-purple)", strokeWidth: 1, strokeDasharray: "4 4" }}
+            cursor={{ stroke: "#FE7801", strokeWidth: 1, strokeDasharray: "4 4" }}
             content={({ active, payload, label }) => {
               if (!active || !payload?.length) return null;
               const val = payload[0]?.value as number | undefined;
@@ -87,7 +87,7 @@ export function EarningsChart() {
           <Area
             type="monotone"
             dataKey="mesPasado"
-            stroke="rgba(45,43,143,0.22)"
+            stroke="rgba(254,120,1,0.22)"
             strokeWidth={2}
             fill="url(#gradMesPasado)"
             dot={false}
@@ -96,13 +96,13 @@ export function EarningsChart() {
           <Area
             type="monotone"
             dataKey="thisMes"
-            stroke="var(--brand-purple)"
+            stroke="#FE7801"
             strokeWidth={2.5}
             fill="url(#gradThisMes)"
             dot={false}
             activeDot={{
               r: 5,
-              fill: "var(--brand-purple)",
+              fill: "#FE7801",
               stroke: "white",
               strokeWidth: 3,
             }}
@@ -113,11 +113,11 @@ export function EarningsChart() {
       {/* Legend */}
       <div className="mt-3 flex items-center gap-5">
         <div className="flex items-center gap-2">
-          <div className="h-[3px] w-6 rounded-full bg-brand-purple" />
+          <div className="h-[3px] w-6 rounded-full bg-[#FE7801]" />
           <span className="text-[11px] text-muted-foreground">Este mes</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-[3px] w-6 rounded-full bg-brand-purple/20" />
+          <div className="h-[3px] w-6 rounded-full bg-[#FE7801]/20" />
           <span className="text-[11px] text-muted-foreground">Mes pasado</span>
         </div>
       </div>

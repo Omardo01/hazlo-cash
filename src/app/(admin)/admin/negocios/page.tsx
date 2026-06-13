@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import {
   MapPinIcon,
@@ -10,43 +11,16 @@ import {
   MoreVerticalIcon,
   StarIcon,
   PlusIcon,
-  BuildingIcon,
-  PhoneIcon,
-  MailIcon,
-  UserIcon,
-  CreditCardIcon,
-  PercentIcon,
-  ChevronDownIcon,
-  CheckIcon,
 } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { useSimulatedLoading } from "@/hooks/useSimulatedLoading";
+import { AdminTableSkeleton } from "@/components/ui/skeletons";
 
 const adminTabs = [
   { label: "Overview",  href: "/admin" },
   { label: "Usuarios",  href: "/admin/users" },
   { label: "Negocios",  href: "/admin/negocios" },
   { label: "Finanzas",  href: "/admin/finanzas" },
-];
-
-const CATEGORIAS = [
-  "Comida",
-  "Restaurante",
-  "Servicios",
-  "Salud",
-  "Belleza",
-  "Mecánica",
-  "Electricidad",
-  "Plomería",
-  "Educación",
-  "Otro",
 ];
 
 type Negocio = {
@@ -66,7 +40,7 @@ const ICON_COLORS = [
   "bg-brand-dark",
   "bg-rose-500",
   "bg-emerald-500",
-  "bg-brand-purple",
+  "bg-indigo-600",
   "bg-brand-teal",
 ];
 
@@ -78,114 +52,31 @@ const initialData: Negocio[] = [
   { id: "NEG-05", name: "Gym Fit Life",     category: "Salud",       city: "Puebla",       rating: 4.7, rev: "$25,000", status: "rejected", iconBg: "bg-emerald-500"  },
 ];
 
-type FormState = {
-  nombre: string;
-  categoria: string;
-  ciudad: string;
-  telefono: string;
-  email: string;
-  responsable: string;
-  clabe: string;
-  comision: string;
-  descripcion: string;
-};
-
-const emptyForm: FormState = {
-  nombre: "",
-  categoria: "",
-  ciudad: "",
-  telefono: "",
-  email: "",
-  responsable: "",
-  clabe: "",
-  comision: "10",
-  descripcion: "",
-};
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-      {children}
-    </label>
-  );
-}
-
-function Field({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="relative">
-      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</div>
-      {children}
-    </div>
-  );
-}
-
 export default function AdminNegociosPage() {
-  const [negocios, setNegocios] = useState<Negocio[]>(initialData);
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<FormState>(emptyForm);
-  const [errors, setErrors] = useState<Partial<FormState>>({});
-  const [submitted, setSubmitted] = useState(false);
+  const loading = useSimulatedLoading();
+  const [negocios] = useState<Negocio[]>(initialData);
   const [query, setQuery] = useState("");
-
-  function handleChange(field: keyof FormState, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
-  }
-
-  function validate(): boolean {
-    const newErrors: Partial<FormState> = {};
-    if (!form.nombre.trim())      newErrors.nombre      = "Requerido";
-    if (!form.categoria)          newErrors.categoria   = "Requerido";
-    if (!form.ciudad.trim())      newErrors.ciudad      = "Requerido";
-    if (!form.telefono.trim())    newErrors.telefono    = "Requerido";
-    if (!form.email.trim())       newErrors.email       = "Requerido";
-    if (!form.responsable.trim()) newErrors.responsable = "Requerido";
-    if (form.clabe.trim() && form.clabe.replace(/\s/g, "").length !== 18)
-      newErrors.clabe = "La CLABE debe tener 18 dígitos";
-    const comNum = parseFloat(form.comision);
-    if (isNaN(comNum) || comNum < 1 || comNum > 30)
-      newErrors.comision = "Entre 1 y 30%";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }
-
-  function handleSubmit() {
-    if (!validate()) return;
-    const newId = `NEG-${String(negocios.length + 1).padStart(2, "0")}`;
-    const colorIndex = negocios.length % ICON_COLORS.length;
-    const nuevo: Negocio = {
-      id: newId,
-      name: form.nombre.trim(),
-      category: form.categoria,
-      city: form.ciudad.trim(),
-      rating: 0,
-      rev: "$0",
-      status: "pending",
-      iconBg: ICON_COLORS[colorIndex],
-    };
-    setNegocios((prev) => [nuevo, ...prev]);
-    setSubmitted(true);
-    setTimeout(() => {
-      setOpen(false);
-      setSubmitted(false);
-      setForm(emptyForm);
-      setErrors({});
-    }, 1800);
-  }
-
-  function handleOpenChange(val: boolean) {
-    if (!val) {
-      setForm(emptyForm);
-      setErrors({});
-      setSubmitted(false);
-    }
-    setOpen(val);
-  }
 
   const filtered = negocios.filter(
     (n) =>
       n.name.toLowerCase().includes(query.toLowerCase()) ||
       n.id.toLowerCase().includes(query.toLowerCase())
+  );
+
+  if (loading) return (
+    <>
+      <DashboardHeader
+        title="Admin"
+        tabs={adminTabs}
+        userName="Super Admin"
+        userInitials="SA"
+        avatarColor="bg-brand-dark text-white"
+        notificationColor="bg-brand-dark"
+      />
+      <div className="flex flex-1 min-h-0 gap-0 bg-[#fbfbfd]">
+        <AdminTableSkeleton />
+      </div>
+    </>
   );
 
   return (
@@ -222,14 +113,15 @@ export default function AdminNegociosPage() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setOpen(true)}
-              className="flex items-center gap-2 h-10 px-4 rounded-xl bg-brand-orange text-white text-[12px] font-semibold hover:bg-brand-orange/90 transition-colors"
+            <Link
+              href="/admin/negocios/nuevo"
+              className="flex items-center gap-2 h-10 px-4 rounded-xl text-white text-[12px] font-semibold transition-opacity hover:opacity-90"
+              style={{ background: "linear-gradient(135deg, #FE7801 0%, #EB4E00 73%)" }}
             >
               <PlusIcon className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Dar de Alta Negocio</span>
               <span className="sm:hidden">Nuevo</span>
-            </button>
+            </Link>
           </div>
 
           {/* Table card */}
@@ -242,7 +134,7 @@ export default function AdminNegociosPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Buscar nombre o ID..."
-                  className="h-9 w-full rounded-lg border border-border bg-secondary/50 pl-9 pr-3 text-sm focus:outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple"
+                  className="h-9 w-full rounded-lg border border-border bg-secondary/50 pl-9 pr-3 text-sm focus:outline-none focus:border-[#FE7801] focus:ring-1 focus:ring-[#FE7801]"
                 />
               </div>
               <button className="flex items-center gap-2 h-9 px-3 rounded-lg border border-border text-xs font-medium hover:bg-secondary">
@@ -315,259 +207,6 @@ export default function AdminNegociosPage() {
 
         </div>
       </div>
-
-      {/* ── Drawer: Dar de Alta Negocio ── */}
-      <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-[480px] overflow-y-auto p-0">
-          <SheetHeader className="px-6 pt-6 pb-4 border-b border-border sticky top-0 bg-white z-10">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-orange/10 text-brand-orange">
-                <BuildingIcon className="h-4 w-4" />
-              </div>
-              <div>
-                <SheetTitle className="text-base font-black text-foreground">Dar de Alta Negocio</SheetTitle>
-                <SheetDescription className="text-xs mt-0.5">
-                  El negocio quedará en estado <span className="font-semibold text-brand-orange">Pendiente</span> hasta su verificación.
-                </SheetDescription>
-              </div>
-            </div>
-          </SheetHeader>
-
-          {submitted ? (
-            <div className="flex flex-col items-center justify-center gap-4 px-6 py-20">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
-                <CheckIcon className="h-8 w-8 text-emerald-500" />
-              </div>
-              <p className="text-base font-black text-foreground">¡Negocio registrado!</p>
-              <p className="text-sm text-muted-foreground text-center">
-                Se creó con estado <span className="font-semibold text-brand-orange">Pendiente</span>. Revísalo en la lista.
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-5 px-6 py-5">
-
-              {/* Sección: Datos del negocio */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-brand-purple mb-3">Datos del Negocio</p>
-                <div className="flex flex-col gap-3">
-
-                  <div>
-                    <FieldLabel>Nombre del Negocio *</FieldLabel>
-                    <Field icon={<BuildingIcon className="h-3.5 w-3.5" />}>
-                      <input
-                        value={form.nombre}
-                        onChange={(e) => handleChange("nombre", e.target.value)}
-                        placeholder="Ej. Tacos El Güero"
-                        className={cn(
-                          "h-9 w-full rounded-lg border bg-secondary/30 pl-9 pr-3 text-sm focus:outline-none focus:ring-1",
-                          errors.nombre
-                            ? "border-red-400 focus:border-red-400 focus:ring-red-400"
-                            : "border-border focus:border-brand-purple focus:ring-brand-purple"
-                        )}
-                      />
-                    </Field>
-                    {errors.nombre && <p className="mt-1 text-[11px] text-red-500">{errors.nombre}</p>}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <FieldLabel>Categoría *</FieldLabel>
-                      <div className="relative">
-                        <select
-                          value={form.categoria}
-                          onChange={(e) => handleChange("categoria", e.target.value)}
-                          className={cn(
-                            "h-9 w-full appearance-none rounded-lg border bg-secondary/30 pl-3 pr-8 text-sm focus:outline-none focus:ring-1",
-                            errors.categoria
-                              ? "border-red-400 focus:border-red-400 focus:ring-red-400"
-                              : "border-border focus:border-brand-purple focus:ring-brand-purple"
-                          )}
-                        >
-                          <option value="">Seleccionar</option>
-                          {CATEGORIAS.map((c) => (
-                            <option key={c} value={c}>{c}</option>
-                          ))}
-                        </select>
-                        <ChevronDownIcon className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                      </div>
-                      {errors.categoria && <p className="mt-1 text-[11px] text-red-500">{errors.categoria}</p>}
-                    </div>
-
-                    <div>
-                      <FieldLabel>Ciudad *</FieldLabel>
-                      <Field icon={<MapPinIcon className="h-3.5 w-3.5" />}>
-                        <input
-                          value={form.ciudad}
-                          onChange={(e) => handleChange("ciudad", e.target.value)}
-                          placeholder="Villahermosa"
-                          className={cn(
-                            "h-9 w-full rounded-lg border bg-secondary/30 pl-9 pr-3 text-sm focus:outline-none focus:ring-1",
-                            errors.ciudad
-                              ? "border-red-400 focus:border-red-400 focus:ring-red-400"
-                              : "border-border focus:border-brand-purple focus:ring-brand-purple"
-                          )}
-                        />
-                      </Field>
-                      {errors.ciudad && <p className="mt-1 text-[11px] text-red-500">{errors.ciudad}</p>}
-                    </div>
-                  </div>
-
-                  <div>
-                    <FieldLabel>Descripción (opcional)</FieldLabel>
-                    <textarea
-                      value={form.descripcion}
-                      onChange={(e) => handleChange("descripcion", e.target.value)}
-                      placeholder="Breve descripción del negocio o servicio..."
-                      rows={3}
-                      className="w-full rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm focus:outline-none focus:border-brand-purple focus:ring-1 focus:ring-brand-purple resize-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="h-px bg-border" />
-
-              {/* Sección: Contacto */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-brand-purple mb-3">Contacto</p>
-                <div className="flex flex-col gap-3">
-
-                  <div>
-                    <FieldLabel>Nombre del Responsable *</FieldLabel>
-                    <Field icon={<UserIcon className="h-3.5 w-3.5" />}>
-                      <input
-                        value={form.responsable}
-                        onChange={(e) => handleChange("responsable", e.target.value)}
-                        placeholder="Juan Pérez"
-                        className={cn(
-                          "h-9 w-full rounded-lg border bg-secondary/30 pl-9 pr-3 text-sm focus:outline-none focus:ring-1",
-                          errors.responsable
-                            ? "border-red-400 focus:border-red-400 focus:ring-red-400"
-                            : "border-border focus:border-brand-purple focus:ring-brand-purple"
-                        )}
-                      />
-                    </Field>
-                    {errors.responsable && <p className="mt-1 text-[11px] text-red-500">{errors.responsable}</p>}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <FieldLabel>Teléfono *</FieldLabel>
-                      <Field icon={<PhoneIcon className="h-3.5 w-3.5" />}>
-                        <input
-                          value={form.telefono}
-                          onChange={(e) => handleChange("telefono", e.target.value)}
-                          placeholder="993 123 4567"
-                          className={cn(
-                            "h-9 w-full rounded-lg border bg-secondary/30 pl-9 pr-3 text-sm focus:outline-none focus:ring-1",
-                            errors.telefono
-                              ? "border-red-400 focus:border-red-400 focus:ring-red-400"
-                              : "border-border focus:border-brand-purple focus:ring-brand-purple"
-                          )}
-                        />
-                      </Field>
-                      {errors.telefono && <p className="mt-1 text-[11px] text-red-500">{errors.telefono}</p>}
-                    </div>
-
-                    <div>
-                      <FieldLabel>Email *</FieldLabel>
-                      <Field icon={<MailIcon className="h-3.5 w-3.5" />}>
-                        <input
-                          type="email"
-                          value={form.email}
-                          onChange={(e) => handleChange("email", e.target.value)}
-                          placeholder="negocio@email.com"
-                          className={cn(
-                            "h-9 w-full rounded-lg border bg-secondary/30 pl-9 pr-3 text-sm focus:outline-none focus:ring-1",
-                            errors.email
-                              ? "border-red-400 focus:border-red-400 focus:ring-red-400"
-                              : "border-border focus:border-brand-purple focus:ring-brand-purple"
-                          )}
-                        />
-                      </Field>
-                      {errors.email && <p className="mt-1 text-[11px] text-red-500">{errors.email}</p>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="h-px bg-border" />
-
-              {/* Sección: Pagos */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-brand-purple mb-3">Pagos y Comisiones</p>
-                <div className="flex flex-col gap-3">
-
-                  <div>
-                    <FieldLabel>CLABE Interbancaria (opcional)</FieldLabel>
-                    <Field icon={<CreditCardIcon className="h-3.5 w-3.5" />}>
-                      <input
-                        value={form.clabe}
-                        onChange={(e) => handleChange("clabe", e.target.value.replace(/\D/g, "").slice(0, 18))}
-                        placeholder="18 dígitos"
-                        maxLength={18}
-                        className={cn(
-                          "h-9 w-full rounded-lg border bg-secondary/30 pl-9 pr-3 text-sm font-mono focus:outline-none focus:ring-1",
-                          errors.clabe
-                            ? "border-red-400 focus:border-red-400 focus:ring-red-400"
-                            : "border-border focus:border-brand-purple focus:ring-brand-purple"
-                        )}
-                      />
-                    </Field>
-                    {errors.clabe
-                      ? <p className="mt-1 text-[11px] text-red-500">{errors.clabe}</p>
-                      : <p className="mt-1 text-[11px] text-muted-foreground">{form.clabe.length}/18 dígitos</p>
-                    }
-                  </div>
-
-                  <div>
-                    <FieldLabel>Comisión para Hazlo Cash (%) *</FieldLabel>
-                    <Field icon={<PercentIcon className="h-3.5 w-3.5" />}>
-                      <input
-                        type="number"
-                        min={1}
-                        max={30}
-                        value={form.comision}
-                        onChange={(e) => handleChange("comision", e.target.value)}
-                        className={cn(
-                          "h-9 w-full rounded-lg border bg-secondary/30 pl-9 pr-3 text-sm focus:outline-none focus:ring-1",
-                          errors.comision
-                            ? "border-red-400 focus:border-red-400 focus:ring-red-400"
-                            : "border-border focus:border-brand-purple focus:ring-brand-purple"
-                        )}
-                      />
-                    </Field>
-                    {errors.comision
-                      ? <p className="mt-1 text-[11px] text-red-500">{errors.comision}</p>
-                      : <p className="mt-1 text-[11px] text-muted-foreground">Porcentaje que Hazlo Cash retiene por transacción (1–30%).</p>
-                    }
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          )}
-
-          {!submitted && (
-            <SheetFooter className="px-6 pb-6 pt-4 border-t border-border sticky bottom-0 bg-white">
-              <div className="flex gap-3 w-full">
-                <button
-                  onClick={() => handleOpenChange(false)}
-                  className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-secondary transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  className="flex-1 h-10 rounded-xl bg-brand-orange text-white text-sm font-semibold hover:bg-brand-orange/90 transition-colors"
-                >
-                  Dar de Alta
-                </button>
-              </div>
-            </SheetFooter>
-          )}
-        </SheetContent>
-      </Sheet>
     </>
   );
 }

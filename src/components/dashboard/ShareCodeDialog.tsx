@@ -30,7 +30,7 @@ function CodeDigits({ code }: { code: string }) {
       {chars.map((char, i) => (
         <div
           key={i}
-          className="flex h-[60px] w-[52px] items-center justify-center rounded-xl border border-white/20 bg-white/5 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]"
+          className="flex h-[60px] w-[52px] items-center justify-center rounded-xl border border-[#FE7801]/30 bg-[#FE7801]/12 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
           style={{
             animationDelay: `${i * 80}ms`,
             animation: "fadeInUp 0.4s ease-out both",
@@ -82,7 +82,7 @@ function ShareActions({
         className="flex h-11 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 text-[13px] font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-all"
       >
         {copied ? (
-          <CheckIcon className="h-4 w-4 text-brand-teal" />
+          <CheckIcon className="h-4 w-4 text-[#FE7801]" />
         ) : (
           <CopyIcon className="h-4 w-4" />
         )}
@@ -145,24 +145,24 @@ export function ShareCodeDialog({
         <DialogPrimitive.Backdrop
           className="fixed inset-0 z-50 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 duration-300"
           style={{
-            background: "radial-gradient(ellipse at 30% 50%, rgba(120,80,220,0.5) 0%, transparent 60%), radial-gradient(ellipse at 70% 30%, rgba(60,80,220,0.6) 0%, transparent 55%), radial-gradient(ellipse at 50% 80%, rgba(140,60,200,0.4) 0%, transparent 50%), radial-gradient(ellipse at 20% 20%, rgba(200,180,255,0.3) 0%, transparent 40%), #0a0818",
+            background: "radial-gradient(ellipse at 30% 50%, rgba(254,120,1,0.35) 0%, transparent 60%), radial-gradient(ellipse at 70% 30%, rgba(235,78,0,0.25) 0%, transparent 55%), radial-gradient(ellipse at 50% 80%, rgba(0,168,150,0.2) 0%, transparent 50%), radial-gradient(ellipse at 20% 20%, rgba(254,120,1,0.15) 0%, transparent 40%), #0a0500",
           }}
         />
 
         {/* Aurora streaks */}
         <div className="fixed inset-0 z-50 pointer-events-none overflow-hidden">
-          <div className="absolute w-[600px] h-[600px] rounded-full opacity-40 blur-[120px]" style={{ background: "linear-gradient(135deg, #7c3aed 0%, #3b82f6 50%, #06b6d4 100%)", top: "-10%", left: "-10%", animation: "auroraFloat1 8s ease-in-out infinite" }} />
-          <div className="absolute w-[500px] h-[500px] rounded-full opacity-30 blur-[100px]" style={{ background: "linear-gradient(225deg, #a855f7 0%, #6366f1 50%, #2563eb 100%)", bottom: "-15%", right: "-10%", animation: "auroraFloat2 10s ease-in-out infinite" }} />
+          <div className="absolute w-[600px] h-[600px] rounded-full opacity-35 blur-[120px]" style={{ background: "linear-gradient(135deg, #FE7801 0%, #EB4E00 50%, #F5A623 100%)", top: "-10%", left: "-10%", animation: "auroraFloat1 8s ease-in-out infinite" }} />
+          <div className="absolute w-[500px] h-[500px] rounded-full opacity-20 blur-[100px]" style={{ background: "linear-gradient(225deg, #F5A623 0%, #EB4E00 50%, #FE7801 100%)", bottom: "-15%", right: "-10%", animation: "auroraFloat2 10s ease-in-out infinite" }} />
         </div>
 
         {/* Card */}
         <DialogPrimitive.Popup className="fixed top-1/2 left-1/2 z-50 w-full max-w-[380px] -translate-x-1/2 -translate-y-1/2 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 duration-200">
           <div
-            className="relative rounded-3xl border border-white/15 p-8 shadow-2xl"
+            className="relative rounded-3xl border border-white/10 p-8 shadow-2xl"
             style={{
-              background: "linear-gradient(160deg, rgba(30,20,60,0.85) 0%, rgba(15,10,40,0.9) 50%, rgba(20,30,80,0.85) 100%)",
+              background: "linear-gradient(160deg, rgba(20,14,0,0.96) 0%, rgba(10,8,0,0.98) 100%)",
               backdropFilter: "blur(40px) saturate(1.5)",
-              boxShadow: "0 0 80px rgba(120,80,220,0.15), 0 0 30px rgba(60,80,200,0.1), inset 0 1px 0 rgba(255,255,255,0.08)",
+              boxShadow: "0 0 80px rgba(254,120,1,0.18), 0 0 30px rgba(254,120,1,0.08), inset 0 1px 0 rgba(255,255,255,0.06)",
             }}
           >
             <DialogPrimitive.Close className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/5 hover:bg-white/15 text-white/50 hover:text-white transition-all">
@@ -171,7 +171,7 @@ export function ShareCodeDialog({
 
             {/* Icono */}
             <div className="flex justify-center mb-5">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: "linear-gradient(135deg, rgba(120,80,220,0.3) 0%, rgba(60,130,246,0.3) 100%)", boxShadow: "0 0 30px rgba(120,80,220,0.2)" }}>
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: "linear-gradient(135deg, rgba(254,120,1,0.25) 0%, rgba(235,78,0,0.25) 100%)", boxShadow: "0 0 30px rgba(254,120,1,0.2)" }}>
                 <ZapIcon className="h-7 w-7 text-white fill-white" />
               </div>
             </div>

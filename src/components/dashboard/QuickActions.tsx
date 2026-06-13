@@ -12,8 +12,8 @@ export function QuickActions() {
         <button
           className="flex w-full items-center gap-3 rounded-2xl p-3.5 text-white transition-all active:scale-[0.98]"
           style={{
-            background: "linear-gradient(135deg, var(--brand-purple), #4F46E5)",
-            boxShadow: "0 4px 14px rgba(45, 43, 143, 0.25)",
+            background: "linear-gradient(135deg, #FE7801 0%, #EB4E00 73%)",
+            boxShadow: "0 4px 14px rgba(254, 120, 1, 0.3)",
           }}
         >
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
@@ -56,7 +56,7 @@ export function QuickActions() {
         }}
       >
         <span className="text-[11px] font-medium text-muted-foreground">Tu código</span>
-        <span className="text-lg font-black tracking-[0.15em] text-brand-purple">
+        <span className="text-lg font-black tracking-[0.15em] text-[#FE7801]">
           HAZLO-0M4R
         </span>
       </div>

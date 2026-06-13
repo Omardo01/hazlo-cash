@@ -33,6 +33,8 @@ import {
   AlertCircleIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSimulatedLoading } from "@/hooks/useSimulatedLoading";
+import { NegocioDashboardSkeleton } from "@/components/ui/skeletons";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -60,14 +62,14 @@ type EstadoKey = "nueva" | "en_proceso" | "completada" | "cancelada";
 
 const estadoConfig: Record<EstadoKey, { label: string; icon: React.ElementType; text: string; bg: string; dot: string }> = {
   nueva:       { label: "Nueva",      icon: ZapIcon,          text: "text-brand-orange", bg: "bg-brand-orange/10", dot: "bg-brand-orange"  },
-  en_proceso:  { label: "En proceso", icon: ClockIcon,        text: "text-brand-purple", bg: "bg-brand-purple/10", dot: "bg-brand-purple"  },
+  en_proceso:  { label: "En proceso", icon: ClockIcon,        text: "text-[#FE7801]",    bg: "bg-[#FE7801]/10",    dot: "bg-[#FE7801]"     },
   completada:  { label: "Completada", icon: CheckCircle2Icon, text: "text-brand-teal",   bg: "bg-brand-teal/10",   dot: "bg-brand-teal"    },
   cancelada:   { label: "Cancelada",  icon: XCircleIcon,      text: "text-destructive",  bg: "bg-red-50",          dot: "bg-red-400"        },
 };
 
 const embajadores = [
   { codigo: "HAZLO-OD42", ini: "OD", bg: "bg-brand-dark",   refs: 14, ganado: "$280", activo: true  },
-  { codigo: "HAZLO-MR18", ini: "MR", bg: "bg-brand-purple", refs: 9,  ganado: "$180", activo: true  },
+  { codigo: "HAZLO-MR18", ini: "MR", bg: "bg-indigo-600",   refs: 9,  ganado: "$180", activo: true  },
   { codigo: "HAZLO-LP05", ini: "LP", bg: "bg-brand-teal",   refs: 7,  ganado: "$140", activo: true  },
   { codigo: "HAZLO-JV29", ini: "JV", bg: "bg-indigo-500",   refs: 4,  ganado: "$80",  activo: false },
 ];
@@ -228,7 +230,7 @@ function NegocioRightPanel({ perfilPct }: { perfilPct: number }) {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold">Top embajadores</h3>
-          <button className="text-[11px] text-brand-purple font-medium hover:underline flex items-center gap-0.5">
+          <button className="text-[11px] text-[#FE7801] font-medium hover:underline flex items-center gap-0.5">
             Ver todos <ExternalLinkIcon className="h-2.5 w-2.5" />
           </button>
         </div>
@@ -458,6 +460,7 @@ function VerificarCodigoDialog({
 }
 
 export default function NegocioDashboard() {
+  const loading = useSimulatedLoading();
   const [filterEstado, setFilterEstado] = useState<"todas" | EstadoKey>("todas");
   const [verificarOpen, setVerificarOpen] = useState(false);
   const [ultimaVenta, setUltimaVenta] = useState<{ codigo: string; recomendador: string; comision: number } | null>(null);
@@ -474,6 +477,8 @@ export default function NegocioDashboard() {
     setUltimaVenta({ codigo, recomendador, comision });
     setTimeout(() => setUltimaVenta(null), 5000);
   }
+
+  if (loading) return <><NegocioHeader /><NegocioDashboardSkeleton /></>;
 
   return (
     <>
@@ -520,7 +525,7 @@ export default function NegocioDashboard() {
           {/* Business header */}
           <div
             className="rounded-2xl overflow-hidden"
-            style={{ background: "linear-gradient(135deg, #1A1840 0%, #2D2B8F 60%, #F5A623 200%)" }}
+            style={{ background: "linear-gradient(135deg, #0A0A0A 0%, #1A1000 60%, #FE7801 200%)" }}
           >
             <div className="px-4 sm:px-6 py-4 sm:py-5 flex flex-wrap items-center gap-4 sm:gap-5">
               {/* Logo */}
@@ -614,8 +619,8 @@ export default function NegocioDashboard() {
               value="7"
               change="4 activos este mes"
               icon={TrendingUpIcon}
-              iconColor="text-brand-purple"
-              iconBg="bg-brand-purple/8"
+              iconColor="text-[#FE7801]"
+              iconBg="bg-[#FE7801]/8"
             />
             <StatCard
               title="Calificación"
@@ -695,9 +700,9 @@ export default function NegocioDashboard() {
             </div>
 
             {/* Anti-bypass notice */}
-            <div className="flex items-center gap-2 bg-brand-purple/5 border-b border-border px-4 sm:px-5 py-2.5">
-              <ShieldCheckIcon className="h-3.5 w-3.5 text-brand-purple shrink-0" />
-              <p className="text-[11px] text-brand-purple">
+            <div className="flex items-center gap-2 bg-[#FE7801]/5 border-b border-border px-4 sm:px-5 py-2.5">
+              <ShieldCheckIcon className="h-3.5 w-3.5 text-[#FE7801] shrink-0" />
+              <p className="text-[11px] text-[#FE7801]">
                 Los datos del cliente se revelan solo al confirmar la transacción dentro de Hazlo Cash.
               </p>
             </div>
@@ -736,7 +741,7 @@ export default function NegocioDashboard() {
                     <div className="mt-2 flex items-center justify-between pl-12">
                       <div>
                         <p className="text-[11px] text-muted-foreground">{s.servicio}</p>
-                        <p className="font-mono text-[11px] text-brand-purple font-semibold">{s.embajador}</p>
+                        <p className="font-mono text-[11px] text-[#FE7801] font-semibold">{s.embajador}</p>
                       </div>
                       <span className="text-sm font-black text-foreground">${s.monto.toLocaleString("es-MX")}</span>
                     </div>
@@ -759,7 +764,7 @@ export default function NegocioDashboard() {
                     {/* Monto */}
                     <span className="text-xs font-bold text-foreground">${s.monto.toLocaleString("es-MX")}</span>
                     {/* Embajador */}
-                    <span className="font-mono text-[11px] text-brand-purple font-semibold">{s.embajador}</span>
+                    <span className="font-mono text-[11px] text-[#FE7801] font-semibold">{s.embajador}</span>
                     {/* Estado */}
                     <div className={cn("flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold", cfg.bg, cfg.text)}>
                       <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} />
