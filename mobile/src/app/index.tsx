@@ -1,56 +1,57 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
 import { useAuth } from '@/lib/auth-context';
+import { getMiPerfil } from '@/lib/services/auth';
+import type { Profile } from '@/lib/types';
+import { AdminApp } from '@/hazlo/AdminApp';
+import { ClienteEmbajadorApp } from '@/hazlo/ClienteEmbajadorApp';
+import { NegocioApp } from '@/hazlo/NegocioApp';
 import { Splash } from '@/hazlo/Splash';
-import { TabBar } from '@/hazlo/TabBar';
-import { Sheet } from '@/hazlo/sheets';
-import { BG } from '@/hazlo/theme';
-import { BalanceScreen } from '@/hazlo/screens/Balance';
-import { DiscoverScreen } from '@/hazlo/screens/Discover';
-import { HomeScreen } from '@/hazlo/screens/Home';
 import { LoginScreen } from '@/hazlo/screens/Login';
-import { ProfileScreen } from '@/hazlo/screens/Profile';
-import { ShareScreen } from '@/hazlo/screens/Share';
-import type { SheetName, Tab } from '@/hazlo/screens/types';
+import { BG } from '@/hazlo/theme';
 
+// Router por rol: decide qué experiencia mostrar según los roles del perfil.
 export default function HazloApp() {
   const { session, loading } = useAuth();
-  const [tab, setTab] = useState<Tab>('home');
-  const [sheet, setSheet] = useState<SheetName | null>(null);
+  const [perfil, setPerfil] = useState<Profile | null>(null);
+  const [perfilCargado, setPerfilCargado] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
 
-  const go = (t: Tab) => setTab(t);
-  const openSheet = (s: SheetName) => setSheet(s);
-
-  const screen = () => {
-    switch (tab) {
-      case 'discover':
-        return <DiscoverScreen />;
-      case 'balance':
-        return <BalanceScreen go={go} openSheet={openSheet} />;
-      case 'share':
-        return <ShareScreen />;
-      case 'profile':
-        return <ProfileScreen go={go} openSheet={openSheet} />;
-      default:
-        return <HomeScreen go={go} openSheet={openSheet} />;
+  useEffect(() => {
+    if (!session) {
+      setPerfil(null);
+      setPerfilCargado(true);
+      return;
     }
-  };
+    setPerfilCargado(false);
+    let activo = true;
+    getMiPerfil().then((p) => {
+      if (activo) {
+        setPerfil(p);
+        setPerfilCargado(true);
+      }
+    });
+    return () => {
+      activo = false;
+    };
+  }, [session]);
 
-  // Aún verificando si hay sesión guardada en el dispositivo: solo el splash.
-  if (loading) {
+  const splash = showSplash ? <Splash onDone={() => setShowSplash(false)} /> : null;
+
+  // Verificando sesión guardada, o ya hay sesión pero aún cargando el perfil
+  // (evita un parpadeo de la experiencia equivocada antes de saber el rol).
+  if (loading || (session && !perfilCargado)) {
     return (
       <View style={{ flex: 1, backgroundColor: BG }}>
         <StatusBar style="dark" />
-        {showSplash && <Splash onDone={() => setShowSplash(false)} />}
+        {splash}
       </View>
     );
   }
 
-  // Sin sesión → login. El splash sigue encima hasta que termine su animación.
   if (!session) {
     return (
       <View style={{ flex: 1, backgroundColor: BG }}>
@@ -58,33 +59,25 @@ export default function HazloApp() {
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
           <LoginScreen />
         </SafeAreaView>
-        {showSplash && <Splash onDone={() => setShowSplash(false)} />}
+        {splash}
       </View>
     );
   }
 
+  // Experiencia según rol (prioridad: admin > negocio > cliente/embajador).
+  const roles = perfil?.roles ?? [];
+  const shell = roles.includes('admin') ? (
+    <AdminApp />
+  ) : roles.includes('negocio') ? (
+    <NegocioApp />
+  ) : (
+    <ClienteEmbajadorApp />
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
-      <StatusBar style="dark" />
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <View style={{ flex: 1 }}>{screen()}</View>
-      </SafeAreaView>
-
-      <TabBar tab={tab} setTab={setTab} onPlus={() => setSheet('action')} />
-
-      {sheet && (
-        <Sheet
-          name={sheet}
-          onClose={() => setSheet(null)}
-          onNav={(t) => {
-            setTab(t);
-            setSheet(null);
-          }}
-          onOpenSheet={(s) => setSheet(s)}
-        />
-      )}
-
-      {showSplash && <Splash onDone={() => setShowSplash(false)} />}
+      {shell}
+      {splash}
     </View>
   );
 }

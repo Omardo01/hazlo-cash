@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { getMiPerfil, logout } from '@/lib/services/auth';
 import type { Profile } from '@/lib/types';
+import { AdminAltaNegocio } from '../AdminAltaNegocio';
 import { HazloMark } from '../HazloMark';
 import { Icon, IconName } from '../icons';
 import { C, F, FG, MUTED, R } from '../theme';
@@ -34,6 +35,7 @@ const miniStats = [
 
 export function ProfileScreen({ openSheet }: ScreenProps) {
   const [perfil, setPerfil] = useState<Profile | null>(null);
+  const [altaVisible, setAltaVisible] = useState(false);
 
   useEffect(() => {
     let activo = true;
@@ -46,11 +48,14 @@ export function ProfileScreen({ openSheet }: ScreenProps) {
   }, []);
 
   const nombre = perfil?.nombre || 'Tu perfil';
-  const rolPrincipal = perfil?.roles?.includes('embajador')
-    ? 'Embajador'
-    : perfil?.roles?.[0]
-      ? perfil.roles[0][0].toUpperCase() + perfil.roles[0].slice(1)
-      : 'Cliente';
+  const esAdmin = perfil?.roles?.includes('admin') ?? false;
+  const rolPrincipal = esAdmin
+    ? 'Admin'
+    : perfil?.roles?.includes('embajador')
+      ? 'Embajador'
+      : perfil?.roles?.[0]
+        ? perfil.roles[0][0].toUpperCase() + perfil.roles[0].slice(1)
+        : 'Cliente';
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 }}>
@@ -70,6 +75,22 @@ export function ProfileScreen({ openSheet }: ScreenProps) {
           </View>
         </View>
       </View>
+
+      {/* Admin: alta de negocios (solo rol admin) */}
+      {esAdmin && (
+        <Pressable
+          onPress={() => setAltaVisible(true)}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: R.lg, marginBottom: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: C.primary }}>
+          <View style={{ width: 46, height: 46, borderRadius: 12, backgroundColor: `${C.primary}15`, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="plus" size={22} color={C.primary} sw={2} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>Dar de alta un negocio</Text>
+            <Text style={{ fontFamily: F.reg, fontSize: 11, color: MUTED, marginTop: 2 }}>Panel de administrador</Text>
+          </View>
+          <Icon name="chevR" size={16} color={MUTED} />
+        </Pressable>
+      )}
 
       {/* Invite CTA */}
       <Pressable
@@ -127,6 +148,8 @@ export function ProfileScreen({ openSheet }: ScreenProps) {
       </Pressable>
 
       <Text style={{ marginTop: 14, textAlign: 'center', fontFamily: F.reg, fontSize: 11, color: MUTED }}>Hazlo Cash · v2.4.1</Text>
+
+      {esAdmin && <AdminAltaNegocio visible={altaVisible} onClose={() => setAltaVisible(false)} />}
     </ScrollView>
   );
 }

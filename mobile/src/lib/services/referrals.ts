@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import type { EstadoReferral } from '../types';
 
 export interface MiCodigo {
   codigo: string;
@@ -98,4 +99,53 @@ export async function reclamarCodigo(entrada: string): Promise<Reclamo> {
     oferta: negocio?.oferta ?? null,
     error: null,
   };
+}
+
+export interface VisitaNegocio {
+  id: string;
+  folio: string;
+  codigo: string;
+  estado: EstadoReferral;
+  creada: string;
+}
+
+// Visitas (usos de código) del negocio en sesión. RLS (referral_select_negocio)
+// garantiza que solo ve las de su propio negocio. No expone datos del cliente.
+export async function getVisitasNegocio(): Promise<VisitaNegocio[]> {
+  const { data, error } = await supabase
+    .from('referrals')
+    .select('id, estado, created_at, referral_codes(codigo)')
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(`Error al cargar solicitudes: ${error.message}`);
+
+  return (data ?? []).map((r) => {
+    const rc = Array.isArray(r.referral_codes) ? r.referral_codes[0] : r.referral_codes;
+    return {
+      id: r.id,
+      folio: r.id.substring(0, 8).toUpperCase(),
+      codigo: rc?.codigo ?? '—',
+      estado: r.estado as EstadoReferral,
+      creada: r.created_at,
+    };
+  });
+}
+
+// El negocio confirma o rechaza una visita pendiente.
+// RLS (referral_update_negocio) garantiza que solo toca las suyas.
+export async function resolverVisita(
+  id: string,
+  decision: 'confirmado' | 'rechazado',
+): Promise<{ ok: boolean }> {
+  const { data, error } = await supabase
+    .from('referrals')
+    .update({
+      estado: decision,
+      confirmado_at: decision === 'confirmado' ? new Date().toISOString() : null,
+    })
+    .eq('id', id)
+    .eq('estado', 'pendiente')
+    .select('id');
+
+  return { ok: !error && (data?.length ?? 0) > 0 };
 }

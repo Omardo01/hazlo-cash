@@ -1,0 +1,40 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@supabase/supabase-js@2": "2.108.1"
+  },
+  "jsr": {
+    "@supabase/supabase-js@2.108.1": {
+      "integrity": "c31883d00e36c759796683f2974e99201c3039fc2e539e0c3a1dd6dfb370332d"
+    }
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@base-ui/react@^1.3.0",
+        "npm:@supabase/ssr@0.12",
+        "npm:@supabase/supabase-js@^2.108.1",
+        "npm:@tailwindcss/postcss@4",
+        "npm:@types/node@20",
+        "npm:@types/react-dom@19",
+        "npm:@types/react@19",
+        "npm:class-variance-authority@~0.7.1",
+        "npm:clsx@^2.1.1",
+        "npm:eslint-config-next@16.2.3",
+        "npm:eslint@9",
+        "npm:lucide-react@^1.8.0",
+        "npm:motion@^12.38.0",
+        "npm:next@16.2.3",
+        "npm:react-dom@19.2.4",
+        "npm:react-qr-code@^2.0.21",
+        "npm:react@19.2.4",
+        "npm:recharts@^3.8.0",
+        "npm:shadcn@^4.2.0",
+        "npm:tailwind-merge@^3.5.0",
+        "npm:tailwindcss@4",
+        "npm:tw-animate-css@^1.4.0",
+        "npm:typescript@5"
+      ]
+    }
+  }
+}
