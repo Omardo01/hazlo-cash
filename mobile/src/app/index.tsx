@@ -9,9 +9,19 @@ import type { Profile } from '@/lib/types';
 import { AdminApp } from '@/hazlo/AdminApp';
 import { ClienteEmbajadorApp } from '@/hazlo/ClienteEmbajadorApp';
 import { NegocioApp } from '@/hazlo/NegocioApp';
+import { RoleSwitcher, type Experiencia } from '@/hazlo/RoleSwitcher';
 import { Splash } from '@/hazlo/Splash';
 import { LoginScreen } from '@/hazlo/screens/Login';
 import { BG } from '@/hazlo/theme';
+
+// Experiencias disponibles según los roles del perfil (prioridad: admin primero).
+function experienciasDe(roles: string[]): Experiencia[] {
+  const exps: Experiencia[] = [];
+  if (roles.includes('admin')) exps.push({ key: 'admin', label: 'Admin', icon: 'settings' });
+  if (roles.includes('negocio')) exps.push({ key: 'negocio', label: 'Negocio', icon: 'home' });
+  if (roles.includes('cliente') || roles.includes('embajador')) exps.push({ key: 'cliente', label: 'Cliente / Embajador', icon: 'user' });
+  return exps;
+}
 
 // Router por rol: decide qué experiencia mostrar según los roles del perfil.
 export default function HazloApp() {
@@ -19,6 +29,7 @@ export default function HazloApp() {
   const [perfil, setPerfil] = useState<Profile | null>(null);
   const [perfilCargado, setPerfilCargado] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+  const [vistaSel, setVistaSel] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -65,18 +76,16 @@ export default function HazloApp() {
   }
 
   // Experiencia según rol (prioridad: admin > negocio > cliente/embajador).
+  // Con varios roles, el RoleSwitcher permite alternar entre ellas (QA/demo).
   const roles = perfil?.roles ?? [];
-  const shell = roles.includes('admin') ? (
-    <AdminApp />
-  ) : roles.includes('negocio') ? (
-    <NegocioApp />
-  ) : (
-    <ClienteEmbajadorApp />
-  );
+  const exps = experienciasDe(roles);
+  const vista = vistaSel ?? exps[0]?.key ?? 'cliente';
+  const shell = vista === 'admin' ? <AdminApp /> : vista === 'negocio' ? <NegocioApp /> : <ClienteEmbajadorApp />;
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       {shell}
+      {exps.length > 1 && <RoleSwitcher exps={exps} actual={vista} onChange={setVistaSel} />}
       {splash}
     </View>
   );

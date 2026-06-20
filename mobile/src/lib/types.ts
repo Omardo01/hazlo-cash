@@ -21,6 +21,19 @@ export interface Business {
   activo: boolean;
 }
 
+// Cómo el negocio paga al recomendador: monto fijo en pesos por venta,
+// o un porcentaje del monto de la venta.
+export type ComisionTipo = 'fijo' | 'porcentaje';
+
+// Vista admin/dueño del negocio: incluye el saldo de créditos y la
+// configuración de comisión (datos que no se exponen en el catálogo público).
+export interface BusinessAdmin extends Business {
+  owner_id: string | null; // cuenta dueña (rol negocio) que opera el negocio
+  creditos: number;
+  comision_tipo: ComisionTipo;
+  comision_valor: number;
+}
+
 export interface ReferralCode {
   id: string;
   codigo: string;

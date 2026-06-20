@@ -9,6 +9,39 @@ export interface MiCodigo {
   shareUrl: string;
 }
 
+// Link público de referido (/r/CODE) que codifica el QR del embajador.
+function linkReferido(codigo: string): string {
+  const base = (process.env.EXPO_PUBLIC_APP_URL ?? 'https://hazlocash.app').replace(/\/$/, '');
+  return `${base}/r/${codigo}`;
+}
+
+// QR de la VISITA que el cliente presenta en el negocio. Codifica el id del
+// referido para que el negocio lo escanee y confirme esa venta exacta.
+export function linkVisita(referralId: string): string {
+  const base = (process.env.EXPO_PUBLIC_APP_URL ?? 'https://hazlocash.app').replace(/\/$/, '');
+  return `${base}/v/${referralId}`;
+}
+
+// Extrae el id del referido de un QR escaneado. Tolerante: acepta la URL
+// /v/<uuid> o el uuid pegado directo. Devuelve null si no encuentra uno válido.
+export function extraerReferralId(texto: string): string | null {
+  const m = texto.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  return m ? m[0].toLowerCase() : null;
+}
+
+// Qué codifica un QR escaneado por el negocio:
+//  - 'codigo': QR del recomendador (/r/HAZLO-XXXX) → registra la venta directo.
+//  - 'visita': QR de una visita ya reclamada (/v/<uuid>) → confirma esa visita.
+export type QrVenta = { tipo: 'codigo'; codigo: string } | { tipo: 'visita'; id: string };
+
+export function interpretarQr(texto: string): QrVenta | null {
+  const cod = texto.toUpperCase().match(/HAZLO-[A-Z0-9]{4}/);
+  if (cod) return { tipo: 'codigo', codigo: cod[0] };
+  const id = extraerReferralId(texto);
+  if (id) return { tipo: 'visita', id };
+  return null;
+}
+
 // Código de referido activo del embajador en sesión.
 // RLS (codigo_all_embajador) garantiza que solo lee los suyos.
 // Devuelve null si no hay sesión o el usuario aún no tiene código.
@@ -32,13 +65,28 @@ export async function getMiCodigo(): Promise<MiCodigo | null> {
   // Sin tipos generados de la BD, supabase-js infiere la relación como array.
   const negocio = Array.isArray(data.businesses) ? data.businesses[0] : data.businesses;
 
-  const base = (process.env.EXPO_PUBLIC_APP_URL ?? 'https://hazlocash.app').replace(/\/$/, '');
-
   return {
     codigo: data.codigo,
     negocio: negocio?.nombre ?? '',
     oferta: negocio?.oferta ?? null,
-    shareUrl: `${base}/r/${data.codigo}`,
+    shareUrl: linkReferido(data.codigo),
+  };
+}
+
+// El usuario en sesión se vuelve embajador de un negocio: genera (o recupera)
+// su código de referido. Pasa por generar_codigo_referido() — idempotente y con
+// código único garantizado server-side.
+export async function crearCodigoReferido(
+  negocioId: string,
+): Promise<{ ok: boolean; codigo: MiCodigo | null; error: string | null }> {
+  const { data, error } = await supabase.rpc('generar_codigo_referido', { p_negocio_id: negocioId });
+  if (error) return { ok: false, codigo: null, error: error.message };
+
+  const r = (data ?? {}) as { codigo: string; negocio: string; oferta: string | null };
+  return {
+    ok: true,
+    codigo: { codigo: r.codigo, negocio: r.negocio, oferta: r.oferta ?? null, shareUrl: linkReferido(r.codigo) },
+    error: null,
   };
 }
 
@@ -101,12 +149,53 @@ export async function reclamarCodigo(entrada: string): Promise<Reclamo> {
   };
 }
 
+export interface VisitaCliente {
+  id: string;
+  folio: string;
+  negocio: string;
+  oferta: string | null;
+  estado: EstadoReferral;
+  creada: string;
+}
+
+// Visitas que el CLIENTE en sesión ha reclamado (su recorrido de compra).
+// Filtra por cliente_id para no mezclar con lo que reclamó como embajador.
+// RLS (referral_select_cliente) ya restringe, pero el .eq lo deja explícito.
+export async function getMisVisitasCliente(): Promise<VisitaCliente[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('referrals')
+    .select('id, estado, created_at, referral_codes(businesses(nombre, oferta))')
+    .eq('cliente_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(`Error al cargar tus visitas: ${error.message}`);
+
+  return (data ?? []).map((r) => {
+    const rc = Array.isArray(r.referral_codes) ? r.referral_codes[0] : r.referral_codes;
+    const b = rc ? (Array.isArray(rc.businesses) ? rc.businesses[0] : rc.businesses) : null;
+    return {
+      id: r.id,
+      folio: r.id.substring(0, 8).toUpperCase(),
+      negocio: b?.nombre ?? 'Negocio',
+      oferta: b?.oferta ?? null,
+      estado: r.estado as EstadoReferral,
+      creada: r.created_at,
+    };
+  });
+}
+
 export interface VisitaNegocio {
   id: string;
   folio: string;
   codigo: string;
   estado: EstadoReferral;
   creada: string;
+  comision: number | null; // comisión pagada (sólo cuando está confirmada)
 }
 
 // Visitas (usos de código) del negocio en sesión. RLS (referral_select_negocio)
@@ -114,7 +203,7 @@ export interface VisitaNegocio {
 export async function getVisitasNegocio(): Promise<VisitaNegocio[]> {
   const { data, error } = await supabase
     .from('referrals')
-    .select('id, estado, created_at, referral_codes(codigo)')
+    .select('id, estado, created_at, comision, referral_codes(codigo)')
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(`Error al cargar solicitudes: ${error.message}`);
@@ -127,22 +216,62 @@ export async function getVisitasNegocio(): Promise<VisitaNegocio[]> {
       codigo: rc?.codigo ?? '—',
       estado: r.estado as EstadoReferral,
       creada: r.created_at,
+      comision: r.comision != null ? Number(r.comision) : null,
     };
   });
 }
 
-// El negocio confirma o rechaza una visita pendiente.
+export interface ResultadoConfirmacion {
+  ok: boolean;
+  comision: number | null;
+  creditosRestantes: number | null;
+  error: string | null;
+}
+
+// El negocio confirma una venta. Pasa por confirmar_venta() (atómica): calcula
+// la comisión, descuenta créditos del negocio y abona al recomendador.
+// En modo 'porcentaje' hay que pasar el monto de la venta.
+export async function confirmarVenta(id: string, montoVenta?: number): Promise<ResultadoConfirmacion> {
+  const { data, error } = await supabase.rpc('confirmar_venta', {
+    p_referral_id: id,
+    p_monto_venta: montoVenta ?? null,
+  });
+  if (error) return { ok: false, comision: null, creditosRestantes: null, error: error.message };
+
+  const r = (data ?? {}) as { comision?: number; creditos_restantes?: number };
+  return {
+    ok: true,
+    comision: r.comision != null ? Number(r.comision) : null,
+    creditosRestantes: r.creditos_restantes != null ? Number(r.creditos_restantes) : null,
+    error: null,
+  };
+}
+
+// El negocio escaneó el QR del recomendador (código): registra la venta al
+// instante. Pasa por registrar_venta_por_codigo() (atómica). En modo
+// 'porcentaje' hay que pasar el monto de la venta.
+export async function registrarVentaPorCodigo(codigo: string, montoVenta?: number): Promise<ResultadoConfirmacion> {
+  const { data, error } = await supabase.rpc('registrar_venta_por_codigo', {
+    p_codigo: codigo,
+    p_monto_venta: montoVenta ?? null,
+  });
+  if (error) return { ok: false, comision: null, creditosRestantes: null, error: error.message };
+
+  const r = (data ?? {}) as { comision?: number; creditos_restantes?: number };
+  return {
+    ok: true,
+    comision: r.comision != null ? Number(r.comision) : null,
+    creditosRestantes: r.creditos_restantes != null ? Number(r.creditos_restantes) : null,
+    error: null,
+  };
+}
+
+// El negocio rechaza una visita pendiente (no mueve dinero).
 // RLS (referral_update_negocio) garantiza que solo toca las suyas.
-export async function resolverVisita(
-  id: string,
-  decision: 'confirmado' | 'rechazado',
-): Promise<{ ok: boolean }> {
+export async function rechazarVisita(id: string): Promise<{ ok: boolean }> {
   const { data, error } = await supabase
     .from('referrals')
-    .update({
-      estado: decision,
-      confirmado_at: decision === 'confirmado' ? new Date().toISOString() : null,
-    })
+    .update({ estado: 'rechazado', confirmado_at: null })
     .eq('id', id)
     .eq('estado', 'pendiente')
     .select('id');

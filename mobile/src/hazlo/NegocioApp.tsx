@@ -6,7 +6,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { getMiPerfil, logout } from '@/lib/services/auth';
 import type { Profile } from '@/lib/types';
-import { Icon, IconName } from './icons';
+import { TabBar, type TabItem } from './TabBar';
+import { Icon } from './icons';
 import { SolicitudesNegocioScreen } from './screens/SolicitudesNegocio';
 import { BG, C, F, FG, MUTED, R } from './theme';
 
@@ -58,7 +59,7 @@ function CuentaNegocio() {
   );
 }
 
-const tabs: { k: TabNeg; label: string; icon: IconName }[] = [
+const TABS: TabItem<TabNeg>[] = [
   { k: 'solicitudes', label: 'Solicitudes', icon: 'activity' },
   { k: 'cuenta', label: 'Mi negocio', icon: 'user' },
 ];
@@ -73,19 +74,7 @@ export function NegocioApp() {
         <View style={{ flex: 1 }}>{tab === 'solicitudes' ? <SolicitudesNegocioScreen /> : <CuentaNegocio />}</View>
       </SafeAreaView>
 
-      {/* Bottom bar (sin FAB, 2 tabs) */}
-      <View style={{ position: 'absolute', bottom: 26, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 8, backgroundColor: 'rgba(255,255,255,0.92)', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.06)', borderRadius: 28 }}>
-        {tabs.map((t) => {
-          const active = tab === t.k;
-          const color = active ? C.primary : 'rgba(13,13,13,0.45)';
-          return (
-            <Pressable key={t.k} onPress={() => setTab(t.k)} style={{ flex: 1, height: 48, alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-              <Icon name={t.icon} size={22} color={color} sw={active ? 2.2 : 1.8} />
-              <Text style={{ fontFamily: F.semi, fontSize: 9.5, color }}>{t.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <TabBar tabs={TABS} active={tab} onSelect={setTab} />
     </View>
   );
 }

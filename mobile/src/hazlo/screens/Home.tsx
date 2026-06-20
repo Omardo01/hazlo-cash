@@ -1,34 +1,144 @@
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
+import { supabase } from '@/lib/supabase';
+import { getMiPerfil } from '@/lib/services/auth';
+import { getMisVisitasCliente, linkVisita, type VisitaCliente } from '@/lib/services/referrals';
+import type { EstadoReferral } from '@/lib/types';
 import { HazloMark } from '../HazloMark';
 import { Icon, IconName } from '../icons';
 import { C, F, FG, MUTED, R } from '../theme';
-import { FoodTile, Glass, SectionHeader } from '../ui';
+import { Glass, SectionHeader } from '../ui';
 import type { ScreenProps } from './types';
 
-const stats: { v: string; l: string; icon: IconName }[] = [
-  { v: '23', l: 'Recomendaciones', icon: 'send' },
-  { v: '12', l: 'Amigos activos', icon: 'user' },
-  { v: '4.9', l: 'Rating', icon: 'star' },
-];
+const ESTADO: Record<EstadoReferral, { label: string; color: string; bg: string; icon: IconName }> = {
+  pendiente: { label: 'En proceso', color: '#B7791F', bg: 'rgba(245,166,35,0.15)', icon: 'send' },
+  confirmado: { label: 'Compra confirmada', color: '#00A896', bg: 'rgba(0,168,150,0.15)', icon: 'check' },
+  rechazado: { label: 'No procedió', color: MUTED, bg: 'rgba(13,13,13,0.06)', icon: 'arrowDown' },
+};
 
-const popular = [
-  { name: 'La Terraza', type: 'Comida', rating: '4.7', hue: 22 },
-  { name: 'Brew House', type: 'Café', rating: '4.9', hue: 35 },
-  { name: 'Sushi Kō', type: 'Japonés', rating: '4.6', hue: 12 },
-  { name: 'Verde Bistró', type: 'Saludable', rating: '4.8', hue: 130 },
-];
+function fechaCorta(iso: string): string {
+  const d = new Date(iso);
+  const hoy = d.toDateString() === new Date().toDateString();
+  const hora = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  return hoy ? `Hoy · ${hora}` : `${d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })} · ${hora}`;
+}
 
-export function HomeScreen({ go }: ScreenProps) {
+// Punto que late: refuerza la sensación de "en vivo".
+function LiveDot() {
+  const [a] = useState(() => new Animated.Value(0.35));
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(a, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(a, { toValue: 0.35, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [a]);
+  return <Animated.View style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#F5A623', opacity: a }} />;
+}
+
+type EstadoPaso = 'done' | 'activo' | 'pendiente';
+
+// Un paso del timeline de la orden.
+function Paso({ n, titulo, desc, estado, ultimo, dark }: { n: number; titulo: string; desc: string; estado: EstadoPaso; ultimo?: boolean; dark?: boolean }) {
+  const fgTitle = dark ? '#fff' : FG;
+  const fgDesc = dark ? 'rgba(255,255,255,0.6)' : MUTED;
+  const lineCol = dark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.1)';
+  const circle =
+    estado === 'done'
+      ? { bg: '#00A896', border: '#00A896' }
+      : estado === 'activo'
+        ? { bg: C.primary, border: C.primary }
+        : { bg: 'transparent', border: lineCol };
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 }}>
-      {/* Greeting */}
+    <View style={{ flexDirection: 'row', gap: 12 }}>
+      <View style={{ alignItems: 'center' }}>
+        <View style={{ width: 26, height: 26, borderRadius: 999, backgroundColor: circle.bg, borderWidth: 1.5, borderColor: circle.border, alignItems: 'center', justifyContent: 'center' }}>
+          {estado === 'done' ? (
+            <Icon name="check" size={14} color="#fff" sw={2.6} />
+          ) : (
+            <Text style={{ fontFamily: F.bold, fontSize: 12, color: estado === 'activo' ? '#fff' : fgDesc }}>{n}</Text>
+          )}
+        </View>
+        {!ultimo && <View style={{ width: 2, flex: 1, minHeight: 16, backgroundColor: lineCol, marginVertical: 2 }} />}
+      </View>
+      <View style={{ flex: 1, paddingBottom: ultimo ? 0 : 14 }}>
+        <Text style={{ fontFamily: F.semi, fontSize: 13.5, color: estado === 'pendiente' ? fgDesc : fgTitle }}>{titulo}</Text>
+        <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: fgDesc, marginTop: 1, lineHeight: 16 }}>{desc}</Text>
+      </View>
+    </View>
+  );
+}
+
+export function HomeScreen({ go, openSheet, reloadKey }: ScreenProps) {
+  const [nombre, setNombre] = useState('');
+  const [visitas, setVisitas] = useState<VisitaCliente[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [celebrarId, setCelebrarId] = useState<string | null>(null);
+
+  const cargar = useCallback(async () => {
+    try {
+      setVisitas(await getMisVisitasCliente());
+    } catch {
+      // Silencioso: el pull-to-refresh permite reintentar.
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargar();
+    getMiPerfil().then((p) => p?.nombre && setNombre(p.nombre.split(' ')[0]));
+  }, [cargar, reloadKey]);
+
+  // Suscripción en vivo: cuando el negocio confirma/registra, el estatus cambia solo.
+  // El canal se crea SÍNCRONO con nombre único: así el cleanup siempre lo limpia
+  // y nunca se reutiliza un canal ya suscrito (evita el error de postgres_changes).
+  useEffect(() => {
+    const canal = supabase.channel(`ordenes-cliente-${Math.random().toString(36).slice(2)}`);
+    let activo = true;
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!activo || !user) return;
+      canal
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'referrals', filter: `cliente_id=eq.${user.id}` },
+          (payload) => {
+            const nuevo = payload.new as { id: string; estado: EstadoReferral };
+            cargar();
+            if (nuevo?.estado === 'confirmado') setCelebrarId(nuevo.id);
+          },
+        )
+        .subscribe();
+    })();
+    return () => {
+      activo = false;
+      supabase.removeChannel(canal);
+    };
+  }, [cargar]);
+
+  const pendiente = visitas.find((v) => v.estado === 'pendiente') ?? null;
+  const celebrada = celebrarId ? visitas.find((v) => v.id === celebrarId && v.estado === 'confirmado') ?? null : null;
+
+  return (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 }}
+      refreshControl={<RefreshControl refreshing={false} onRefresh={cargar} tintColor={C.primary} />}>
+      {/* Saludo */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-        <View>
-          <Text style={{ fontFamily: F.base, fontSize: 13, color: MUTED }}>Hola, Javier</Text>
+        <View style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+          <Text style={{ fontFamily: F.base, fontSize: 13, color: MUTED }}>Hola{nombre ? `, ${nombre}` : ''}</Text>
           <Text style={{ fontFamily: F.bold, fontSize: 22, color: FG, letterSpacing: -0.44, marginTop: 2 }}>
-            ¿Qué recomiendas hoy?
+            {celebrada ? '¡Compra confirmada!' : pendiente ? 'Tu orden en curso' : '¿Listo para ahorrar?'}
           </Text>
         </View>
         <Glass style={{ width: 40, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center' }}>
@@ -36,126 +146,137 @@ export function HomeScreen({ go }: ScreenProps) {
         </Glass>
       </View>
 
-      {/* Hero balance card */}
-      <View
-        style={{
-          position: 'relative',
-          overflow: 'hidden',
-          borderRadius: R.lg,
-          padding: 20,
-          marginBottom: 22,
-          shadowColor: C.primary,
-          shadowOpacity: 0.5,
-          shadowRadius: 24,
-          shadowOffset: { width: 0, height: 18 },
-          elevation: 8,
-        }}>
-        <LinearGradient
-          colors={[C.primary, C.accent]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-        />
-        <View style={{ position: 'absolute', right: -30, top: -30, opacity: 0.18 }}>
-          <HazloMark size={180} primary="#fff" secondary="#fff" />
+      {loading && visitas.length === 0 ? (
+        <View style={{ paddingVertical: 48, alignItems: 'center' }}>
+          <ActivityIndicator color={C.primary} />
         </View>
-        <Text style={{ fontFamily: F.base, fontSize: 12, color: 'rgba(255,255,255,0.85)', letterSpacing: 0.24, textTransform: 'uppercase' }}>
-          Tu saldo
-        </Text>
-        <Text style={{ fontFamily: F.bold, fontSize: 38, color: '#fff', letterSpacing: -1.14, marginTop: 2 }}>$245.80</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
-          <Icon name="arrowUp" size={13} color="#fff" sw={2.4} />
-          <Text style={{ fontFamily: F.base, fontSize: 12, color: 'rgba(255,255,255,0.9)' }}>+$120.50 este mes</Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
+      ) : celebrada ? (
+        // Confirmación en vivo: el negocio escaneó y la venta se completó.
+        <View style={{ borderRadius: R.lg, padding: 24, marginBottom: 18, overflow: 'hidden', position: 'relative' }}>
+          <LinearGradient colors={['#00A896', '#007F71']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+          <View style={{ position: 'absolute', right: -34, bottom: -34, opacity: 0.18 }}>
+            <HazloMark size={180} primary="#fff" secondary="#fff" />
+          </View>
+          <View style={{ width: 64, height: 64, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+            <Icon name="check" size={34} color="#fff" sw={2.6} />
+          </View>
+          <Text style={{ fontFamily: F.bold, fontSize: 22, color: '#fff', letterSpacing: -0.44 }}>¡Venta confirmada!</Text>
+          <Text style={{ fontFamily: F.reg, fontSize: 13.5, color: 'rgba(255,255,255,0.92)', marginTop: 6, lineHeight: 20 }}>
+            <Text style={{ fontFamily: F.semi }}>{celebrada.negocio}</Text> confirmó tu compra. Tu recomendador acaba de recibir su comisión. 🎉
+          </Text>
           <Pressable
-            onPress={() => go('balance')}
-            style={{ flex: 1, height: 40, borderRadius: R.md, backgroundColor: 'rgba(255,255,255,0.95)', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.semi, fontSize: 13, color: C.primary }}>Retirar dinero</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => go('share')}
-            style={{
-              flex: 1,
-              height: 40,
-              borderRadius: R.md,
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.5)',
-              backgroundColor: 'rgba(255,255,255,0.18)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-            <Text style={{ fontFamily: F.semi, fontSize: 13, color: '#fff' }}>Recomendar</Text>
+            onPress={() => setCelebrarId(null)}
+            style={{ marginTop: 18, alignSelf: 'flex-start', height: 44, paddingHorizontal: 22, borderRadius: 999, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontFamily: F.semi, fontSize: 14, color: '#007F71' }}>Listo</Text>
           </Pressable>
         </View>
-      </View>
+      ) : pendiente ? (
+        // Orden en curso: QR en vivo + timeline de estatus.
+        <>
+          <View style={{ borderRadius: R.lg, padding: 22, marginBottom: 12, backgroundColor: '#0D0D0D', overflow: 'hidden', alignItems: 'center' }}>
+            <View style={{ position: 'absolute', right: -40, bottom: -40, opacity: 0.4 }}>
+              <HazloMark size={200} />
+            </View>
+            <View style={{ alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ fontFamily: F.semi, fontSize: 11, color: 'rgba(255,255,255,0.7)', letterSpacing: 0.6 }}>ORDEN #{pendiente.folio}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, backgroundColor: 'rgba(245,166,35,0.16)' }}>
+                <LiveDot />
+                <Text style={{ fontFamily: F.semi, fontSize: 10.5, color: '#F5A623', letterSpacing: 0.5 }}>EN VIVO</Text>
+              </View>
+            </View>
 
-      {/* Stats row */}
+            <Text style={{ fontFamily: F.reg, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 16, textAlign: 'center' }}>Muestra este QR en</Text>
+            <Text style={{ fontFamily: F.bold, fontSize: 19, color: '#fff', marginTop: 2, textAlign: 'center' }}>{pendiente.negocio}</Text>
+
+            <View style={{ marginTop: 16, padding: 16, borderRadius: R.lg, backgroundColor: '#fff' }}>
+              <QRCode value={linkVisita(pendiente.id)} size={168} color="#0D0D0D" backgroundColor="#fff" ecl="M" />
+            </View>
+
+            {pendiente.oferta && (
+              <View style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, backgroundColor: `${C.primary}22` }}>
+                <Icon name="gift" size={14} color={C.primary} />
+                <Text style={{ fontFamily: F.semi, fontSize: 12, color: C.primary }}>{pendiente.oferta}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Timeline de estatus */}
+          <View style={{ borderRadius: R.md, padding: 18, marginBottom: 18, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
+            <Paso n={1} estado="done" titulo="Orden creada" desc="Tu recomendación quedó registrada." />
+            <Paso n={2} estado="activo" titulo="Esperando en el negocio" desc="Cuando escaneen tu QR, la venta se confirma al instante." />
+            <Paso n={3} estado="pendiente" titulo="Venta confirmada" desc="Tu recomendador recibe su comisión." ultimo />
+          </View>
+        </>
+      ) : (
+        // Sin orden activa: invitación a generar una.
+        <View style={{ borderRadius: R.lg, padding: 22, marginBottom: 18, overflow: 'hidden', position: 'relative' }}>
+          <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+          <View style={{ position: 'absolute', right: -30, top: -30, opacity: 0.18 }}>
+            <HazloMark size={170} primary="#fff" secondary="#fff" />
+          </View>
+          <Text style={{ fontFamily: F.bold, fontSize: 20, color: '#fff', letterSpacing: -0.4 }}>¿Te recomendaron un lugar?</Text>
+          <Text style={{ fontFamily: F.reg, fontSize: 13, color: 'rgba(255,255,255,0.9)', marginTop: 6, lineHeight: 19 }}>
+            Genera tu orden con el código que te compartieron y sigue tu compra en vivo.
+          </Text>
+          <Pressable
+            onPress={() => openSheet('claim')}
+            style={{ marginTop: 16, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, height: 42, paddingHorizontal: 18, borderRadius: 999, backgroundColor: '#fff' }}>
+            <Icon name="qr" size={16} color={C.primary} />
+            <Text style={{ fontFamily: F.semi, fontSize: 13, color: C.primary }}>Generar orden</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Acciones rápidas */}
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 26 }}>
-        {stats.map((s) => (
-          <Glass key={s.l} style={{ flex: 1, padding: 12, borderRadius: R.md }}>
-            <View style={{ marginBottom: 6 }}>
-              <Icon name={s.icon} size={18} color={C.primary} />
-            </View>
-            <Text style={{ fontFamily: F.bold, fontSize: 18, color: FG, letterSpacing: -0.36 }}>{s.v}</Text>
-            <Text style={{ fontFamily: F.reg, fontSize: 10, color: MUTED, marginTop: 1 }}>{s.l}</Text>
-          </Glass>
-        ))}
+        <Pressable
+          onPress={() => openSheet('claim')}
+          style={{ flex: 1, height: 48, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.06)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Icon name="qr" size={17} color={FG} />
+          <Text style={{ fontFamily: F.semi, fontSize: 13, color: FG }}>Nueva orden</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => go('share')}
+          style={{ flex: 1, height: 48, borderRadius: R.md, backgroundColor: C.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <Icon name="send" size={17} color="#fff" />
+          <Text style={{ fontFamily: F.semi, fontSize: 13, color: '#fff' }}>Recomendar</Text>
+        </Pressable>
       </View>
 
-      {/* Featured */}
-      <SectionHeader title="Recomendación destacada" action="Ver todo" />
-      <View
-        style={{
-          borderRadius: R.lg,
-          overflow: 'hidden',
-          marginBottom: 22,
-          backgroundColor: '#fff',
-          borderWidth: 0.5,
-          borderColor: 'rgba(0,0,0,0.04)',
-          shadowColor: '#000',
-          shadowOpacity: 0.05,
-          shadowRadius: 24,
-          shadowOffset: { width: 0, height: 8 },
-          elevation: 2,
-        }}>
-        <FoodTile height={150} radius={0} hue={28} />
-        <View style={{ padding: 14 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <View>
-              <Text style={{ fontFamily: F.semi, fontSize: 15, color: FG }}>Café Central</Text>
-              <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED, marginTop: 2 }}>Cafetería · $$</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Icon name="star" size={14} color={C.primary} fill={C.primary} sw={1} />
-              <Text style={{ fontFamily: F.semi, fontSize: 13, color: C.primary }}>4.8</Text>
-            </View>
-          </View>
-          <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderColor: 'rgba(0,0,0,0.08)', borderStyle: 'dashed', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 24, height: 24, borderRadius: 999, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: '#fff', fontFamily: F.bold, fontSize: 10 }}>P</Text>
-              </LinearGradient>
-              <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED }}>
-                Recomendado por <Text style={{ color: FG, fontFamily: F.base }}>@pame_co</Text>
-              </Text>
-            </View>
-            <View style={{ backgroundColor: `${C.primary}15`, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 }}>
-              <Text style={{ fontFamily: F.semi, fontSize: 11, color: C.primary }}>+$5.20</Text>
-            </View>
-          </View>
+      {/* Historial */}
+      <SectionHeader title="Tus órdenes" />
+
+      {!loading && visitas.length === 0 && (
+        <View style={{ borderRadius: R.lg, padding: 22, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
+          <Text style={{ fontFamily: F.semi, fontSize: 15, color: FG }}>Aún no tienes órdenes</Text>
+          <Text style={{ fontFamily: F.reg, fontSize: 13, color: MUTED, marginTop: 6, lineHeight: 19 }}>
+            Cuando reclames una recomendación, aquí seguirás tu compra en vivo hasta que el negocio la confirme.
+          </Text>
         </View>
-      </View>
+      )}
 
-      {/* Popular */}
-      <SectionHeader title="Popular esta semana" action="Ver más" />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-        {popular.map((t) => (
-          <View key={t.name} style={{ width: '47.6%', flexGrow: 1 }}>
-            <FoodTile {...t} radius={R.md} height={150} />
-          </View>
-        ))}
-      </View>
+      {visitas.length > 0 && (
+        <View style={{ gap: 12 }}>
+          {visitas.map((v) => {
+            const e = ESTADO[v.estado];
+            return (
+              <View key={v.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
+                <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: e.bg, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name={e.icon} size={19} color={e.color} sw={2} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text numberOfLines={1} style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>{v.negocio}</Text>
+                  <Text style={{ fontFamily: F.reg, fontSize: 11, color: MUTED, marginTop: 1 }}>Orden #{v.folio} · {fechaCorta(v.creada)}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: e.bg }}>
+                  {v.estado === 'pendiente' && <LiveDot />}
+                  <Text style={{ fontFamily: F.semi, fontSize: 11, color: e.color }}>{e.label}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
     </ScrollView>
   );
 }

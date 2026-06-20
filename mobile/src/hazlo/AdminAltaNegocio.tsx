@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { crearNegocio } from '@/lib/services/businesses';
+import type { ComisionTipo } from '@/lib/types';
 import { Icon } from './icons';
 import { BG, C, F, FG, MUTED, R } from './theme';
 
@@ -67,6 +68,8 @@ export function AdminAltaNegocio({ visible, onClose }: { visible: boolean; onClo
   const [direccion, setDireccion] = useState('');
   const [oferta, setOferta] = useState('');
   const [descripcion, setDescripcion] = useState('');
+  const [comisionTipo, setComisionTipo] = useState<ComisionTipo>('fijo');
+  const [comisionValor, setComisionValor] = useState('10');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
@@ -77,6 +80,8 @@ export function AdminAltaNegocio({ visible, onClose }: { visible: boolean; onClo
     setDireccion('');
     setOferta('');
     setDescripcion('');
+    setComisionTipo('fijo');
+    setComisionValor('10');
     setError(null);
     setExito(null);
   };
@@ -89,9 +94,12 @@ export function AdminAltaNegocio({ visible, onClose }: { visible: boolean; onClo
   const guardar = async () => {
     if (!nombre.trim()) return setError('Escribe el nombre del negocio.');
     if (!categoria) return setError('Selecciona una categoría.');
+    const valor = parseFloat(comisionValor.replace(',', '.'));
+    if (isNaN(valor) || valor < 0) return setError('Define una comisión válida.');
+    if (comisionTipo === 'porcentaje' && valor > 100) return setError('El porcentaje no puede ser mayor a 100.');
     setError(null);
     setLoading(true);
-    const r = await crearNegocio({ nombre, categoria, direccion, oferta, descripcion });
+    const r = await crearNegocio({ nombre, categoria, direccion, oferta, descripcion, comision_tipo: comisionTipo, comision_valor: valor });
     setLoading(false);
     if (r.ok) setExito(nombre.trim());
     else setError(r.error ?? 'No se pudo dar de alta el negocio.');
@@ -151,6 +159,39 @@ export function AdminAltaNegocio({ visible, onClose }: { visible: boolean; onClo
               <Campo label="Dirección / Ciudad" value={direccion} onChangeText={setDireccion} placeholder="Villahermosa, Tabasco" />
               <Campo label="Oferta Hazlo Cash" value={oferta} onChangeText={setOferta} placeholder="Ej. Refresco gratis con tu primer pedido" />
               <Campo label="Descripción" value={descripcion} onChangeText={setDescripcion} placeholder="Breve descripción del negocio…" multiline />
+
+              {/* Comisión al recomendador */}
+              <Text style={{ fontFamily: F.semi, fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 7 }}>Comisión al recomendador</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+                {(['fijo', 'porcentaje'] as ComisionTipo[]).map((t) => {
+                  const sel = comisionTipo === t;
+                  return (
+                    <Pressable
+                      key={t}
+                      onPress={() => setComisionTipo(t)}
+                      style={{ flex: 1, height: 44, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', borderWidth: sel ? 0 : 1, borderColor: 'rgba(0,0,0,0.1)', backgroundColor: sel ? C.primary : '#fff' }}>
+                      <Text style={{ fontFamily: F.semi, fontSize: 13, color: sel ? '#fff' : FG }}>{t === 'fijo' ? 'Monto fijo' : 'Porcentaje'}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={{ borderRadius: R.md, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, height: 50, marginBottom: 4 }}>
+                {comisionTipo === 'fijo' && <Text style={{ fontFamily: F.semi, fontSize: 16, color: MUTED, marginRight: 4 }}>$</Text>}
+                <TextInput
+                  value={comisionValor}
+                  onChangeText={setComisionValor}
+                  placeholder={comisionTipo === 'fijo' ? '10.00' : '10'}
+                  placeholderTextColor={MUTED}
+                  keyboardType="decimal-pad"
+                  style={{ flex: 1, fontFamily: F.semi, fontSize: 16, color: FG, padding: 0 }}
+                />
+                {comisionTipo === 'porcentaje' && <Text style={{ fontFamily: F.semi, fontSize: 16, color: MUTED, marginLeft: 4 }}>%</Text>}
+              </View>
+              <Text style={{ fontFamily: F.reg, fontSize: 11, color: MUTED, marginBottom: 16, lineHeight: 16 }}>
+                {comisionTipo === 'fijo'
+                  ? 'Se paga este monto por cada venta confirmada, descontado de los créditos del negocio.'
+                  : 'Se paga este porcentaje del monto de cada venta, descontado de los créditos del negocio.'}
+              </Text>
 
               {error && (
                 <View style={{ backgroundColor: 'rgba(235,78,0,0.08)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 6 }}>
