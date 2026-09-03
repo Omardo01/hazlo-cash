@@ -115,19 +115,13 @@ Expo Go ni de tu computadora**: se manda un link y se instala.
 npx eas-cli login
 ```
 
-Las claves de Supabase están en `mobile/.env.local`, que **no se sube al build**.
-Hay que darlas de alta en EAS una sola vez (entorno `preview`):
+Las claves de Supabase están en `mobile/.env.local`, que **no se sube al build**
+(está en `.gitignore`, y así debe quedarse). Si construyes sin darlas de alta en
+EAS, el APK instala pero no conecta con nada. Un solo comando sube las tres al
+entorno `preview` — córrelo desde `mobile/`, que es donde vive el `.env.local`:
 
 ```bash
-npx eas-cli env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL --type string --visibility plaintext --value "$(grep EXPO_PUBLIC_SUPABASE_URL mobile/.env.local | cut -d= -f2-)"
-```
-
-```bash
-npx eas-cli env:create --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --type string --visibility plaintext --value "$(grep EXPO_PUBLIC_SUPABASE_ANON_KEY mobile/.env.local | cut -d= -f2-)"
-```
-
-```bash
-npx eas-cli env:create --environment preview --name EXPO_PUBLIC_APP_URL --type string --visibility plaintext --value "$(grep EXPO_PUBLIC_APP_URL mobile/.env.local | cut -d= -f2-)"
+npx eas-cli env:push preview
 ```
 
 Y a construir (tarda ~10–20 min en la cola gratuita):
