@@ -1,0 +1,47 @@
+# Mantiene despierto el proyecto de Supabase.
+#
+# El free tier pausa un proyecto tras ~7 días sin peticiones y da de baja el
+# DNS del subdominio: la app empieza a fallar con "Network request failed" y
+# hay que restaurarlo a mano desde el dashboard. Ya pasó dos veces (julio y
+# septiembre de 2026), la segunda a días de una demo. Un ping diario lo evita.
+#
+# Requiere dos secrets en el repo (Settings → Secrets and variables → Actions):
+#   SUPABASE_URL       https://<ref>.supabase.co
+#   SUPABASE_ANON_KEY  la anon key (pública, protegida por RLS)
+
+name: Keepalive Supabase
+
+on:
+  schedule:
+    - cron: '17 13 * * *' # todos los días ~7:17 a.m. hora de Villahermosa
+  workflow_dispatch: # y a mano cuando haga falta
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consultar el catálogo de negocios
+        env:
+          URL: ${{ secrets.SUPABASE_URL }}
+          KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "Faltan los secrets SUPABASE_URL / SUPABASE_ANON_KEY."
+            exit 1
+          fi
+
+          codigo=$(curl -s -o /tmp/respuesta.txt -w '%{http_code}' \
+            --max-time 30 --retry 3 --retry-delay 10 \
+            "$URL/rest/v1/businesses?select=id&limit=1" \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+
+          echo "HTTP $codigo"
+          cat /tmp/respuesta.txt
+
+          # 2xx = vivo. Cualquier otra cosa (o DNS caído) marca el job en rojo
+          # para que llegue el correo de GitHub antes de que alguien lo note
+          # desde la app.
+          case "$codigo" in
+            2*) echo "Proyecto despierto." ;;
+            *) echo "El proyecto no respondió: revísalo en el dashboard de Supabase."; exit 1 ;;
+          esac

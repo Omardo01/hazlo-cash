@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState } from 'react';
 
+import { limpiarTodo } from './datos/cache';
 import { supabase } from './supabase';
 
 interface AuthState {
@@ -23,7 +24,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Reacciona a login / logout / refresh de token.
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, nuevaSesion) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((evento, nuevaSesion) => {
+      // Al cerrar sesión se tira la caché en memoria: la siguiente cuenta que
+      // entre no debe ver ni un saldo ni una orden de la anterior.
+      if (evento === 'SIGNED_OUT') limpiarTodo();
       setSession(nuevaSesion);
     });
 

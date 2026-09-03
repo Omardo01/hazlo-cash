@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { EstadoReferral } from '../types';
+import { CONFIRMADO, PENDIENTE, type EstadoReferral } from '../types';
 
 export interface MiCodigo {
   codigo: string;
@@ -10,7 +10,7 @@ export interface MiCodigo {
 }
 
 // Link público de referido (/r/CODE) que codifica el QR del embajador.
-function linkReferido(codigo: string): string {
+export function linkReferido(codigo: string): string {
   const base = (process.env.EXPO_PUBLIC_APP_URL ?? 'https://hazlocash.app').replace(/\/$/, '');
   return `${base}/r/${codigo}`;
 }
@@ -277,4 +277,79 @@ export async function rechazarVisita(id: string): Promise<{ ok: boolean }> {
     .select('id');
 
   return { ok: !error && (data?.length ?? 0) > 0 };
+}
+
+export interface StatsEmbajador {
+  /** Visitas generadas por sus códigos (todas, en cualquier estado). */
+  recomendaciones: number;
+  confirmadas: number;
+  pendientes: number;
+  /** Personas distintas que usaron alguno de sus códigos. */
+  clientes: number;
+  /** Negocios para los que tiene código activo. */
+  negocios: number;
+}
+
+// Resumen de la actividad del embajador en sesión, para su perfil.
+// RLS (referral_select_embajador) ya limita a los referidos de sus códigos;
+// el filtro por embajador_id lo deja explícito.
+export async function getStatsEmbajador(): Promise<StatsEmbajador> {
+  const vacio: StatsEmbajador = { recomendaciones: 0, confirmadas: 0, pendientes: 0, clientes: 0, negocios: 0 };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return vacio;
+
+  const [{ data: refs }, { data: codigos }] = await Promise.all([
+    supabase
+      .from('referrals')
+      .select('id, estado, cliente_id, referral_codes!inner(embajador_id)')
+      .eq('referral_codes.embajador_id', user.id),
+    supabase.from('referral_codes').select('negocio_id').eq('embajador_id', user.id).eq('activo', true),
+  ]);
+
+  const lista = refs ?? [];
+  return {
+    recomendaciones: lista.length,
+    confirmadas: lista.filter((r) => r.estado === CONFIRMADO).length,
+    pendientes: lista.filter((r) => r.estado === PENDIENTE).length,
+    clientes: new Set(lista.map((r) => r.cliente_id)).size,
+    negocios: new Set((codigos ?? []).map((c) => c.negocio_id)).size,
+  };
+}
+
+export type NivelEmbajador = 'Bronce' | 'Plata' | 'Oro';
+
+export interface Nivel {
+  nivel: NivelEmbajador;
+  /** Ventas confirmadas que faltan para el siguiente nivel (0 si ya es Oro). */
+  faltan: number;
+  /** Avance dentro del nivel actual, 0–1. */
+  progreso: number;
+  siguiente: NivelEmbajador | null;
+}
+
+// Escalones por ventas confirmadas. Los rangos viven aquí (no en la UI) para
+// que web y móvil muestren lo mismo cuando se conecte el sistema de niveles.
+const ESCALONES: { nivel: NivelEmbajador; desde: number }[] = [
+  { nivel: 'Bronce', desde: 0 },
+  { nivel: 'Plata', desde: 5 },
+  { nivel: 'Oro', desde: 15 },
+];
+
+export function calcularNivel(confirmadas: number): Nivel {
+  const i = ESCALONES.reduce((acc, e, idx) => (confirmadas >= e.desde ? idx : acc), 0);
+  const actual = ESCALONES[i];
+  const siguiente = ESCALONES[i + 1] ?? null;
+
+  if (!siguiente) return { nivel: actual.nivel, faltan: 0, progreso: 1, siguiente: null };
+
+  const tramo = siguiente.desde - actual.desde;
+  return {
+    nivel: actual.nivel,
+    faltan: siguiente.desde - confirmadas,
+    progreso: Math.min(1, (confirmadas - actual.desde) / tramo),
+    siguiente: siguiente.nivel,
+  };
 }

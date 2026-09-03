@@ -1,4 +1,5 @@
-export type Tab = 'home' | 'discover' | 'balance' | 'share' | 'profile';
+// 'home2' es la variante de Inicio en evaluación (estilo fintech oscuro).
+export type Tab = 'home' | 'home2' | 'discover' | 'balance' | 'share' | 'profile';
 export type SheetName = 'action' | 'withdraw' | 'invite' | 'claim';
 
 export type ScreenProps = {

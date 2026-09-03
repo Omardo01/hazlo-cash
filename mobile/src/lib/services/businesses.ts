@@ -122,3 +122,108 @@ export async function setComisionNegocio(
   if (error) return { ok: false, error: error.message };
   return { ok: true, error: null };
 }
+
+// =============================================================
+// Panel del negocio (vista dueño)
+// =============================================================
+
+export interface ResumenNegocio {
+  negocioId: string;
+  creditos: number;
+  ordenes: number;
+  pendientes: number;
+  confirmadas: number;
+  rechazadas: number;
+  comisionesPagadas: number;
+  ventasRegistradas: number;
+  embajadores: number;
+  clientes: number;
+}
+
+// Resumen de operación del negocio en sesión. Pasa por negocio_resumen()
+// (security definer): los agregados se calculan server-side en una sola
+// consulta en vez de bajarse todas las órdenes al teléfono.
+export async function getResumenNegocio(): Promise<ResumenNegocio | null> {
+  const { data, error } = await supabase.rpc('negocio_resumen');
+  if (error || !data) return null;
+
+  const r = data as Record<string, unknown>;
+  const num = (k: string) => Number(r[k] ?? 0);
+  return {
+    negocioId: String(r.negocio_id ?? ''),
+    creditos: num('creditos'),
+    ordenes: num('ordenes'),
+    pendientes: num('pendientes'),
+    confirmadas: num('confirmadas'),
+    rechazadas: num('rechazadas'),
+    comisionesPagadas: num('comisiones_pagadas'),
+    ventasRegistradas: num('ventas_registradas'),
+    embajadores: num('embajadores'),
+    clientes: num('clientes'),
+  };
+}
+
+export interface EmbajadorNegocio {
+  codigoId: string;
+  codigo: string;
+  nombre: string;
+  activo: boolean;
+  recomendaciones: number;
+  confirmadas: number;
+  pendientes: number;
+  comisionPagada: number;
+  ultima: string | null;
+}
+
+// Quién recomienda a este negocio. El nombre del embajador lo resuelve
+// negocio_embajadores() server-side (el negocio no puede leer profiles).
+export async function getEmbajadoresNegocio(): Promise<EmbajadorNegocio[]> {
+  const { data, error } = await supabase.rpc('negocio_embajadores');
+  if (error) throw new Error(`Error al cargar embajadores: ${error.message}`);
+
+  return ((data ?? []) as Record<string, unknown>[]).map((e) => ({
+    codigoId: String(e.codigo_id),
+    codigo: String(e.codigo),
+    nombre: String(e.nombre),
+    activo: Boolean(e.activo),
+    recomendaciones: Number(e.recomendaciones ?? 0),
+    confirmadas: Number(e.confirmadas ?? 0),
+    pendientes: Number(e.pendientes ?? 0),
+    comisionPagada: Number(e.comision_pagada ?? 0),
+    ultima: (e.ultima as string) ?? null,
+  }));
+}
+
+export interface EdicionNegocio {
+  nombre: string;
+  categoria: string;
+  direccion?: string;
+  descripcion?: string;
+  oferta?: string;
+}
+
+// Edita la ficha del negocio. La usan el dueño (RLS negocio_all_dueno) y el
+// admin (negocio_all_admin). Las columnas de dinero y control (creditos,
+// comision_*, owner_id, activo) NO se tocan aquí: el trigger
+// proteger_columnas_negocio las rechaza para todo el que no sea admin.
+export async function actualizarNegocio(
+  id: string,
+  n: EdicionNegocio,
+): Promise<{ ok: boolean; error: string | null }> {
+  if (!n.nombre.trim()) return { ok: false, error: 'El nombre no puede quedar vacío.' };
+  if (!n.categoria) return { ok: false, error: 'Selecciona una categoría.' };
+
+  const { error } = await supabase
+    .from('businesses')
+    .update({
+      nombre: n.nombre.trim(),
+      categoria: n.categoria,
+      direccion: n.direccion?.trim() || null,
+      descripcion: n.descripcion?.trim() || null,
+      oferta: n.oferta?.trim() || null,
+    })
+    .eq('id', id);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, error: null };
+}

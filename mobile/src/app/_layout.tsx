@@ -12,6 +12,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { AuthProvider } from '@/lib/auth-context';
+import { RealtimeProvider } from '@/lib/datos/realtime';
+import { AvisoLive } from '@/hazlo/AvisoLive';
 import { BG } from '@/hazlo/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -34,7 +36,12 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: BG } }} />
+          {/* Un solo canal de Realtime para toda la app y un solo banner de
+              avisos encima: así el evento llega esté donde esté el usuario. */}
+          <RealtimeProvider>
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: BG } }} />
+            <AvisoLive />
+          </RealtimeProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

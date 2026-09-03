@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { WithdrawDialog } from "@/components/dashboard/WithdrawDialog";
+import { getMiSaldo } from "@/lib/services/wallet";
 import { StatCard } from "@/components/dashboard/StatCard";
 import {
   ChartContainer,
@@ -76,6 +78,14 @@ export default function ComisionesPage() {
   const loading = useSimulatedLoading();
   const [filter, setFilter] = useState<Filter>("todos");
 
+  // Saldo real del wallet si hay sesión con saldo; si no, un disponible de demo
+  // (esta vista sigue siendo mayormente mock hasta conectar el recomendador real).
+  const [saldo, setSaldo] = useState<number | null>(null);
+  useEffect(() => {
+    getMiSaldo().then(setSaldo).catch(() => setSaldo(null));
+  }, []);
+  const disponible = saldo && saldo > 0 ? saldo : 2270;
+
   const filteredTx = filter === "todos"
     ? transactions
     : transactions.filter((t) => t.estado === filter);
@@ -91,11 +101,14 @@ export default function ComisionesPage() {
         {/* ── Main content ── */}
         <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6 min-w-0 overflow-auto">
 
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider">
-            <span className="text-[#FE7801]">Recomendador</span>
-            <ChevronRightIcon className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">Comisiones</span>
+          {/* Breadcrumb + acción de retiro */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider">
+              <span className="text-[#FE7801]">Recomendador</span>
+              <ChevronRightIcon className="h-3 w-3 text-muted-foreground" />
+              <span className="text-muted-foreground">Comisiones</span>
+            </div>
+            <WithdrawDialog saldo={disponible} />
           </div>
 
           {/* Stats */}

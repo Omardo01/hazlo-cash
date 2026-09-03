@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { getNegociosActivos } from '@/lib/services/businesses';
-import type { Business } from '@/lib/types';
+import { useNegocios } from '@/lib/datos/consultas';
+import { ListaSkeleton } from '../Skeleton';
 import { Icon } from '../icons';
+import { Fade, PressableScale, STAGGER } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
 import { FoodTile, Glass, SectionHeader } from '../ui';
 
@@ -25,34 +26,19 @@ function hueDeId(id: string): number {
 
 export function DiscoverScreen() {
   const [cat, setCat] = useState('Todo');
-  const [negocios, setNegocios] = useState<Business[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let activo = true;
-    getNegociosActivos()
-      .then((data) => {
-        if (activo) setNegocios(data);
-      })
-      .catch((e: unknown) => {
-        if (activo) setError(e instanceof Error ? e.message : 'Error al cargar negocios');
-      })
-      .finally(() => {
-        if (activo) setLoading(false);
-      });
-    return () => {
-      activo = false;
-    };
-  }, []);
+  // El catálogo cambia poco: se revalida cada 5 minutos, no en cada visita.
+  const { datos: negocios = [], cargando: loading, error } = useNegocios();
 
   const visibles = cat === 'Todo' ? negocios : negocios.filter((n) => n.categoria === cat);
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 }}>
-      <Text style={{ fontFamily: F.bold, fontSize: 28, color: FG, letterSpacing: -0.7, marginBottom: 14 }}>Descubre</Text>
+      <Fade desde={8}>
+        <Text style={{ fontFamily: F.bold, fontSize: 28, color: FG, letterSpacing: -0.7, marginBottom: 14 }}>Descubre</Text>
+      </Fade>
 
       {/* Search */}
+      <Fade delay={STAGGER} desde={8}>
       <Glass style={{ borderRadius: R.md, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <Icon name="search" size={18} color={MUTED} />
         <TextInput
@@ -61,13 +47,14 @@ export function DiscoverScreen() {
           style={{ flex: 1, fontFamily: F.reg, fontSize: 13, color: FG, padding: 0 }}
         />
       </Glass>
+      </Fade>
 
       {/* Chips */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }} style={{ marginBottom: 18 }}>
         {cats.map((cc) => {
           const active = cat === cc;
           return (
-            <Pressable
+            <PressableScale
               key={cc}
               onPress={() => setCat(cc)}
               style={{
@@ -81,7 +68,7 @@ export function DiscoverScreen() {
                 backgroundColor: active ? C.primary : '#fff',
               }}>
               <Text style={{ fontFamily: F.base, fontSize: 12, color: active ? '#fff' : FG }}>{cc}</Text>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </ScrollView>
@@ -100,8 +87,8 @@ export function DiscoverScreen() {
       <SectionHeader title="Negocios en Hazlo Cash" />
 
       {loading && (
-        <View style={{ paddingVertical: 28, alignItems: 'center' }}>
-          <ActivityIndicator color={C.primary} />
+        <View style={{ borderRadius: R.md, paddingHorizontal: 12, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
+          <ListaSkeleton filas={3} />
         </View>
       )}
 
@@ -119,9 +106,11 @@ export function DiscoverScreen() {
 
       {!loading && !error && visibles.length > 0 && (
         <View style={{ gap: 12 }}>
-          {visibles.map((n) => (
-            <View
-              key={n.id}
+          {visibles.map((n, i) => (
+            <Fade
+              key={`${cat}-${n.id}`}
+              delay={i * STAGGER}
+              desde={12}
               style={{ flexDirection: 'row', gap: 12, padding: 10, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
               <View style={{ width: 72, height: 72 }}>
                 <FoodTile hue={hueDeId(n.id)} radius={14} height={72} />
@@ -139,7 +128,7 @@ export function DiscoverScreen() {
                 )}
               </View>
               <Icon name="bookmark" size={18} color={MUTED} />
-            </View>
+            </Fade>
           ))}
         </View>
       )}

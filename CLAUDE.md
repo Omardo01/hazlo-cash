@@ -528,6 +528,7 @@ hazlocash/
 5. **No over-engineer**. Si algo funciona con una solución simple, no lo compliques. Ship first, refactor later.
 6. **Código en español para variables de negocio** (nombres de tablas, tipos de dominio) y en inglés para código técnico (funciones, utilidades, componentes).
 7. **Seguridad desde el inicio**. Autorización a nivel de datos (RLS, middleware, o lo que aplique según la BD elegida) en todas las entidades desde el día 1.
+8. **La app se tiene que sentir viva**. Toda pantalla, hoja, lista y botón lleva animación. Ver la sección de Movimiento — es requisito, no adorno.
 
 ### Principios flexibles (dependen de las decisiones técnicas que se tomen)
 
@@ -574,6 +575,36 @@ NEXT_PUBLIC_APP_NAME=Hazlo Cash
 
 > Las variables específicas se irán definiendo conforme se elijan los proveedores y servicios.
 
+### Movimiento y animaciones (requisito permanente)
+
+La app debe sentirse fluida y agradable. Una pantalla que aparece de golpe, un botón que no responde al tacto, o una lista que se pinta sin entrar, cuentan como trabajo incompleto — igual que un error de TypeScript. Esto aplica a toda mejora futura, no solo a las que digan "animación".
+
+**Fuente única**: `mobile/src/hazlo/motion.tsx` (nativo) tiene los tokens y helpers. Nada de duraciones ni easings inventados en cada pantalla.
+
+| Token | Valor | Cuándo |
+|-------|-------|--------|
+| `DUR.fast` | 130ms | Feedback inmediato: presión, chips, toggles |
+| `DUR.base` | 190ms | Fade de contenido, tarjetas que aparecen |
+| `DUR.slow` | 260ms | Entradas con recorrido: hojas, hero, celebraciones |
+| `EASE.out` | cubic out | Entradas |
+| `EASE.in` | cubic in | Salidas |
+| `STAGGER` | 45ms | Escalonado entre items de una lista |
+
+**Helpers**: `<Fade>` (aparición, acepta `delay` y `desde` para desplazamiento), `<PressableScale>` (hundido al tocar — úsalo en vez de `Pressable` en todo lo tocable), `useReduceMotion()`.
+
+**Reglas firmes:**
+
+1. **Siempre `useNativeDriver: true`** — solo `opacity` y `transform`. Animar layout (height, width, margin) salta en Android; si el efecto lo pide, replantéalo.
+2. **Entrar más lento que salir.** Aparecer se disfruta; desaparecer estorba.
+3. **Animar la salida antes de desmontar.** Un componente que se borra de golpe se ve como un bug.
+4. **Reservar el espacio antes de animar.** Si el contenedor cambia de tamaño a media animación, el resultado brinca. Ver el QR de `InviteSheet`.
+5. **Aislar lo que se repinta seguido.** Un efecto que corre a 15fps en un componente grande repinta todo el árbol y eso parpadea. Ponlo en su propio componente.
+6. **Nunca desmontar/montar un `Modal` para cambiar de contenido.** En Android eso cierra y abre una ventana nativa: parpadeo garantizado. Un solo Modal, contenido intercambiable (ver `SheetShell` en `sheets.tsx`).
+7. **Respetar `useReduceMotion()`** — degradar a corte seco, nunca ocultar el contenido.
+8. **Verificar en Android.** Los artefactos de animación y sombra son casi siempre específicos de Android; iOS perdona cosas que Android no.
+
+En web (`src/`) el equivalente es `motion` (Framer Motion) con la misma filosofía y duraciones.
+
 ### Lo que NO hacer
 
 - **NO** expongas claves secretas en el cliente. API keys, service role keys, y secrets de webhooks solo van en server-side.
@@ -582,6 +613,8 @@ NEXT_PUBLIC_APP_NAME=Hazlo Cash
 - **NO** calcules comisiones en el frontend. Siempre server-side.
 - **NO** uses JavaScript plano. Todo es TypeScript.
 - **NO** asumas qué servicio o proveedor usar sin confirmar. La arquitectura está abierta — pregunta antes de implementar.
+- **NO** entregues pantallas o componentes sin movimiento. Ver la sección de Movimiento.
+- **NO** animes con `useNativeDriver: false` ni animes propiedades de layout.
 - **NO** agregues dependencias innecesarias. Antes de instalar un paquete, verifica si el framework o las herramientas actuales ya lo resuelven.
 
 ---

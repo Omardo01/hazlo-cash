@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Platform, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient as SvgGrad, Path, Stop } from 'react-native-svg';
 
 import { F, FG, MUTED } from './theme';
@@ -92,15 +92,28 @@ export function Sparkline({ color }: { color: string }) {
 }
 
 const styles = StyleSheet.create({
+  // En Android, un fondo translúcido combinado con elevation hace que el
+  // sistema pinte el relleno como un rectángulo opaco sin respetar el radio:
+  // ese es el "recuadro blanco" dentro de inputs y tarjetas. Ahí usamos color
+  // sólido (la misma mezcla del 72% sobre el fondo) y un borde tenue en vez de
+  // sombra. iOS conserva el vidrio translúcido con sombra suave.
   glass: {
-    backgroundColor: 'rgba(255,255,255,0.72)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.7)',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
+    ...Platform.select({
+      android: {
+        backgroundColor: '#FCFCFB',
+        borderWidth: 1,
+        borderColor: 'rgba(13,13,13,0.06)',
+      },
+      default: {
+        backgroundColor: 'rgba(255,255,255,0.72)',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(255,255,255,0.7)',
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 8 },
+      },
+    }),
   },
   sectionHead: {
     flexDirection: 'row',

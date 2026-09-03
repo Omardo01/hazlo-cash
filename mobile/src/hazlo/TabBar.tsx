@@ -1,7 +1,9 @@
+import { useEffect, useRef, useState } from 'react';
 import { BlurView } from 'expo-blur';
-import { Pressable, Text, View } from 'react-native';
+import { Animated, Text, View } from 'react-native';
 
 import { Icon, IconName } from './icons';
+import { DUR, EASE, PressableScale, useReduceMotion } from './motion';
 import { C, F } from './theme';
 
 const MUTED_TAB = 'rgba(13,13,13,0.45)';
@@ -21,11 +23,36 @@ export function TabBar<K extends string>({ tabs, active, onSelect, onPlus }: Pro
   const TabBtn = ({ t }: { t: TabItem<K> }) => {
     const isActive = active === t.k;
     const color = isActive ? C.primary : MUTED_TAB;
+    // Pequeño impulso del icono al volverse activo: confirma el cambio de tab
+    // sin que haga falta leer el color.
+    const pop = useState(() => new Animated.Value(isActive ? 1 : 0))[0];
+    const reduce = useReduceMotion();
+
+    useEffect(() => {
+      if (reduce) {
+        pop.setValue(isActive ? 1 : 0);
+        return;
+      }
+      Animated.timing(pop, {
+        toValue: isActive ? 1 : 0,
+        duration: DUR.fast,
+        easing: EASE.out,
+        useNativeDriver: true,
+      }).start();
+    }, [isActive, pop, reduce]);
+
+    const escala = pop.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
+
     return (
-      <Pressable onPress={() => onSelect(t.k)} style={{ flex: 1, height: 48, alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-        <Icon name={t.icon} size={22} color={color} sw={isActive ? 2.2 : 1.8} />
+      <PressableScale onPress={() => onSelect(t.k)} style={{ flex: 1, height: 48, alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+        <Animated.View style={{ transform: [{ scale: escala }] }}>
+          <Icon name={t.icon} size={22} color={color} sw={isActive ? 2.2 : 1.8} />
+        </Animated.View>
         <Text style={{ fontFamily: F.semi, fontSize: 9.5, color }}>{t.label}</Text>
-      </Pressable>
+        <Animated.View
+          style={{ position: 'absolute', bottom: 1, width: 4, height: 4, borderRadius: 999, backgroundColor: C.primary, opacity: pop }}
+        />
+      </PressableScale>
     );
   };
 
@@ -64,7 +91,7 @@ export function TabBar<K extends string>({ tabs, active, onSelect, onPlus }: Pro
       {/* FAB flotante — overlay fuera del recorte, sobresale por arriba */}
       {onPlus && (
         <View pointerEvents="box-none" style={{ position: 'absolute', top: -18, left: 0, right: 0, alignItems: 'center' }}>
-          <Pressable
+          <PressableScale
             onPress={onPlus}
             style={{
               width: 56,
@@ -82,7 +109,7 @@ export function TabBar<K extends string>({ tabs, active, onSelect, onPlus }: Pro
               elevation: 8,
             }}>
             <Icon name="plus" size={24} color="#fff" sw={2.4} />
-          </Pressable>
+          </PressableScale>
         </View>
       )}
     </View>

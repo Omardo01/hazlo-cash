@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,10 +9,13 @@ import type { Profile } from '@/lib/types';
 import { TabBar, type TabItem } from './TabBar';
 import { Icon } from './icons';
 import { AdminNegociosScreen } from './screens/AdminNegocios';
+import { AdminOrdenesScreen } from './screens/AdminOrdenes';
+import { AdminResumenScreen } from './screens/AdminResumen';
 import { AdminUsuariosScreen } from './screens/AdminUsuarios';
+import { Fade, PressableScale } from './motion';
 import { BG, C, F, FG, MUTED, R } from './theme';
 
-type TabAdmin = 'negocios' | 'usuarios' | 'cuenta';
+type TabAdmin = 'resumen' | 'negocios' | 'ordenes' | 'usuarios' | 'cuenta';
 
 function CuentaAdmin() {
   const [perfil, setPerfil] = useState<Profile | null>(null);
@@ -41,11 +44,11 @@ function CuentaAdmin() {
         </View>
       </View>
 
-      <Pressable
+      <PressableScale
         onPress={() => logout()}
         style={{ marginTop: 4, height: 48, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
         <Text style={{ fontFamily: F.semi, fontSize: 13, color: C.accent }}>Cerrar sesión</Text>
-      </Pressable>
+      </PressableScale>
 
       <Text style={{ marginTop: 14, textAlign: 'center', fontFamily: F.reg, fontSize: 11, color: MUTED }}>Hazlo Cash · Admin</Text>
     </ScrollView>
@@ -53,25 +56,31 @@ function CuentaAdmin() {
 }
 
 const TABS: TabItem<TabAdmin>[] = [
+  { k: 'resumen', label: 'Resumen', icon: 'chart' },
   { k: 'negocios', label: 'Negocios', icon: 'home' },
+  { k: 'ordenes', label: 'Órdenes', icon: 'activity' },
   { k: 'usuarios', label: 'Usuarios', icon: 'user' },
   { k: 'cuenta', label: 'Cuenta', icon: 'settings' },
 ];
 
 export function AdminApp() {
-  const [tab, setTab] = useState<TabAdmin>('negocios');
+  const [tab, setTab] = useState<TabAdmin>('resumen');
 
   const screen = () => {
+    if (tab === 'negocios') return <AdminNegociosScreen />;
+    if (tab === 'ordenes') return <AdminOrdenesScreen />;
     if (tab === 'usuarios') return <AdminUsuariosScreen />;
     if (tab === 'cuenta') return <CuentaAdmin />;
-    return <AdminNegociosScreen />;
+    return <AdminResumenScreen />;
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
       <StatusBar style="dark" />
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <View style={{ flex: 1 }}>{screen()}</View>
+        <Fade key={tab} style={{ flex: 1 }}>
+          {screen()}
+        </Fade>
       </SafeAreaView>
 
       <TabBar tabs={TABS} active={tab} onSelect={setTab} />

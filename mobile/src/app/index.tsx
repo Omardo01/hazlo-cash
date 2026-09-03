@@ -11,7 +11,7 @@ import { ClienteEmbajadorApp } from '@/hazlo/ClienteEmbajadorApp';
 import { NegocioApp } from '@/hazlo/NegocioApp';
 import { RoleSwitcher, type Experiencia } from '@/hazlo/RoleSwitcher';
 import { Splash } from '@/hazlo/Splash';
-import { LoginScreen } from '@/hazlo/screens/Login';
+import { AuthScreen } from '@/hazlo/screens/Auth';
 import { BG } from '@/hazlo/theme';
 
 // Experiencias disponibles según los roles del perfil (prioridad: admin primero).
@@ -68,7 +68,7 @@ export default function HazloApp() {
       <View style={{ flex: 1, backgroundColor: BG }}>
         <StatusBar style="dark" />
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-          <LoginScreen />
+          <AuthScreen />
         </SafeAreaView>
         {splash}
       </View>

@@ -15,6 +15,7 @@ import {
   ActivityIcon,
   CreditCardIcon,
   MessageSquareIcon,
+  ReceiptIcon,
 } from "lucide-react";
 import {
   Tooltip,
@@ -32,18 +33,19 @@ const quickItems = [
 // ── Middle nav group ──
 const navItems = [
   { icon: LayoutDashboardIcon, label: "Overview",       href: "/admin"           },
+  { icon: ReceiptIcon,         label: "Órdenes",        href: "/admin/ordenes"   },
+  { icon: UsersIcon,           label: "Usuarios",       href: "/admin/users"     },
   { icon: MapPinIcon,          label: "Negocios",       href: "/admin/negocios"  },
-  { icon: CreditCardIcon,     label: "Pagos & Finanzas", href: "/admin/finanzas" },
-  { icon: ActivityIcon,        label: "Auditoría",      href: "/admin/audit"     },
-  { icon: SettingsIcon,        label: "Configuración",  href: "/admin/settings"  },
+  { icon: CreditCardIcon,      label: "Finanzas",       href: "/admin/finanzas"  },
 ];
 
 // Bottom nav items (mobile)
 const bottomNavItems = [
   { icon: LayoutDashboardIcon, label: "Inicio",   href: "/admin"           },
+  { icon: ReceiptIcon,         label: "Órdenes",  href: "/admin/ordenes"   },
   { icon: UsersIcon,           label: "Usuarios", href: "/admin/users"     },
   { icon: MapPinIcon,          label: "Negocios", href: "/admin/negocios"  },
-  { icon: SettingsIcon,        label: "Ajustes",  href: "/admin/settings"  },
+  { icon: CreditCardIcon,      label: "Finanzas", href: "/admin/finanzas"  },
 ];
 
 function Separator() {

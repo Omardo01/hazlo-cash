@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,13 +13,17 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { mutar } from '@/lib/datos/cache';
+import { K, useAdminNegocios } from '@/lib/datos/consultas';
 import { getUsuariosAdmin, type UsuarioAdmin } from '@/lib/services/admin';
-import { asignarDuenoNegocio, getNegociosAdmin, recargarCreditos, setComisionNegocio, setNegocioActivo } from '@/lib/services/businesses';
+import { asignarDuenoNegocio, recargarCreditos, setComisionNegocio, setNegocioActivo } from '@/lib/services/businesses';
 import type { BusinessAdmin, ComisionTipo } from '@/lib/types';
 import { AdminAltaNegocio } from '../AdminAltaNegocio';
+import { EditarNegocio } from '../EditarNegocio';
 import { HazloMark } from '../HazloMark';
 import { Icon, IconName } from '../icons';
 import { BG, C, F, FG, MUTED, R } from '../theme';
+import { ListaSkeleton } from '../Skeleton';
 import { Glass, SectionHeader } from '../ui';
 
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -41,10 +45,12 @@ function GestionNegocio({
   negocio,
   onClose,
   onUpdated,
+  onEditar,
 }: {
   negocio: BusinessAdmin;
   onClose: () => void;
   onUpdated: (n: BusinessAdmin) => void;
+  onEditar: () => void;
 }) {
   const [monto, setMonto] = useState('');
   const [recargando, setRecargando] = useState(false);
@@ -227,7 +233,14 @@ function GestionNegocio({
               </View>
             )}
 
-            <Pressable onPress={onClose} style={{ height: 50, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
+            <Pressable
+              onPress={onEditar}
+              style={{ height: 50, borderRadius: R.md, backgroundColor: FG, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 10 }}>
+              <Icon name="settings" size={15} color="#fff" />
+              <Text style={{ fontFamily: F.semi, fontSize: 14, color: '#fff' }}>Editar ficha del negocio</Text>
+            </Pressable>
+
+            <Pressable onPress={onClose} style={{ height: 50, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>Listo</Text>
             </Pressable>
           </ScrollView>
@@ -238,37 +251,24 @@ function GestionNegocio({
 }
 
 export function AdminNegociosScreen() {
-  const [negocios, setNegocios] = useState<BusinessAdmin[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { datos: negocios = [], cargando: loading, error, refrescar: cargar } = useAdminNegocios();
   const [altaVisible, setAltaVisible] = useState(false);
   const [toggling, setToggling] = useState<string | null>(null);
   const [gestion, setGestion] = useState<BusinessAdmin | null>(null);
-
-  const cargar = useCallback(async () => {
-    try {
-      setError(null);
-      setNegocios(await getNegociosAdmin());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    cargar();
-  }, [cargar]);
+  const [editando, setEditando] = useState<BusinessAdmin | null>(null);
 
   const toggle = async (n: BusinessAdmin) => {
     setToggling(n.id);
     const { ok } = await setNegocioActivo(n.id, !n.activo);
-    if (ok) setNegocios((prev) => prev.map((b) => (b.id === n.id ? { ...b, activo: !b.activo } : b)));
+    if (ok)
+      mutar<BusinessAdmin[]>(K.adminNegocios, (prev) =>
+        prev.map((b) => (b.id === n.id ? { ...b, activo: !b.activo } : b)),
+      );
     setToggling(null);
   };
 
   const aplicarUpdate = (n: BusinessAdmin) => {
-    setNegocios((prev) => prev.map((b) => (b.id === n.id ? n : b)));
+    mutar<BusinessAdmin[]>(K.adminNegocios, (prev) => prev.map((b) => (b.id === n.id ? n : b)));
     setGestion(n);
   };
 
@@ -325,8 +325,8 @@ export function AdminNegociosScreen() {
       <SectionHeader title="Todos los negocios" />
 
       {loading && (
-        <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-          <ActivityIndicator color={C.primary} />
+        <View style={{ borderRadius: R.md, paddingHorizontal: 14, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
+          <ListaSkeleton filas={4} />
         </View>
       )}
 
@@ -373,7 +373,24 @@ export function AdminNegociosScreen() {
       )}
 
       <AdminAltaNegocio visible={altaVisible} onClose={() => { setAltaVisible(false); cargar(); }} />
-      {gestion && <GestionNegocio negocio={gestion} onClose={() => setGestion(null)} onUpdated={aplicarUpdate} />}
+      {gestion && (
+        <GestionNegocio
+          negocio={gestion}
+          onClose={() => setGestion(null)}
+          onUpdated={aplicarUpdate}
+          onEditar={() => {
+            // Una hoja a la vez: se cierra gestión y se abre la edición.
+            setEditando(gestion);
+            setGestion(null);
+          }}
+        />
+      )}
+      <EditarNegocio
+        negocio={editando}
+        visible={editando !== null}
+        onClose={() => setEditando(null)}
+        onGuardado={aplicarUpdate}
+      />
     </ScrollView>
   );
 }

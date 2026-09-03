@@ -12,11 +12,12 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { loginConEmail } from '@/lib/services/auth';
+import { PressableScale } from '../motion';
 import { HazloMark } from '../HazloMark';
 import { C, F, FG, MUTED, R } from '../theme';
 import { Glass } from '../ui';
 
-export function LoginScreen() {
+export function LoginScreen({ onCrearCuenta }: { onCrearCuenta: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -103,7 +104,7 @@ export function LoginScreen() {
         )}
 
         {/* Botón entrar */}
-        <Pressable
+        <PressableScale
           onPress={onSubmit}
           disabled={loading}
           style={{
@@ -120,12 +121,14 @@ export function LoginScreen() {
           ) : (
             <Text style={{ fontFamily: F.semi, fontSize: 15, color: '#fff' }}>Entrar</Text>
           )}
-        </Pressable>
+        </PressableScale>
 
-        <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED, textAlign: 'center', marginTop: 20 }}>
-          ¿Primera vez en Hazlo Cash?{' '}
-          <Text style={{ fontFamily: F.semi, color: C.primary }}>Crear cuenta</Text>
-        </Text>
+        <Pressable onPress={onCrearCuenta} hitSlop={10} disabled={loading}>
+          <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED, textAlign: 'center', marginTop: 20 }}>
+            ¿Primera vez en Hazlo Cash?{' '}
+            <Text style={{ fontFamily: F.semi, color: C.primary }}>Crear cuenta</Text>
+          </Text>
+        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );

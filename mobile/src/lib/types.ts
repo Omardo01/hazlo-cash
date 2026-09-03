@@ -44,6 +44,12 @@ export interface ReferralCode {
 
 export type EstadoReferral = 'pendiente' | 'confirmado' | 'rechazado';
 
+// Valores de estado como constantes tipadas. Comparar contra strings sueltos
+// ya costó un bug (se escribía 'confirmada' y el filtro devolvía siempre 0).
+export const PENDIENTE: EstadoReferral = 'pendiente';
+export const CONFIRMADO: EstadoReferral = 'confirmado';
+export const RECHAZADO: EstadoReferral = 'rechazado';
+
 export interface Referral {
   id: string;
   codigo_id: string;

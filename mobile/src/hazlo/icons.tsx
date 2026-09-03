@@ -5,7 +5,7 @@ export type IconName =
   | 'home' | 'search' | 'plus' | 'activity' | 'user' | 'heart' | 'share'
   | 'bell' | 'gift' | 'dollar' | 'chart' | 'send' | 'star' | 'bookmark'
   | 'wallet' | 'check' | 'chevR' | 'copy' | 'qr' | 'arrowUp' | 'arrowDown'
-  | 'settings' | 'refresh';
+  | 'settings' | 'refresh' | 'x';
 
 type P = { color: string; sw: number; fill: string };
 
@@ -89,6 +89,7 @@ const paths: Record<IconName, (p: P) => React.ReactNode> = {
     </>
   ),
   check: ({ color }) => <Path d="M5 12l4.5 4.5L19 7" stroke={color} strokeWidth={2.2} fill="none" />,
+  x: ({ color }) => <Path d="M6 6l12 12M18 6L6 18" stroke={color} strokeWidth={2.2} fill="none" />,
   chevR: ({ color, sw }) => <Path d="M9 6l6 6-6 6" stroke={color} strokeWidth={sw} fill="none" />,
   copy: ({ color, sw }) => (
     <>

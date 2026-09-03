@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,9 +13,11 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { getMiNegocio } from '@/lib/services/businesses';
-import { confirmarVenta, getVisitasNegocio, rechazarVisita, registrarVentaPorCodigo, type QrVenta, type VisitaNegocio } from '@/lib/services/referrals';
+import { mutar } from '@/lib/datos/cache';
+import { K, useMiNegocio, useVisitasNegocio } from '@/lib/datos/consultas';
+import { confirmarVenta, rechazarVisita, registrarVentaPorCodigo, type QrVenta, type VisitaNegocio } from '@/lib/services/referrals';
 import type { BusinessAdmin, EstadoReferral } from '@/lib/types';
+import { ListaSkeleton } from '../Skeleton';
 import { HazloMark } from '../HazloMark';
 import { Icon, IconName } from '../icons';
 import { QrScanner } from '../QrScanner';
@@ -108,31 +110,22 @@ function MontoVentaModal({
 }
 
 export function SolicitudesNegocioScreen() {
-  const [visitas, setVisitas] = useState<VisitaNegocio[]>([]);
-  const [negocio, setNegocio] = useState<BusinessAdmin | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Las solicitudes llegan solas: el canal global marca esta lista como vieja
+  // en cuanto entra una visita nueva y, si la pantalla está abierta, se
+  // refresca al momento. Sin refrescar a mano y sin sondeo.
+  const { datos: visitas = [], cargando: loading, error: errorCarga, refrescar: refrescarVisitas } = useVisitasNegocio();
+  const { datos: negocio, refrescar: refrescarNegocio } = useMiNegocio();
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [resolviendo, setResolviendo] = useState<string | null>(null);
   const [pendiente, setPendiente] = useState<QrVenta | null>(null); // venta esperando monto (comisión %)
   const [scannerVisible, setScannerVisible] = useState(false);
 
-  const cargar = useCallback(async () => {
-    try {
-      setError(null);
-      const [v, n] = await Promise.all([getVisitasNegocio(), getMiNegocio()]);
-      setVisitas(v);
-      setNegocio(n);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al cargar');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    cargar();
-  }, [cargar]);
+  const cargar = useCallback(() => {
+    setError(null);
+    refrescarVisitas();
+    refrescarNegocio();
+  }, [refrescarVisitas, refrescarNegocio]);
 
   // Clave para el spinner: el id de la visita, o el código en venta directa.
   const claveDe = (t: QrVenta) => (t.tipo === 'visita' ? t.id : t.codigo);
@@ -149,9 +142,12 @@ export function SolicitudesNegocioScreen() {
     setResolviendo(null);
     setPendiente(null);
     if (r.ok) {
-      if (r.creditosRestantes != null) setNegocio((n) => (n ? { ...n, creditos: r.creditosRestantes! } : n));
+      // El saldo de créditos vuelve en la respuesta: se parcha en caché sin
+      // pedir el negocio otra vez.
+      if (r.creditosRestantes != null)
+        mutar<BusinessAdmin | null>(K.miNegocio, (n) => (n ? { ...n, creditos: r.creditosRestantes! } : n));
       if (r.comision != null) setAviso(`Venta registrada · ${money(r.comision)} para el recomendador`);
-      cargar(); // refresca lista y créditos
+      refrescarVisitas(); // el estado de la visita ya cambió server-side
     } else {
       setError(r.error ?? 'No se pudo registrar la venta.');
     }
@@ -176,7 +172,12 @@ export function SolicitudesNegocioScreen() {
   const rechazar = async (id: string) => {
     setResolviendo(id);
     const { ok } = await rechazarVisita(id);
-    if (ok) setVisitas((prev) => prev.map((v) => (v.id === id ? { ...v, estado: 'rechazado' } : v)));
+    // Cambio local inmediato sobre la caché: la fila se pinta rechazada sin
+    // esperar una consulta nueva.
+    if (ok)
+      mutar<VisitaNegocio[]>(K.visitasNegocio, (prev) =>
+        prev.map((v) => (v.id === id ? { ...v, estado: 'rechazado' } : v)),
+      );
     setResolviendo(null);
   };
 
@@ -261,12 +262,12 @@ export function SolicitudesNegocioScreen() {
       <SectionHeader title="Solicitudes" />
 
       {loading && (
-        <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-          <ActivityIndicator color={C.primary} />
+        <View style={{ borderRadius: R.lg, paddingHorizontal: 14, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
+          <ListaSkeleton filas={4} />
         </View>
       )}
 
-      {!loading && error && visitas.length === 0 && (
+      {!loading && (error || errorCarga) && visitas.length === 0 && (
         <Text style={{ fontFamily: F.reg, fontSize: 13, color: MUTED, paddingVertical: 16 }}>No pudimos cargar las solicitudes. Desliza para reintentar.</Text>
       )}
 

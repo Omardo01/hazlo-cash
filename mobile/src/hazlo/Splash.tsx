@@ -1,15 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
 import { HazloMark } from './HazloMark';
 import { C, F, FG, MUTED } from './theme';
 
 export function Splash({ onDone, duration = 2400 }: { onDone: () => void; duration?: number }) {
-  const aura = useRef(new Animated.Value(0)).current; // loop 0→1
-  const enter = useRef(new Animated.Value(0)).current; // entrada del mark
-  const word = useRef(new Animated.Value(0)).current; // wordmark slide
-  const tag = useRef(new Animated.Value(0)).current; // tagline slide
-  const fade = useRef(new Animated.Value(1)).current; // salida
+  const aura = useState(() => new Animated.Value(0))[0]; // loop 0→1
+  const enter = useState(() => new Animated.Value(0))[0]; // entrada del mark
+  const word = useState(() => new Animated.Value(0))[0]; // wordmark slide
+  const tag = useState(() => new Animated.Value(0))[0]; // tagline slide
+  const fade = useState(() => new Animated.Value(1))[0]; // salida
 
   useEffect(() => {
     Animated.loop(
@@ -88,7 +88,7 @@ export function Splash({ onDone, duration = 2400 }: { onDone: () => void; durati
 }
 
 function Dot({ delay }: { delay: number }) {
-  const v = useRef(new Animated.Value(0.4)).current;
+  const v = useState(() => new Animated.Value(0.4))[0];
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
