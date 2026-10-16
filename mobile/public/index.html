@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <!-- viewport-fit=cover: instalada en el teléfono, la app llega hasta las
+         orillas y react-native-safe-area-context lee los márgenes reales
+         (isla, barra de inicio) igual que en la app nativa. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>%WEB_TITLE%</title>
+    <meta name="description" content="Recomienda negocios que ya conoces y gana dinero cada vez que alguien usa tu código." />
+
+    <!-- Instalable como app (Android: Chrome la instala; iPhone: Compartir →
+         Agregar a inicio). Abre a pantalla completa, sin barras del navegador. -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#F5F3F0" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Hazlo Cash" />
+    <!-- "default": barra de estado opaca con letras oscuras. Con
+         "black-translucent" las letras serían blancas sobre el fondo claro. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+        /* El fondo de la app: sin destello blanco al abrir ni al estirar. */
+        background-color: #F5F3F0;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+        overscroll-behavior: none;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript>
+      Necesitas activar JavaScript para usar Hazlo Cash.
+    </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  </body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "Hazlo Cash",
+  "short_name": "Hazlo Cash",
+  "description": "Recomienda negocios que ya conoces y gana dinero cada vez que alguien usa tu código.",
+  "lang": "es-MX",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F3F0",
+  "theme_color": "#F5F3F0",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

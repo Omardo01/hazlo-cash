@@ -9,6 +9,13 @@
       "url": "http://localhost:8081"
     },
     {
+      "name": "web-dist",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4173", "--directory", "mobile/dist"],
+      "port": 4173,
+      "url": "http://localhost:4173"
+    },
+    {
       "name": "web-nextjs",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
