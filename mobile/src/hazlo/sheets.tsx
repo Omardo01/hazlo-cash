@@ -22,6 +22,7 @@ import {
   totalRetirado,
   type CuentaBancaria,
 } from '@/lib/simulacion/retiros';
+import { CodigoScramble } from './CodigoScramble';
 import { HazloMark } from './HazloMark';
 import { Icon, IconName } from './icons';
 import { DUR, EASE, Fade, PressableScale } from './motion';
@@ -81,9 +82,8 @@ function SheetShell({
 // Cada acción navega a una tab (`to`) o abre otra hoja (`sheet`).
 const actions: { t: string; d: string; icon: IconName; to?: Tab; sheet?: SheetName }[] = [
   { t: 'Nueva recomendación', d: 'Comparte un lugar o producto', icon: 'send', to: 'share' },
-  { t: 'Reclamar recomendación', d: 'Usa el código que te compartieron', icon: 'qr', sheet: 'claim' },
   { t: 'Invitar amigos', d: 'Comparte tu código personal', icon: 'gift', to: 'share' },
-  { t: 'Retirar dinero', d: 'Transfiere a tu cuenta', icon: 'wallet', to: 'balance' },
+  { t: 'Retirar dinero', d: 'Transfiere a tu cuenta', icon: 'wallet', sheet: 'withdraw' },
 ];
 
 function ActionSheet({
@@ -353,7 +353,6 @@ function BarraProgreso({ pct }: { pct: number }) {
 }
 
 // ── Invite sheet (código + QR) ─────────────────────────────────────────────────
-const SCRAMBLE = 'ABCDEFGHIJKLMNPQRSTUVWXYZ23456789';
 const FINAL_CODE = 'JAVI-2K4N';
 const QR_SIZE = 25;
 const CELL = 7;
@@ -414,70 +413,6 @@ function QrDecorativo({ grid, size }: { grid: boolean[][]; size: number }) {
   );
 }
 
-// Fila del código con efecto de "máquina tragamonedas". Vive en su propio
-// componente a propósito: hace ~14 re-renders por segundo y, si estuviera en
-// el sheet, repintaría el QR y los botones en cada tick — ese era el flasheo.
-const TICK_MS = 70;
-const SETTLE_MS = 95;
-
-function CodigoScramble({ genKey, listo, onListo }: { genKey: number; listo: boolean; onListo: () => void }) {
-  const [chars, setChars] = useState<string[]>(() => Array(FINAL_CODE.length).fill(''));
-  const [settled, setSettled] = useState(0);
-  const avisar = useRef(onListo);
-  useEffect(() => {
-    avisar.current = onListo;
-  }, [onListo]);
-
-  useEffect(() => {
-    setSettled(0);
-    setChars(Array(FINAL_CODE.length).fill(''));
-
-    const scramble = setInterval(() => {
-      setChars((prev) =>
-        prev.map((_, i) => (FINAL_CODE[i] === '-' ? '-' : SCRAMBLE[Math.floor(Math.random() * SCRAMBLE.length)])),
-      );
-    }, TICK_MS);
-
-    // Cada carácter se "fija" en cascada; al fijarse el último, el sheet pasa
-    // a la fase del QR.
-    const timers = FINAL_CODE.split('').map((_, i) => setTimeout(() => setSettled((n) => n + 1), 350 + i * SETTLE_MS));
-    const fin = setTimeout(() => {
-      clearInterval(scramble);
-      setChars(FINAL_CODE.split(''));
-      avisar.current();
-    }, 350 + FINAL_CODE.length * SETTLE_MS + 120);
-
-    return () => {
-      clearInterval(scramble);
-      timers.forEach(clearTimeout);
-      clearTimeout(fin);
-    };
-  }, [genKey]);
-
-  const visibles = chars.map((ch, i) => (i < settled ? FINAL_CODE[i] : ch));
-
-  return (
-    <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
-      {visibles.map((ch, i) => {
-        const fijo = i < settled;
-        if (ch === '-')
-          return (
-            <Text key={i} style={{ fontFamily: F.reg, fontSize: 22, color: MUTED }}>
-              –
-            </Text>
-          );
-        return (
-          <View key={i} style={{ minWidth: 18, borderRadius: 6, paddingHorizontal: 4, paddingVertical: 2, backgroundColor: fijo ? `${C.primary}12` : 'transparent' }}>
-            <Text style={{ fontFamily: F.bold, fontSize: 22, letterSpacing: 0.88, textAlign: 'center', color: fijo || listo ? C.primary : FG }}>
-              {ch || '·'}
-            </Text>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
 function InviteSheet({ onClose }: { onClose: () => void }) {
   const [genKey, setGenKey] = useState(0);
   // 0: generando código · 1: aparece el QR · 2: listo (CTAs activos)
@@ -530,7 +465,7 @@ function InviteSheet({ onClose }: { onClose: () => void }) {
         <Text style={{ fontFamily: F.semi, fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 8 }}>
           {phase === 0 ? 'Generando código…' : 'Tu código'}
         </Text>
-        <CodigoScramble genKey={genKey} listo={phase >= 1} onListo={alTerminarCodigo} />
+        <CodigoScramble molde={FINAL_CODE} final={FINAL_CODE} genKey={genKey} listo={phase >= 1} onListo={alTerminarCodigo} />
       </View>
 
       {/* CTAs */}

@@ -7,6 +7,7 @@ import {
 } from '@expo-google-fonts/poppins';
 import { Stack } from 'expo-router';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -17,6 +18,14 @@ import { AvisoLive } from '@/hazlo/AvisoLive';
 import { BG } from '@/hazlo/theme';
 
 SplashScreen.preventAutoHideAsync();
+
+// Web: el navegador pinta su propio anillo de foco en cada campo, un recuadro
+// ajeno al diseño. Los campos ya marcan el foco con su borde (CajaCampo).
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const estilo = document.createElement('style');
+  estilo.textContent = 'input:focus, textarea:focus { outline: none; }';
+  document.head.appendChild(estilo);
+}
 
 export default function RootLayout() {
   const [loaded] = useFonts({

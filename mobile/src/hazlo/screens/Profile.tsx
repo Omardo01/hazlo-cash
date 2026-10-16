@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ActivityIndicator, Animated, ScrollView, Text, View } from 'react-native';
 
-import { useComisiones, usePerfil, useStatsEmbajador } from '@/lib/datos/consultas';
+import { useAjustes, useComisiones, usePerfil, useStatsEmbajador } from '@/lib/datos/consultas';
 import { logout } from '@/lib/services/auth';
 import { calcularNivel } from '@/lib/services/referrals';
 import { AdminAltaNegocio } from '../AdminAltaNegocio';
@@ -40,7 +40,9 @@ export function ProfileScreen({ openSheet, onAbrirCuentas }: ScreenProps & { onA
   const { datos: perfil, cargando: cargandoPerfil } = usePerfil();
   const { datos: stats, cargando: cargandoStats } = useStatsEmbajador();
   const { datos: comisiones = [] } = useComisiones();
-  const ganado = comisiones.reduce((t, c) => t + c.monto, 0);
+  const { datos: ajustesSaldo = [] } = useAjustes();
+  // Igual que en Inicio 2: comisiones + ajustes del admin, para que cuadre con el saldo.
+  const ganado = comisiones.reduce((t, c) => t + c.monto, 0) + ajustesSaldo.reduce((t, a) => t + a.monto, 0);
   // El perfil aguanta minutos en caché, así que al volver aquí ya está puesto:
   // el "cargando" solo aplica al primer arranque de la sesión.
   const cargando = cargandoPerfil || cargandoStats;

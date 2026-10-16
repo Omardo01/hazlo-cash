@@ -1,262 +1,303 @@
-import { useEffect, useState } from 'react';
-import { Animated, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import QRCode from 'react-native-qrcode-svg';
 
-import { usePerfil, useVisitasCliente } from '@/lib/datos/consultas';
-import { useLive } from '@/lib/datos/realtime';
-import { linkVisita } from '@/lib/services/referrals';
-import type { EstadoReferral } from '@/lib/types';
-import { ListaSkeleton, TarjetaSkeleton } from '../Skeleton';
-import { HazloMark } from '../HazloMark';
+import { useAjustes, useComisiones, usePerfil, useRetiros, useSaldo } from '@/lib/datos/consultas';
+import { ListaSkeleton } from '../Skeleton';
 import { Icon, IconName } from '../icons';
+import { BotonComoFunciona } from '../explicador/BotonComoFunciona';
+import { INTERNO_VISIBLE } from '../interno/SoloInterno';
 import { Fade, PressableScale, STAGGER } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
-import { Glass, SectionHeader } from '../ui';
+import { useTonoInicio } from '../tonoInicio';
+import { FondoTono, VisorTonos } from '../VisorTonos';
 import type { ScreenProps } from './types';
 
-const ESTADO: Record<EstadoReferral, { label: string; color: string; bg: string; icon: IconName }> = {
-  pendiente: { label: 'En proceso', color: '#B7791F', bg: 'rgba(245,166,35,0.15)', icon: 'send' },
-  confirmado: { label: 'Compra confirmada', color: '#00A896', bg: 'rgba(0,168,150,0.15)', icon: 'check' },
-  rechazado: { label: 'No procedió', color: MUTED, bg: 'rgba(13,13,13,0.06)', icon: 'arrowDown' },
-};
+// Inicio del recomendador, estilo "fintech oscuro": bloque de color arriba con
+// el dinero y las acciones, historial sobre fondo claro. Era "Inicio 2"; Omar lo
+// eligió como el Inicio el 2026-10-15 y el clásico se quitó. El color del
+// bloque está en prueba: sale de useTonoInicio() y se cambia con el visor.
 
-function fechaCorta(iso: string): string {
+const CARD_SOFT = 'rgba(255,255,255,0.08)';
+
+function saludo(): string {
+  const h = new Date().getHours();
+  if (h < 12) return '¡Buenos días!';
+  if (h < 19) return '¡Buenas tardes!';
+  return '¡Buenas noches!';
+}
+
+function iniciales(nombre: string): string {
+  const p = nombre.trim().split(/\s+/).filter(Boolean);
+  if (p.length === 0) return '··';
+  if (p.length === 1) return p[0].slice(0, 2).toUpperCase();
+  return (p[0][0] + p[1][0]).toUpperCase();
+}
+
+function fechaLarga(iso: string): string {
   const d = new Date(iso);
-  const hoy = d.toDateString() === new Date().toDateString();
-  const hora = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-  return hoy ? `Hoy · ${hora}` : `${d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })} · ${hora}`;
+  const dia = d.toLocaleDateString('es-MX', { weekday: 'short', day: '2-digit', month: 'short' });
+  return dia.charAt(0).toUpperCase() + dia.slice(1);
 }
 
-// Punto que late: refuerza la sensación de "en vivo".
-function LiveDot() {
-  const [a] = useState(() => new Animated.Value(0.35));
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(a, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(a, { toValue: 0.35, duration: 700, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [a]);
-  return <Animated.View style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#F5A623', opacity: a }} />;
-}
-
-type EstadoPaso = 'done' | 'activo' | 'pendiente';
-
-// Un paso del timeline de la orden.
-function Paso({ n, titulo, desc, estado, ultimo, dark }: { n: number; titulo: string; desc: string; estado: EstadoPaso; ultimo?: boolean; dark?: boolean }) {
-  const fgTitle = dark ? '#fff' : FG;
-  const fgDesc = dark ? 'rgba(255,255,255,0.6)' : MUTED;
-  const lineCol = dark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.1)';
-  const circle =
-    estado === 'done'
-      ? { bg: '#00A896', border: '#00A896' }
-      : estado === 'activo'
-        ? { bg: C.primary, border: C.primary }
-        : { bg: 'transparent', border: lineCol };
+// Monto con los centavos en gris, como en la referencia.
+function Monto({ valor, size, claro }: { valor: number; size: number; claro?: boolean }) {
+  const [ent, dec] = valor.toFixed(2).split('.');
+  const miles = Number(ent).toLocaleString('es-MX');
   return (
-    <View style={{ flexDirection: 'row', gap: 12 }}>
-      <View style={{ alignItems: 'center' }}>
-        <View style={{ width: 26, height: 26, borderRadius: 999, backgroundColor: circle.bg, borderWidth: 1.5, borderColor: circle.border, alignItems: 'center', justifyContent: 'center' }}>
-          {estado === 'done' ? (
-            <Icon name="check" size={14} color="#fff" sw={2.6} />
-          ) : (
-            <Text style={{ fontFamily: F.bold, fontSize: 12, color: estado === 'activo' ? '#fff' : fgDesc }}>{n}</Text>
-          )}
-        </View>
-        {!ultimo && <View style={{ width: 2, flex: 1, minHeight: 16, backgroundColor: lineCol, marginVertical: 2 }} />}
-      </View>
-      <View style={{ flex: 1, paddingBottom: ultimo ? 0 : 14 }}>
-        <Text style={{ fontFamily: F.semi, fontSize: 13.5, color: estado === 'pendiente' ? fgDesc : fgTitle }}>{titulo}</Text>
-        <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: fgDesc, marginTop: 1, lineHeight: 16 }}>{desc}</Text>
-      </View>
-    </View>
+    <Text style={{ fontFamily: F.bold, fontSize: size, color: claro ? '#fff' : FG, letterSpacing: -size * 0.04 }}>
+      ${miles}
+      <Text style={{ color: claro ? 'rgba(255,255,255,0.42)' : 'rgba(13,13,13,0.4)' }}>.{dec}</Text>
+    </Text>
   );
 }
 
-export function HomeScreen({ go, openSheet, reloadKey }: ScreenProps) {
-  // Ambas salen de la caché: al volver a esta pestaña se pintan al instante y
-  // se revalidan calladas si ya están viejas.
-  const { datos: visitas = [], cargando, refrescar } = useVisitasCliente();
+function Accion({
+  icon,
+  label,
+  onPress,
+  principal,
+  acento,
+  delay,
+}: {
+  icon: IconName;
+  label: string;
+  onPress?: () => void;
+  principal?: boolean;
+  /** Color del ícono sobre el círculo blanco del botón principal. */
+  acento: string;
+  delay: number;
+}) {
+  return (
+    <Fade delay={delay} desde={10} style={{ alignItems: 'center' }}>
+      {/* Caja del alto del botón principal: así las tres etiquetas caen en la misma línea. */}
+      <View style={{ height: 64, justifyContent: 'center' }}>
+      <PressableScale
+        onPress={onPress}
+        style={{
+          width: principal ? 64 : 54,
+          height: principal ? 64 : 54,
+          borderRadius: 999,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: principal ? '#fff' : CARD_SOFT,
+        }}>
+        <Icon name={icon} size={principal ? 24 : 20} color={principal ? acento : '#fff'} sw={2} />
+      </PressableScale>
+      </View>
+      <Text style={{ fontFamily: F.semi, fontSize: 13, color: '#fff', marginTop: 8 }}>{label}</Text>
+    </Fade>
+  );
+}
+
+function Resumen({ icon, label, valor, color, delay }: { icon: IconName; label: string; valor: number; color: string; delay: number }) {
+  return (
+    <Fade delay={delay} desde={12} style={{ flex: 1 }}>
+      <View style={{ borderRadius: R.lg, padding: 14, backgroundColor: CARD_SOFT }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ width: 26, height: 26, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={icon} size={13} color={color} sw={2.4} />
+          </View>
+          <Text style={{ fontFamily: F.base, fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>{label}</Text>
+        </View>
+        <View style={{ marginTop: 14 }}>
+          <Monto valor={valor} size={20} claro />
+        </View>
+      </View>
+    </Fade>
+  );
+}
+
+// Comisiones y retiros mezclados en una sola línea de tiempo.
+type Movimiento = { id: string; titulo: string; sub: string; monto: number; entra: boolean; fecha: string; icon: IconName };
+
+export function HomeScreen({ go, openSheet, onComoFunciona }: ScreenProps) {
+  // Comparte la caché con el Inicio clásico y con Actividad: cambiar entre
+  // ellos no vuelve a consultar nada mientras los datos sigan frescos.
   const { datos: perfil } = usePerfil();
-  const nombre = perfil?.nombre?.split(' ')[0] ?? '';
+  const tono = useTonoInicio();
+  const [visor, setVisor] = useState(false);
+  const { datos: saldo = 0, cargando: cargandoSaldo, refrescar: refSaldo } = useSaldo();
+  const { datos: comisiones = [], cargando: cargandoComisiones, refrescar: refComisiones } = useComisiones();
+  const { datos: ajustes = [], refrescar: refAjustes } = useAjustes();
+  const { datos: retiros = [], refrescar: refRetiros } = useRetiros();
 
-  const [celebrarId, setCelebrarId] = useState<string | null>(null);
+  const nombre = perfil?.nombre ?? '';
+  const cargando = cargandoSaldo || cargandoComisiones;
 
-  // Reclamar un código crea una orden nueva que el canal no ve (la insertó
-  // este mismo usuario), así que ahí sí se pide de nuevo.
-  useEffect(() => {
-    if (reloadKey) refrescar();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reloadKey]);
+  const refrescar = () => {
+    refSaldo();
+    refComisiones();
+    refAjustes();
+    refRetiros();
+  };
 
-  // El negocio confirmó: el canal global ya parchó el estado en la caché y
-  // aquí solo se decide a quién se le celebra.
-  const { aviso } = useLive();
-  useEffect(() => {
-    if (aviso?.tipo === 'confirmada') setCelebrarId(aviso.referralId);
-  }, [aviso]);
 
-  const pendiente = visitas.find((v) => v.estado === 'pendiente') ?? null;
-  const celebrada = celebrarId ? visitas.find((v) => v.id === celebrarId && v.estado === 'confirmado') ?? null : null;
+  // El saldo del wallet = comisiones + ajustes del admin; "Ganado" debe cuadrar con él.
+  const ganado = comisiones.reduce((t, c) => t + c.monto, 0) + ajustes.reduce((t, a) => t + a.monto, 0);
+  const retirado = retiros.reduce((t, r) => t + r.monto, 0);
+  const disponible = Math.max(0, saldo - retirado);
+
+  const movimientos: Movimiento[] = [
+    ...comisiones.map((c) => ({
+      id: `c-${c.id}`,
+      titulo: `Comisión · ${c.negocio}`,
+      sub: 'Recibida',
+      monto: c.monto,
+      entra: true,
+      fecha: c.creada,
+      icon: 'send' as IconName,
+    })),
+    ...ajustes.map((a) => ({
+      id: `a-${a.id}`,
+      titulo: a.motivo ? `Hazlo Cash · ${a.motivo}` : 'Ajuste de Hazlo Cash',
+      sub: a.monto > 0 ? 'Abono' : 'Cargo',
+      monto: Math.abs(a.monto),
+      entra: a.monto > 0,
+      fecha: a.creada,
+      icon: 'gift' as IconName,
+    })),
+    ...retiros.map((r) => ({
+      id: `r-${r.id}`,
+      titulo: `Retiro a ${r.cuenta}`,
+      sub: 'Enviado',
+      monto: r.monto,
+      entra: false,
+      fecha: r.creada,
+      icon: 'wallet' as IconName,
+    })),
+  ]
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))
+    .slice(0, 8);
 
   return (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 }}
-      refreshControl={<RefreshControl refreshing={false} onRefresh={refrescar} tintColor={C.primary} />}>
-      {/* Saludo */}
-      <Fade desde={8}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-        <View style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
-          <Text style={{ fontFamily: F.base, fontSize: 13, color: MUTED }}>Hola{nombre ? `, ${nombre}` : ''}</Text>
-          <Text style={{ fontFamily: F.bold, fontSize: 22, color: FG, letterSpacing: -0.44, marginTop: 2 }}>
-            {celebrada ? '¡Compra confirmada!' : pendiente ? 'Tu orden en curso' : '¿Listo para ahorrar?'}
-          </Text>
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={refrescar} tintColor={C.primary} />}>
+        {/* Bloque de color */}
+        <View style={{ marginHorizontal: 12, borderRadius: 34, paddingHorizontal: 22, paddingTop: 20, paddingBottom: 22, overflow: 'hidden' }}>
+          <FondoTono tono={tono} />
+          <Fade desde={8}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontFamily: F.bold, fontSize: 15, color: '#fff' }}>{iniciales(nombre || 'Hazlo Cash')}</Text>
+              </LinearGradient>
+              <Text style={{ flex: 1, fontFamily: F.semi, fontSize: 17, color: '#fff' }} numberOfLines={1}>
+                {saludo()}
+              </Text>
+              {/* Visor de colores del bloque: herramienta de diseño, solo en web y desarrollo. */}
+              {INTERNO_VISIBLE && (
+                <PressableScale
+                  onPress={() => setVisor((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Probar colores del bloque"
+                  style={{ width: 42, height: 42, borderRadius: 999, backgroundColor: visor ? '#fff' : CARD_SOFT, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="color-palette-outline" size={19} color={visor ? tono.acento : '#fff'} />
+                </PressableScale>
+              )}
+              <PressableScale
+                onPress={() => go('balance')}
+                style={{ width: 42, height: 42, borderRadius: 999, backgroundColor: CARD_SOFT, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="bell" size={19} color="#fff" />
+              </PressableScale>
+            </View>
+          </Fade>
+
+          {/* Saldo */}
+          <Fade delay={STAGGER} desde={12} style={{ alignItems: 'center', marginTop: 26 }}>
+            <Text style={{ fontFamily: F.base, fontSize: 14, color: 'rgba(255,255,255,0.6)' }}>Saldo disponible</Text>
+            <View style={{ marginTop: 6, minHeight: 54, justifyContent: 'center' }}>
+              {cargando ? <ActivityIndicator color={C.primary} /> : <Monto valor={disponible} size={46} claro />}
+            </View>
+          </Fade>
+
+          {/* Acciones */}
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 34, marginTop: 22 }}>
+            <Accion icon="send" label="Recomendar" principal acento={tono.acento} onPress={() => go('share')} delay={STAGGER * 3} />
+            <Accion icon="wallet" label="Retirar" acento={tono.acento} onPress={() => openSheet('withdraw')} delay={STAGGER * 4} />
+          </View>
+
+          {/* Entradas y salidas */}
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 26 }}>
+            <Resumen icon="arrowDown" label="Ganado" valor={ganado} color="#00A896" delay={STAGGER * 5} />
+            <Resumen icon="arrowUp" label="Retirado" valor={retirado} color={C.primary} delay={STAGGER * 6} />
+          </View>
         </View>
-          <Glass style={{ width: 40, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="bell" size={19} color={FG} />
-          </Glass>
-        </View>
-      </Fade>
 
-      {cargando ? (
-        // Solo la primerísima vez: después siempre hay algo en caché que pintar.
-        <TarjetaSkeleton h={210} style={{ marginBottom: 18 }} />
-      ) : celebrada ? (
-        // Confirmación en vivo: el negocio escaneó y la venta se completó.
-        <Fade key="celebrada" desde={16} style={{ borderRadius: R.lg, padding: 24, marginBottom: 18, overflow: 'hidden', position: 'relative' }}>
-          <LinearGradient colors={['#00A896', '#007F71']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
-          <View style={{ position: 'absolute', right: -34, bottom: -34, opacity: 0.18 }}>
-            <HazloMark size={180} primary="#fff" secondary="#fff" />
-          </View>
-          <View style={{ width: 64, height: 64, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-            <Icon name="check" size={34} color="#fff" sw={2.6} />
-          </View>
-          <Text style={{ fontFamily: F.bold, fontSize: 22, color: '#fff', letterSpacing: -0.44 }}>¡Venta confirmada!</Text>
-          <Text style={{ fontFamily: F.reg, fontSize: 13.5, color: 'rgba(255,255,255,0.92)', marginTop: 6, lineHeight: 20 }}>
-            <Text style={{ fontFamily: F.semi }}>{celebrada.negocio}</Text> confirmó tu compra. Tu recomendador acaba de recibir su comisión. 🎉
-          </Text>
-          <PressableScale
-            onPress={() => setCelebrarId(null)}
-            style={{ marginTop: 18, alignSelf: 'flex-start', height: 44, paddingHorizontal: 22, borderRadius: 999, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontFamily: F.semi, fontSize: 14, color: '#007F71' }}>Listo</Text>
-          </PressableScale>
-        </Fade>
-      ) : pendiente ? (
-        // Orden en curso: QR en vivo + timeline de estatus.
-        <Fade key="pendiente" desde={14}>
-          <View style={{ borderRadius: R.lg, padding: 22, marginBottom: 12, backgroundColor: '#0D0D0D', overflow: 'hidden', alignItems: 'center' }}>
-            <View style={{ position: 'absolute', right: -40, bottom: -40, opacity: 0.4 }}>
-              <HazloMark size={200} />
-            </View>
-            <View style={{ alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={{ fontFamily: F.semi, fontSize: 11, color: 'rgba(255,255,255,0.7)', letterSpacing: 0.6 }}>ORDEN #{pendiente.folio}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, backgroundColor: 'rgba(245,166,35,0.16)' }}>
-                <LiveDot />
-                <Text style={{ fontFamily: F.semi, fontSize: 10.5, color: '#F5A623', letterSpacing: 0.5 }}>EN VIVO</Text>
-              </View>
-            </View>
-
-            <Text style={{ fontFamily: F.reg, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 16, textAlign: 'center' }}>Muestra este QR en</Text>
-            <Text style={{ fontFamily: F.bold, fontSize: 19, color: '#fff', marginTop: 2, textAlign: 'center' }}>{pendiente.negocio}</Text>
-
-            <View style={{ marginTop: 16, padding: 16, borderRadius: R.lg, backgroundColor: '#fff' }}>
-              <QRCode value={linkVisita(pendiente.id)} size={168} color="#0D0D0D" backgroundColor="#fff" ecl="M" />
-            </View>
-
-            {pendiente.oferta && (
-              <View style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, backgroundColor: `${C.primary}22` }}>
-                <Icon name="gift" size={14} color={C.primary} />
-                <Text style={{ fontFamily: F.semi, fontSize: 12, color: C.primary }}>{pendiente.oferta}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Timeline de estatus */}
-          <View style={{ borderRadius: R.md, padding: 18, marginBottom: 18, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
-            <Paso n={1} estado="done" titulo="Orden creada" desc="Tu recomendación quedó registrada." />
-            <Paso n={2} estado="activo" titulo="Esperando en el negocio" desc="Cuando escaneen tu QR, la venta se confirma al instante." />
-            <Paso n={3} estado="pendiente" titulo="Venta confirmada" desc="Tu recomendador recibe su comisión." ultimo />
-          </View>
-        </Fade>
-      ) : (
-        // Sin orden activa: invitación a generar una.
-        <Fade key="sin-orden" desde={14} style={{ borderRadius: R.lg, padding: 22, marginBottom: 18, overflow: 'hidden', position: 'relative' }}>
-          <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
-          <View style={{ position: 'absolute', right: -30, top: -30, opacity: 0.18 }}>
-            <HazloMark size={170} primary="#fff" secondary="#fff" />
-          </View>
-          <Text style={{ fontFamily: F.bold, fontSize: 20, color: '#fff', letterSpacing: -0.4 }}>¿Te recomendaron un lugar?</Text>
-          <Text style={{ fontFamily: F.reg, fontSize: 13, color: 'rgba(255,255,255,0.9)', marginTop: 6, lineHeight: 19 }}>
-            Genera tu orden con el código que te compartieron y sigue tu compra en vivo.
-          </Text>
-          <PressableScale
-            onPress={() => openSheet('claim')}
-            style={{ marginTop: 16, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, height: 42, paddingHorizontal: 18, borderRadius: 999, backgroundColor: '#fff' }}>
-            <Icon name="qr" size={16} color={C.primary} />
-            <Text style={{ fontFamily: F.semi, fontSize: 13, color: C.primary }}>Generar orden</Text>
-          </PressableScale>
-        </Fade>
-      )}
-
-      {/* Acciones rápidas */}
-      <Fade delay={STAGGER * 2} desde={10}>
-        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 26 }}>
-          <PressableScale
-            onPress={() => openSheet('claim')}
-            style={{ flex: 1, height: 48, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.06)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <Icon name="qr" size={17} color={FG} />
-            <Text style={{ fontFamily: F.semi, fontSize: 13, color: FG }}>Nueva orden</Text>
-          </PressableScale>
+        {/* Crear orden a recomendar */}
+        <Fade delay={STAGGER * 7} desde={14}>
           <PressableScale
             onPress={() => go('share')}
-            style={{ flex: 1, height: 48, borderRadius: R.md, backgroundColor: C.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <Icon name="send" size={17} color="#fff" />
-            <Text style={{ fontFamily: F.semi, fontSize: 13, color: '#fff' }}>Recomendar</Text>
+            style={{ marginHorizontal: 12, marginTop: 16, borderRadius: R.lg, padding: 16, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.06)', flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="plus" size={22} color="#fff" sw={2.4} />
+            </LinearGradient>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ fontFamily: F.semi, fontSize: 15, color: FG }}>Crear una recomendación</Text>
+              <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED, marginTop: 2, lineHeight: 17 }}>
+                Elige un negocio y genera tu código y QR para compartir.
+              </Text>
+            </View>
+            <Icon name="chevR" size={18} color={MUTED} />
           </PressableScale>
-        </View>
-      </Fade>
-
-      {/* Historial */}
-      <SectionHeader title="Tus órdenes" />
-
-      {cargando && <ListaSkeleton filas={3} />}
-
-      {!cargando && visitas.length === 0 && (
-        <Fade key="vacio" desde={12} style={{ borderRadius: R.lg, padding: 22, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
-          <Text style={{ fontFamily: F.semi, fontSize: 15, color: FG }}>Aún no tienes órdenes</Text>
-          <Text style={{ fontFamily: F.reg, fontSize: 13, color: MUTED, marginTop: 6, lineHeight: 19 }}>
-            Cuando reclames una recomendación, aquí seguirás tu compra en vivo hasta que el negocio la confirme.
-          </Text>
         </Fade>
-      )}
 
-      {visitas.length > 0 && (
-        <View style={{ gap: 12 }}>
-          {visitas.map((v, i) => {
-            const e = ESTADO[v.estado];
-            return (
-              <Fade key={v.id} delay={i * STAGGER} desde={12} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
-                <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: e.bg, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name={e.icon} size={19} color={e.color} sw={2} />
+        {/* Historial */}
+        <View style={{ paddingHorizontal: 20, marginTop: 26 }}>
+          <Fade delay={STAGGER * 8}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+              <Text style={{ fontFamily: F.semi, fontSize: 17, color: FG, letterSpacing: -0.2 }}>Movimientos</Text>
+              <PressableScale onPress={() => go('balance')} hitSlop={8}>
+                <Text style={{ fontFamily: F.semi, fontSize: 13, color: C.primary }}>Ver todo</Text>
+              </PressableScale>
+            </View>
+          </Fade>
+
+          {cargando && (
+            <View style={{ borderRadius: R.md, paddingHorizontal: 14, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
+              <ListaSkeleton filas={3} />
+            </View>
+          )}
+
+          {!cargando && movimientos.length === 0 && (
+            <Fade delay={STAGGER * 9} desde={12}>
+              <View style={{ borderRadius: R.md, padding: 20, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
+                <Text style={{ fontFamily: F.semi, fontSize: 14.5, color: FG }}>Todavía no hay movimientos</Text>
+                <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: MUTED, marginTop: 5, lineHeight: 18 }}>
+                  Cuando un negocio confirme una venta que recomendaste, verás tu comisión aquí.
+                </Text>
+              </View>
+            </Fade>
+          )}
+
+          {movimientos.map((m, i) => (
+            <Fade key={m.id} delay={STAGGER * 9 + i * STAGGER} desde={12}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11 }}>
+                <View style={{ width: 44, height: 44, borderRadius: 999, backgroundColor: m.entra ? 'rgba(0,168,150,0.12)' : `${C.primary}15`, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name={m.icon} size={18} color={m.entra ? '#00A896' : C.primary} />
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text numberOfLines={1} style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>{v.negocio}</Text>
-                  <Text style={{ fontFamily: F.reg, fontSize: 11, color: MUTED, marginTop: 1 }}>Orden #{v.folio} · {fechaCorta(v.creada)}</Text>
+                  <Text numberOfLines={1} style={{ fontFamily: F.semi, fontSize: 14.5, color: FG }}>{m.titulo}</Text>
+                  <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED, marginTop: 2 }}>{fechaLarga(m.fecha)}</Text>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: e.bg }}>
-                  {v.estado === 'pendiente' && <LiveDot />}
-                  <Text style={{ fontFamily: F.semi, fontSize: 11, color: e.color }}>{e.label}</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ fontFamily: F.semi, fontSize: 14.5, color: FG }}>
+                    {m.entra ? '+' : '−'}${m.monto.toFixed(2)}
+                  </Text>
+                  <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED, marginTop: 2 }}>{m.sub}</Text>
                 </View>
-              </Fade>
-            );
-          })}
+              </View>
+            </Fade>
+          ))}
         </View>
-      )}
-    </ScrollView>
+      </ScrollView>
+
+      {/* Se esconde mientras el visor de colores ocupa la parte de abajo. */}
+      {onComoFunciona && <BotonComoFunciona visible={!visor} onPress={onComoFunciona} />}
+      <VisorTonos visible={visor} actual={tono} onCerrar={() => setVisor(false)} />
+    </View>
   );
 }

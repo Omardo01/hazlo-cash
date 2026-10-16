@@ -50,15 +50,21 @@ export interface DatosRegistro {
   email: string;
   password: string;
   telefono?: string;
-  /** Si acepta ser recomendador desde el arranque, nace también con rol embajador. */
-  quiereRecomendar?: boolean;
 }
 
-// Alta de una cuenta nueva. El perfil lo crea el trigger `handle_new_user`
-// (security definer) leyendo este metadata; los roles llegan saneados server-side
-// a 'cliente' / 'embajador' — 'negocio' y 'admin' los asigna un administrador.
+// Etapa de pruebas (2026-10): el registro crea cuentas ya confirmadas desde la
+// Edge Function `registro-prueba` — sin correo de verificación y aceptando
+// correos inventados. Para volver al alta normal con verificación: false.
+export const REGISTRO_DE_PRUEBA = true;
+
+// Alta de una cuenta nueva. Por ahora todo el que se registra es recomendador:
+// nace sólo con 'embajador'. El perfil lo crea el trigger `handle_new_user`
+// (security definer) leyendo este metadata y saneando los roles server-side —
+// 'negocio' y 'admin' los asigna un administrador.
 export async function registrarConEmail(d: DatosRegistro): Promise<ResultadoLogin> {
-  const roles = d.quiereRecomendar ? ['cliente', 'embajador'] : ['cliente'];
+  if (REGISTRO_DE_PRUEBA) return registrarCuentaDePrueba(d);
+
+  const roles = ['embajador'];
 
   const { data, error } = await supabase.auth.signUp({
     email: d.email.trim().toLowerCase(),
@@ -81,6 +87,33 @@ export async function registrarConEmail(d: DatosRegistro): Promise<ResultadoLogi
     return { ok: false, error: 'Te enviamos un correo para confirmar tu cuenta. Ábrelo y vuelve a entrar.' };
   }
 
+  return { ok: true, error: null };
+}
+
+// La función crea la cuenta ya confirmada; después se entra con la misma
+// contraseña y el AuthProvider cambia de pantalla solo.
+async function registrarCuentaDePrueba(d: DatosRegistro): Promise<ResultadoLogin> {
+  const email = d.email.trim().toLowerCase();
+  const { data, error } = await supabase.functions.invoke('registro-prueba', {
+    body: {
+      nombre: d.nombre.trim(),
+      email,
+      password: d.password,
+      telefono: d.telefono?.trim() ?? '',
+    },
+  });
+
+  if (error) return { ok: false, error: 'No pudimos crear tu cuenta. Revisa tu conexión e inténtalo de nuevo.' };
+  const r = data as { ok?: boolean; codigo?: string; error?: string } | null;
+  if (!r?.ok) {
+    if (r?.codigo === 'datos' || r?.codigo === 'ya_existe') return { ok: false, error: r.error ?? 'Revisa tus datos.' };
+    return { ok: false, error: 'No pudimos crear tu cuenta. Inténtalo de nuevo.' };
+  }
+
+  const entrar = await supabase.auth.signInWithPassword({ email, password: d.password });
+  if (entrar.error) {
+    return { ok: false, error: 'Tu cuenta quedó creada, pero no pudimos entrar. Usa «Entrar» con tu correo.' };
+  }
   return { ok: true, error: null };
 }
 

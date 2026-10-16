@@ -7,8 +7,8 @@ import {
   getResumenNegocio,
 } from '../services/businesses';
 import { getCodigosAdmin, getMetricasAdmin, getOrdenesAdmin, getUsuariosAdmin } from '../services/admin';
-import { getMiCodigo, getMisVisitasCliente, getStatsEmbajador, getVisitasNegocio } from '../services/referrals';
-import { getMisComisiones, getMiSaldo } from '../services/wallet';
+import { getMiCodigo, getMisRecomendaciones, getMisVisitasCliente, getStatsEmbajador, getVisitasNegocio } from '../services/referrals';
+import { getMisAjustes, getMisComisiones, getMiSaldo } from '../services/wallet';
 import { getRetiros, totalRetirado } from '../simulacion/retiros';
 import { useConsulta } from './useConsulta';
 
@@ -25,8 +25,10 @@ export const K = {
   visitasCliente: 'visitas-cliente',
   saldo: 'saldo',
   comisiones: 'comisiones',
+  ajustes: 'ajustes',
   statsEmbajador: 'stats-embajador',
   miCodigo: 'mi-codigo',
+  misRecomendaciones: 'mis-recomendaciones',
   retiros: 'retiros',
   totalRetirado: 'total-retirado',
   negocios: 'negocios',
@@ -53,8 +55,10 @@ export const usePerfil = () => useConsulta(K.perfil, getMiPerfil, LENTO);
 export const useVisitasCliente = () => useConsulta(K.visitasCliente, getMisVisitasCliente);
 export const useSaldo = () => useConsulta(K.saldo, getMiSaldo);
 export const useComisiones = () => useConsulta(K.comisiones, getMisComisiones);
+export const useAjustes = () => useConsulta(K.ajustes, getMisAjustes);
 export const useStatsEmbajador = () => useConsulta(K.statsEmbajador, getStatsEmbajador);
 export const useMiCodigo = () => useConsulta(K.miCodigo, getMiCodigo, LENTO);
+export const useMisRecomendaciones = () => useConsulta(K.misRecomendaciones, getMisRecomendaciones);
 export const useRetiros = () => useConsulta(K.retiros, getRetiros);
 export const useTotalRetirado = () => useConsulta(K.totalRetirado, totalRetirado);
 export const useNegocios = () => useConsulta(K.negocios, getNegociosActivos, LENTO);

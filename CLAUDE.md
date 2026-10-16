@@ -22,6 +22,15 @@ No hay tests automatizados configurados todavía. Validar manualmente en el brow
 
 ---
 
+## LA WEB ES LA APP (desde 2026-10-14)
+
+- **Lo que publica Vercel (hazlo-cash.vercel.app) es la app Expo de `mobile/`**, exportada a web. `vercel.json` en la raíz manda el build a `mobile/scripts/build-web.sh` (traduce `NEXT_PUBLIC_SUPABASE_*` → `EXPO_PUBLIC_*`) y sirve `mobile/dist` como SPA.
+- En escritorio, `/` muestra la app dentro de un teléfono (iframe con el ancho real del modelo elegido: SE, 15, Pixel 8, Pro Max) — `mobile/src/hazlo/lab/Escritorio.web.tsx`, decidido en `mobile/src/lib/marco-web.ts`. En un celular abre a pantalla completa; `/?marco=0` la fuerza sin marco; `/lab` sigue con los 4 roles.
+- **La web Next.js de la raíz (`src/`) quedó aparte**: ya no se despliega ni se trabaja en ella. Respaldo intacto en la rama `respaldo/web-nextjs` y la etiqueta `respaldo-web-nextjs-2026-10-14` (y zip en `~/Downloads/hazlocash-respaldos/`). Sigue corriendo en local con la config `web-nextjs` de `.claude/launch.json`. Lo que sigue de este documento sobre rutas Next.js describe esa web archivada.
+- Para probar vistas: config `movil-web` (Expo en 8081). Para ver exactamente lo que se publicará: `sh mobile/scripts/build-web.sh` y servir `mobile/dist` con fallback a `index.html`.
+
+---
+
 ## ARQUITECTURA TÉCNICA REAL (estado actual)
 
 ### Grupos de rutas y layouts

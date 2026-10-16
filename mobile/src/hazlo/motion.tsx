@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, Pressable, type PressableProps, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, Platform, Pressable, type PressableProps, type ViewStyle } from 'react-native';
 
 /**
  * Tokens de movimiento de Hazlo Cash.
@@ -28,6 +28,17 @@ export const EASE = {
   /** Cambios de estado en sitio. */
   inOut: Easing.inOut(Easing.quad),
 } as const;
+
+/**
+ * Bucle infinito de una animación. Úsalo en vez de `Animated.loop` directo:
+ * en web, react-native-web dice que usa el native driver pero ignora las
+ * repeticiones, y un `loop(timing)` corre una sola vez y se congela. Envuelto
+ * en `sequence` cae al bucle de JS, que sí repite. En el teléfono se queda el
+ * bucle nativo.
+ */
+export function bucle(animacion: Animated.CompositeAnimation): Animated.CompositeAnimation {
+  return Animated.loop(Platform.OS === 'web' ? Animated.sequence([animacion]) : animacion);
+}
 
 /** Escala al presionar. El estándar de la app para todo lo tocable. */
 export const PRESS_SCALE = 0.97;

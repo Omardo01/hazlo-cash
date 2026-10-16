@@ -12,9 +12,43 @@ import { Icon, IconName } from '../icons';
 import { Fade, PressableScale, STAGGER } from '../motion';
 import { Bloque } from '../Skeleton';
 import { C, F, FG, MUTED, R } from '../theme';
-import { SectionHeader } from '../ui';
+import { grupoDeCategoria } from '../categorias/grupoDeNegocio';
+import { IconoGrupo } from '../categorias/piezas';
+import { FoodTile, SectionHeader } from '../ui';
 
 const money = (n: number) => `$${n.toFixed(2)}`;
+
+// Mismo tono por negocio que en Descubre, para que la vista previa sea igual.
+function hueDeId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
+  return h;
+}
+
+// Cómo aparece el negocio en Descubre: la misma tarjeta que ven los recomendadores.
+function VistaPrevia({ negocio, delay }: { negocio: BusinessAdmin; delay: number }) {
+  const grupo = grupoDeCategoria(negocio.categoria);
+  return (
+    <Fade delay={delay} desde={12}>
+      <View style={{ borderRadius: R.lg, padding: 12, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)', marginBottom: 22 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 4 }}>
+          <Text style={{ fontFamily: F.semi, fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.8 }}>Así te ven en Descubre</Text>
+          <View style={{ paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, backgroundColor: negocio.activo ? 'rgba(0,168,150,0.14)' : 'rgba(13,13,13,0.07)' }}>
+            <Text style={{ fontFamily: F.semi, fontSize: 10.5, color: negocio.activo ? '#00806F' : MUTED }}>{negocio.activo ? 'Visible' : 'Oculto'}</Text>
+          </View>
+        </View>
+        <FoodTile name={negocio.nombre} type={negocio.oferta ?? negocio.categoria} hue={hueDeId(negocio.id)} radius={R.md} height={170} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingHorizontal: 4 }}>
+          <IconoGrupo grupo={grupo} size={30} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: F.semi, fontSize: 13, color: FG }}>{grupo.nombre}</Text>
+            <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED }}>Tu categoría en el catálogo</Text>
+          </View>
+        </View>
+      </View>
+    </Fade>
+  );
+}
 
 function Metrica({ v, l, icon, delay }: { v: string; l: string; icon: IconName; delay: number }) {
   return (
@@ -39,7 +73,7 @@ function Dato({ label, valor }: { label: string; valor: string }) {
 
 // Cuenta sin negocio asignado: sin esto la pestaña quedaba en blanco y el
 // usuario no sabía si la app estaba rota o le faltaba un paso.
-function SinNegocio() {
+export function SinNegocio() {
   return (
     <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
       <Fade desde={8}>
@@ -184,6 +218,7 @@ export function MiNegocioScreen() {
 
         {/* Ficha pública: lo que el cliente ve de este negocio. */}
         <SectionHeader title="Tu ficha" />
+        <VistaPrevia negocio={negocio} delay={STAGGER * 8} />
         <Fade delay={STAGGER * 8} desde={12}>
           <View style={{ borderRadius: R.md, padding: 18, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 6 }}>

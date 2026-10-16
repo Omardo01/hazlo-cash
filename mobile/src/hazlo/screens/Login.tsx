@@ -15,12 +15,13 @@ import { loginConEmail } from '@/lib/services/auth';
 import { PressableScale } from '../motion';
 import { HazloMark } from '../HazloMark';
 import { C, F, FG, MUTED, R } from '../theme';
-import { Glass } from '../ui';
+import { CajaCampo } from '../ui';
 
 export function LoginScreen({ onCrearCuenta }: { onCrearCuenta: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [foco, setFoco] = useState<'email' | 'pass' | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,8 +63,10 @@ export function LoginScreen({ onCrearCuenta }: { onCrearCuenta: () => void }) {
 
         {/* Correo */}
         <Text style={{ fontFamily: F.base, fontSize: 12, color: FG, marginBottom: 6 }}>Correo electrónico</Text>
-        <Glass style={{ borderRadius: R.md, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 14 }}>
+        <CajaCampo activo={foco === 'email'} style={{ marginBottom: 14 }}>
           <TextInput
+            onFocus={() => setFoco('email')}
+            onBlur={() => setFoco(null)}
             placeholder="tu@email.com"
             placeholderTextColor={MUTED}
             autoCapitalize="none"
@@ -73,7 +76,7 @@ export function LoginScreen({ onCrearCuenta }: { onCrearCuenta: () => void }) {
             onChangeText={setEmail}
             style={{ fontFamily: F.reg, fontSize: 14, color: FG, padding: 0 }}
           />
-        </Glass>
+        </CajaCampo>
 
         {/* Contraseña */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -82,8 +85,10 @@ export function LoginScreen({ onCrearCuenta }: { onCrearCuenta: () => void }) {
             <Text style={{ fontFamily: F.semi, fontSize: 12, color: C.primary }}>{showPass ? 'Ocultar' : 'Mostrar'}</Text>
           </Pressable>
         </View>
-        <Glass style={{ borderRadius: R.md, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8 }}>
+        <CajaCampo activo={foco === 'pass'} style={{ marginBottom: 8 }}>
           <TextInput
+            onFocus={() => setFoco('pass')}
+            onBlur={() => setFoco(null)}
             placeholder="••••••••"
             placeholderTextColor={MUTED}
             autoCapitalize="none"
@@ -95,7 +100,7 @@ export function LoginScreen({ onCrearCuenta }: { onCrearCuenta: () => void }) {
             returnKeyType="go"
             style={{ fontFamily: F.reg, fontSize: 14, color: FG, padding: 0 }}
           />
-        </Glass>
+        </CajaCampo>
 
         {error && (
           <View style={{ backgroundColor: 'rgba(235,78,0,0.08)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 6, marginBottom: 4 }}>

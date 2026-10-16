@@ -25,7 +25,7 @@
       ]
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -46,7 +46,11 @@
         {
           "cameraPermission": "Hazlo Cash usa la cámara para escanear el QR del cliente y confirmar la venta."
         }
-      ]
+      ],
+      "expo-image",
+      "expo-sharing",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

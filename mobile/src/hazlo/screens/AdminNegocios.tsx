@@ -4,7 +4,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   RefreshControl,
   ScrollView,
   Text,
@@ -25,6 +24,7 @@ import { Icon, IconName } from '../icons';
 import { BG, C, F, FG, MUTED, R } from '../theme';
 import { ListaSkeleton } from '../Skeleton';
 import { Glass, SectionHeader } from '../ui';
+import { Fade, PressableScale, STAGGER } from '../motion';
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 const ATAJOS = [50, 100, 200, 500];
@@ -151,9 +151,9 @@ function GestionNegocio({
             <Text style={{ fontFamily: F.semi, fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Activar créditos</Text>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
               {ATAJOS.map((a) => (
-                <Pressable key={a} onPress={() => setMonto(String(a))} style={{ flex: 1, height: 40, borderRadius: R.sm, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+                <PressableScale key={a} onPress={() => setMonto(String(a))} style={{ flex: 1, height: 40, borderRadius: R.sm, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontFamily: F.semi, fontSize: 13, color: FG }}>${a}</Text>
-                </Pressable>
+                </PressableScale>
               ))}
             </View>
             <View style={{ flexDirection: 'row', gap: 10, marginBottom: 22 }}>
@@ -161,9 +161,9 @@ function GestionNegocio({
                 <Text style={{ fontFamily: F.semi, fontSize: 17, color: MUTED, marginRight: 4 }}>$</Text>
                 <TextInput value={monto} onChangeText={setMonto} placeholder="0.00" placeholderTextColor={MUTED} keyboardType="decimal-pad" style={{ flex: 1, fontFamily: F.semi, fontSize: 17, color: FG, padding: 0 }} />
               </View>
-              <Pressable onPress={recargar} disabled={recargando} style={{ paddingHorizontal: 20, height: 50, borderRadius: R.md, backgroundColor: C.primary, flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center', opacity: recargando ? 0.7 : 1 }}>
+              <PressableScale onPress={recargar} disabled={recargando} style={{ paddingHorizontal: 20, height: 50, borderRadius: R.md, backgroundColor: C.primary, flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center', opacity: recargando ? 0.7 : 1 }}>
                 {recargando ? <ActivityIndicator color="#fff" /> : <><Icon name="plus" size={16} color="#fff" sw={2.4} /><Text style={{ fontFamily: F.semi, fontSize: 14, color: '#fff' }}>Activar</Text></>}
-              </Pressable>
+              </PressableScale>
             </View>
 
             {/* Dueño del negocio */}
@@ -179,7 +179,7 @@ function GestionNegocio({
                 {candidatos.map((u) => {
                   const sel = negocio.owner_id === u.id;
                   return (
-                    <Pressable
+                    <PressableScale
                       key={u.id}
                       onPress={() => asignarDueno(u.id)}
                       disabled={asignando !== null}
@@ -189,7 +189,7 @@ function GestionNegocio({
                       </View>
                       <Text style={{ flex: 1, fontFamily: F.semi, fontSize: 14, color: FG }}>{u.nombre}</Text>
                       {sel && <Text style={{ fontFamily: F.semi, fontSize: 11, color: C.primary }}>Dueño</Text>}
-                    </Pressable>
+                    </PressableScale>
                   );
                 })}
                 <Text style={{ fontFamily: F.reg, fontSize: 11, color: MUTED, lineHeight: 16, paddingHorizontal: 2 }}>
@@ -204,9 +204,9 @@ function GestionNegocio({
               {(['fijo', 'porcentaje'] as ComisionTipo[]).map((t) => {
                 const sel = tipo === t;
                 return (
-                  <Pressable key={t} onPress={() => setTipo(t)} style={{ flex: 1, height: 44, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', borderWidth: sel ? 0 : 1, borderColor: 'rgba(0,0,0,0.1)', backgroundColor: sel ? C.primary : '#fff' }}>
+                  <PressableScale key={t} onPress={() => setTipo(t)} style={{ flex: 1, height: 44, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', borderWidth: sel ? 0 : 1, borderColor: 'rgba(0,0,0,0.1)', backgroundColor: sel ? C.primary : '#fff' }}>
                     <Text style={{ fontFamily: F.semi, fontSize: 13, color: sel ? '#fff' : FG }}>{t === 'fijo' ? 'Monto fijo' : 'Porcentaje'}</Text>
-                  </Pressable>
+                  </PressableScale>
                 );
               })}
             </View>
@@ -216,9 +216,9 @@ function GestionNegocio({
                 <TextInput value={valor} onChangeText={setValor} placeholder={tipo === 'fijo' ? '10.00' : '10'} placeholderTextColor={MUTED} keyboardType="decimal-pad" style={{ flex: 1, fontFamily: F.semi, fontSize: 16, color: FG, padding: 0 }} />
                 {tipo === 'porcentaje' && <Text style={{ fontFamily: F.semi, fontSize: 16, color: MUTED, marginLeft: 4 }}>%</Text>}
               </View>
-              <Pressable onPress={guardarComision} disabled={guardandoComision} style={{ paddingHorizontal: 20, height: 50, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(0,0,0,0.12)', alignItems: 'center', justifyContent: 'center', opacity: guardandoComision ? 0.7 : 1 }}>
+              <PressableScale onPress={guardarComision} disabled={guardandoComision} style={{ paddingHorizontal: 20, height: 50, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(0,0,0,0.12)', alignItems: 'center', justifyContent: 'center', opacity: guardandoComision ? 0.7 : 1 }}>
                 {guardandoComision ? <ActivityIndicator color={FG} /> : <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>Guardar</Text>}
-              </Pressable>
+              </PressableScale>
             </View>
 
             {aviso && (
@@ -233,16 +233,16 @@ function GestionNegocio({
               </View>
             )}
 
-            <Pressable
+            <PressableScale
               onPress={onEditar}
               style={{ height: 50, borderRadius: R.md, backgroundColor: FG, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 10 }}>
               <Icon name="settings" size={15} color="#fff" />
               <Text style={{ fontFamily: F.semi, fontSize: 14, color: '#fff' }}>Editar ficha del negocio</Text>
-            </Pressable>
+            </PressableScale>
 
-            <Pressable onPress={onClose} style={{ height: 50, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' }}>
+            <PressableScale onPress={onClose} style={{ height: 50, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>Listo</Text>
-            </Pressable>
+            </PressableScale>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -274,6 +274,9 @@ export function AdminNegociosScreen() {
 
   const activos = negocios.filter((n) => n.activo).length;
   const totalCreditos = negocios.reduce((s, n) => s + n.creditos, 0);
+  // Lo que pide atención del admin: negocios que no pueden operar todavía.
+  const sinDueno = negocios.filter((n) => !n.owner_id).length;
+  const sinCreditos = negocios.filter((n) => n.activo && n.creditos <= 0).length;
 
   return (
     <ScrollView
@@ -281,20 +284,23 @@ export function AdminNegociosScreen() {
       contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 }}
       refreshControl={<RefreshControl refreshing={false} onRefresh={cargar} tintColor={C.primary} />}>
       {/* Saludo */}
+      <Fade desde={8}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
         <View>
           <Text style={{ fontFamily: F.base, fontSize: 13, color: MUTED }}>Panel admin</Text>
           <Text style={{ fontFamily: F.bold, fontSize: 22, color: FG, letterSpacing: -0.44, marginTop: 2 }}>Negocios</Text>
         </View>
-        <Pressable
+        <PressableScale
           onPress={() => setAltaVisible(true)}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: 16, borderRadius: 999, backgroundColor: C.primary }}>
           <Icon name="plus" size={16} color="#fff" sw={2.4} />
           <Text style={{ fontFamily: F.semi, fontSize: 13, color: '#fff' }}>Nuevo</Text>
-        </Pressable>
+        </PressableScale>
       </View>
+      </Fade>
 
       {/* Hero */}
+      <Fade delay={STAGGER} desde={12}>
       <View style={{ position: 'relative', overflow: 'hidden', borderRadius: R.lg, padding: 20, marginBottom: 22, shadowColor: '#1A1840', shadowOpacity: 0.4, shadowRadius: 24, shadowOffset: { width: 0, height: 18 }, elevation: 8 }}>
         <LinearGradient colors={['#1A1840', '#2D2B8F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
         <View style={{ position: 'absolute', right: -30, top: -30, opacity: 0.16 }}>
@@ -304,21 +310,24 @@ export function AdminNegociosScreen() {
         <Text style={{ fontFamily: F.bold, fontSize: 44, color: '#fff', letterSpacing: -1.5, marginTop: 2 }}>{negocios.length}</Text>
         <Text style={{ fontFamily: F.base, fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 2 }}>{activos} activos · {negocios.length - activos} inactivos</Text>
       </View>
+      </Fade>
 
-      {/* Stats */}
+      {/* Lo que requiere atención (el total ya está en el hero) */}
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 26 }}>
         {[
-          { v: String(negocios.length), l: 'Total', icon: 'home' as IconName },
-          { v: String(activos), l: 'Activos', icon: 'check' as IconName },
-          { v: money(totalCreditos), l: 'Créditos', icon: 'wallet' as IconName },
-        ].map((s) => (
-          <Glass key={s.l} style={{ flex: 1, padding: 12, borderRadius: R.md }}>
-            <View style={{ marginBottom: 6 }}>
-              <Icon name={s.icon} size={18} color={C.primary} />
-            </View>
-            <Text numberOfLines={1} style={{ fontFamily: F.bold, fontSize: 16, color: FG, letterSpacing: -0.32 }}>{s.v}</Text>
-            <Text style={{ fontFamily: F.reg, fontSize: 10, color: MUTED, marginTop: 1 }}>{s.l}</Text>
-          </Glass>
+          { v: String(sinDueno), l: 'Sin dueño', icon: 'user' as IconName, alerta: sinDueno > 0 },
+          { v: String(sinCreditos), l: 'Sin créditos', icon: 'bell' as IconName, alerta: sinCreditos > 0 },
+          { v: money(totalCreditos), l: 'Créditos', icon: 'wallet' as IconName, alerta: false },
+        ].map((s, i) => (
+          <Fade key={s.l} delay={STAGGER * (2 + i)} desde={10} style={{ flex: 1 }}>
+            <Glass style={{ padding: 12, borderRadius: R.md }}>
+              <View style={{ marginBottom: 6 }}>
+                <Icon name={s.icon} size={18} color={s.alerta ? C.accent : C.primary} />
+              </View>
+              <Text numberOfLines={1} style={{ fontFamily: F.bold, fontSize: 16, color: s.alerta ? C.accent : FG, letterSpacing: -0.32 }}>{s.v}</Text>
+              <Text style={{ fontFamily: F.reg, fontSize: 10, color: MUTED, marginTop: 1 }}>{s.l}</Text>
+            </Glass>
+          </Fade>
         ))}
       </View>
 
@@ -336,9 +345,9 @@ export function AdminNegociosScreen() {
 
       {!loading && !error && (
         <View style={{ gap: 12 }}>
-          {negocios.map((n) => (
-            <Pressable
-              key={n.id}
+          {negocios.map((n, i) => (
+            <Fade key={n.id} delay={STAGGER * Math.min(i, 8)} desde={12}>
+            <PressableScale
               onPress={() => setGestion(n)}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
               <LinearGradient colors={n.activo ? [C.primary, C.accent] : ['#C9C9C9', '#A8A8A8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}>
@@ -357,7 +366,7 @@ export function AdminNegociosScreen() {
                   )}
                 </View>
               </View>
-              <Pressable
+              <PressableScale
                 onPress={() => toggle(n)}
                 disabled={toggling === n.id}
                 style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: n.activo ? 'rgba(0,168,150,0.15)' : 'rgba(13,13,13,0.06)', minWidth: 82, alignItems: 'center' }}>
@@ -366,8 +375,9 @@ export function AdminNegociosScreen() {
                 ) : (
                   <Text style={{ fontFamily: F.semi, fontSize: 11, color: n.activo ? '#00A896' : MUTED }}>{n.activo ? 'Activo' : 'Inactivo'}</Text>
                 )}
-              </Pressable>
-            </Pressable>
+              </PressableScale>
+            </PressableScale>
+            </Fade>
           ))}
         </View>
       )}

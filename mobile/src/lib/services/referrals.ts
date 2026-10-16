@@ -319,6 +319,58 @@ export async function getStatsEmbajador(): Promise<StatsEmbajador> {
   };
 }
 
+export interface RecomendacionItem {
+  codigo: string;
+  negocio: string;
+  oferta: string | null;
+  /** Visitas generadas con este código (cualquier estado). */
+  usos: number;
+  confirmadas: number;
+  /** Comisiones cobradas por este negocio. */
+  ganado: number;
+  creada: string;
+}
+
+// Un renglón por negocio que el recomendador en sesión ha recomendado (un
+// código por negocio), con lo que ha rendido. RLS ya limita cada tabla a lo
+// suyo; los filtros por embajador_id lo dejan explícito.
+export async function getMisRecomendaciones(): Promise<RecomendacionItem[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const [codigos, refs, comisiones] = await Promise.all([
+    supabase
+      .from('referral_codes')
+      .select('id, codigo, negocio_id, created_at, businesses(nombre, oferta)')
+      .eq('embajador_id', user.id)
+      .eq('activo', true)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('referrals')
+      .select('codigo_id, estado, referral_codes!inner(embajador_id)')
+      .eq('referral_codes.embajador_id', user.id),
+    supabase.from('comisiones').select('negocio_id, monto').eq('embajador_id', user.id),
+  ]);
+
+  if (codigos.error) throw new Error(`Error al cargar tus recomendaciones: ${codigos.error.message}`);
+
+  return (codigos.data ?? []).map((c) => {
+    const n = Array.isArray(c.businesses) ? c.businesses[0] : c.businesses;
+    const usos = (refs.data ?? []).filter((r) => r.codigo_id === c.id);
+    return {
+      codigo: c.codigo,
+      negocio: n?.nombre ?? 'Negocio',
+      oferta: n?.oferta ?? null,
+      usos: usos.length,
+      confirmadas: usos.filter((r) => r.estado === CONFIRMADO).length,
+      ganado: (comisiones.data ?? []).filter((m) => m.negocio_id === c.negocio_id).reduce((t, m) => t + Number(m.monto), 0),
+      creada: c.created_at,
+    };
+  });
+}
+
 export type NivelEmbajador = 'Bronce' | 'Plata' | 'Oro';
 
 export interface Nivel {

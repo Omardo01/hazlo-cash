@@ -109,7 +109,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     const sub = AppState.addEventListener('change', (estado) => {
       if (estado === 'active') {
         abrir();
-        [K.visitasCliente, K.visitasNegocio, K.saldo, K.comisiones].forEach((k) => invalidar(k));
+        [K.visitasCliente, K.visitasNegocio, K.saldo, K.comisiones, K.ajustes, K.misRecomendaciones].forEach((k) => invalidar(k));
       } else {
         cerrar();
       }
@@ -142,7 +142,7 @@ function aplicarUpdate(fila: FilaReferral, userId: string, avisar: (a: Aviso) =>
   if (fila.estado === 'confirmado') {
     // El dinero sí cambió y la comisión no viene en este payload: se marcan
     // viejos para que se refresquen cuando el usuario los mire.
-    [K.saldo, K.comisiones, K.statsEmbajador].forEach((k) => invalidar(k));
+    [K.saldo, K.comisiones, K.statsEmbajador, K.misRecomendaciones].forEach((k) => invalidar(k));
 
     if (fila.cliente_id === userId) {
       Vibration.vibrate(40);
@@ -179,6 +179,8 @@ function aplicarInsert(fila: FilaReferral, userId: string, avisar: (a: Aviso) =>
   invalidar(K.visitasNegocio);
   invalidar(K.adminOrdenes);
   invalidar(K.adminMetricas);
+  // Si la visita vino de un código del recomendador en sesión, sube su conteo.
+  invalidar(K.misRecomendaciones);
 
   // El propio cliente ya vio su reclamo al hacerlo; el aviso es para el negocio.
   if (fila.cliente_id === userId) {

@@ -43,3 +43,37 @@ export async function getMisComisiones(): Promise<ComisionItem[]> {
     };
   });
 }
+
+export interface AjusteItem {
+  id: string;
+  /** Positivo = Hazlo Cash le sumó saldo; negativo = se lo quitó. */
+  monto: number;
+  motivo: string | null;
+  creada: string;
+}
+
+// Ajustes manuales de saldo que hizo un admin (admin_ajustar_saldo). Forman
+// parte del saldo del wallet, así que sin ellos "Ganado" no cuadra con el saldo.
+// RLS (ajuste_select_propio); el filtro por user_id evita que un admin vea los
+// de todos en su propia pantalla.
+export async function getMisAjustes(): Promise<AjusteItem[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('ajustes_saldo')
+    .select('id, monto, motivo, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(`Error al cargar ajustes: ${error.message}`);
+
+  return (data ?? []).map((a) => ({
+    id: a.id,
+    monto: Number(a.monto),
+    motivo: a.motivo,
+    creada: a.created_at,
+  }));
+}

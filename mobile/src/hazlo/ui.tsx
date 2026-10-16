@@ -2,11 +2,30 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Platform, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient as SvgGrad, Path, Stop } from 'react-native-svg';
 
-import { F, FG, MUTED } from './theme';
+import { C, F, FG, MUTED, R } from './theme';
 
 // ── Glass: superficie translúcida (aprox. del liquid glass del prototipo) ──────
 export function Glass({ children, style }: { children?: React.ReactNode; style?: ViewStyle }) {
   return <View style={[styles.glass, style]}>{children}</View>;
+}
+
+// ── CajaCampo: superficie de un campo de texto ─────────────────────────────────
+// Mientras se escribe, el borde toma el color de marca. El grosor no cambia
+// entre estados para que nada brinque al enfocar.
+export function CajaCampo({ activo, children, style }: { activo: boolean; children?: React.ReactNode; style?: ViewStyle }) {
+  return (
+    <Glass
+      style={{
+        borderRadius: R.md,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        borderWidth: 1,
+        borderColor: activo ? `${C.primary}99` : 'rgba(13,13,13,0.06)',
+        ...style,
+      }}>
+      {children}
+    </Glass>
+  );
 }
 
 // ── Section header ─────────────────────────────────────────────────────────────
@@ -66,10 +85,12 @@ export function FoodTile({
   );
 }
 
-// ── Sparkline (7 días) ─────────────────────────────────────────────────────────
-export function Sparkline({ color }: { color: string }) {
-  const points = [22, 18, 28, 24, 36, 30, 44];
-  const max = Math.max(...points);
+// ── Sparkline ──────────────────────────────────────────────────────────────────
+// Recibe la serie ya calculada. Con menos de dos puntos o todo en cero dibuja
+// una línea plana abajo: nunca inventa una tendencia.
+export function Sparkline({ color, points: serie }: { color: string; points: number[] }) {
+  const points = serie.length >= 2 ? serie : [serie[0] ?? 0, serie[0] ?? 0];
+  const max = Math.max(...points) || 1;
   const w = 320;
   const h = 70;
   const step = w / (points.length - 1);

@@ -16,10 +16,12 @@ type Props<K extends string> = {
   onSelect: (k: K) => void;
   // Si se pasa, muestra el FAB morado central (parte los tabs en dos mitades).
   onPlus?: () => void;
+  /** Ícono del FAB central (el negocio usa el QR para escanear). */
+  plusIcon?: IconName;
 };
 
 // Selector glassmorphism compartido por las 3 apps (cliente/embajador, negocio, admin).
-export function TabBar<K extends string>({ tabs, active, onSelect, onPlus }: Props<K>) {
+export function TabBar<K extends string>({ tabs, active, onSelect, onPlus, plusIcon = 'plus' }: Props<K>) {
   const TabBtn = ({ t }: { t: TabItem<K> }) => {
     const isActive = active === t.k;
     const color = isActive ? C.primary : MUTED_TAB;
@@ -88,9 +90,16 @@ export function TabBar<K extends string>({ tabs, active, onSelect, onPlus }: Pro
         ))}
       </BlurView>
 
-      {/* FAB flotante — overlay fuera del recorte, sobresale por arriba */}
+      {/* FAB flotante — overlay fuera del recorte, sobresale por arriba. Repite
+          el reparto de la barra (mismos flex y el mismo hueco de 64) para caer
+          justo sobre el hueco: con un número impar de tabs el hueco no está al
+          centro, y centrarlo tapaba la tercera pestaña. */}
       {onPlus && (
-        <View pointerEvents="box-none" style={{ position: 'absolute', top: -18, left: 0, right: 0, alignItems: 'center' }}>
+        <View pointerEvents="box-none" style={{ position: 'absolute', top: -18, left: 0, right: 0, flexDirection: 'row', paddingHorizontal: 8 }}>
+          {left.map((t) => (
+            <View key={t.k} pointerEvents="none" style={{ flex: 1 }} />
+          ))}
+          <View pointerEvents="box-none" style={{ width: 64, alignItems: 'center' }}>
           <PressableScale
             onPress={onPlus}
             style={{
@@ -108,8 +117,12 @@ export function TabBar<K extends string>({ tabs, active, onSelect, onPlus }: Pro
               shadowOffset: { width: 0, height: 6 },
               elevation: 8,
             }}>
-            <Icon name="plus" size={24} color="#fff" sw={2.4} />
+            <Icon name={plusIcon} size={plusIcon === 'plus' ? 24 : 22} color="#fff" sw={plusIcon === 'plus' ? 2.4 : 2} />
           </PressableScale>
+          </View>
+          {right.map((t) => (
+            <View key={t.k} pointerEvents="none" style={{ flex: 1 }} />
+          ))}
         </View>
       )}
     </View>

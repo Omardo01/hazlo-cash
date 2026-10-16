@@ -297,7 +297,7 @@ function EditorRoles({ usuario, onClose, onGuardado }: { usuario: UsuarioAdmin; 
               const on = sel.includes(r);
               const c = ROLE_COLOR[r];
               return (
-                <Pressable
+                <PressableScale
                   key={r}
                   onPress={() => toggle(r)}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: R.md, borderWidth: 1, borderColor: on ? c : 'rgba(0,0,0,0.1)', backgroundColor: on ? `${c}10` : '#fff' }}>
@@ -305,7 +305,7 @@ function EditorRoles({ usuario, onClose, onGuardado }: { usuario: UsuarioAdmin; 
                     {on && <Icon name="check" size={14} color="#fff" sw={2.6} />}
                   </View>
                   <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG, textTransform: 'capitalize' }}>{r}</Text>
-                </Pressable>
+                </PressableScale>
               );
             })}
           </View>
@@ -319,12 +319,12 @@ function EditorRoles({ usuario, onClose, onGuardado }: { usuario: UsuarioAdmin; 
           <CambiarPassword usuario={usuario} />
 
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
-            <Pressable onPress={onClose} style={{ flex: 1, height: 48, borderRadius: R.md, backgroundColor: '#F2F4F7', alignItems: 'center', justifyContent: 'center' }}>
+            <PressableScale onPress={onClose} style={{ flex: 1, height: 48, borderRadius: R.md, backgroundColor: '#F2F4F7', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>Cancelar</Text>
-            </Pressable>
-            <Pressable onPress={guardar} disabled={loading} style={{ flex: 1, height: 48, borderRadius: R.md, backgroundColor: FG, alignItems: 'center', justifyContent: 'center', opacity: loading ? 0.7 : 1 }}>
+            </PressableScale>
+            <PressableScale onPress={guardar} disabled={loading} style={{ flex: 1, height: 48, borderRadius: R.md, backgroundColor: FG, alignItems: 'center', justifyContent: 'center', opacity: loading ? 0.7 : 1 }}>
               {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ fontFamily: F.semi, fontSize: 14, color: '#fff' }}>Guardar</Text>}
-            </Pressable>
+            </PressableScale>
           </View>
         </Pressable>
       </Pressable>

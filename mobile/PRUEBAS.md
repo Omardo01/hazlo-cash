@@ -65,6 +65,14 @@ Qué hace cada una:
 
 ## 2. Apagar la confirmación de correo
 
+> **Desde 2026-10-15 no hace falta para probar:** el registro de la app pasa por
+> la Edge Function `registro-prueba`, que crea la cuenta ya confirmada (sin
+> correo de verificación y aceptando correos inventados) y entra sola. Las
+> cuentas quedan marcadas con `app_metadata.cuenta_prueba = true` para
+> limpiarlas después. Para volver al alta normal: `REGISTRO_DE_PRUEBA = false`
+> en `mobile/src/lib/services/auth.ts`. Lo de abajo aplica a ese modo normal
+> (hoy la confirmación sigue **encendida** en Supabase).
+
 Para que quien se registre entre directo, sin esperar un correo que puede caer
 en spam a media demo:
 
@@ -86,12 +94,13 @@ confirmar tu cuenta") en vez de quedarse muda.
 
 ## 3. Desplegar las Edge Functions
 
-Dos funciones corren con service role y validan que quien llama es admin:
+Las funciones corren con service role; las dos `admin-*` validan que quien llama es admin:
 
 | Función | Para qué |
 |---|---|
 | `admin-asignar-rol` | cambiar los roles de un usuario |
 | `admin-usuarios` | ver correos, crear cuentas y cambiar contraseñas desde el panel |
+| `registro-prueba` | registro público de cuentas de prueba, ya confirmadas (no pide ser admin) |
 
 ```bash
 npx supabase functions deploy admin-asignar-rol --project-ref pihexutjvuifjzkukfwo

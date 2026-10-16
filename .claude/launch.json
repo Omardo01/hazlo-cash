@@ -2,7 +2,14 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "dev",
+      "name": "movil-web",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd mobile && npx expo start --web --port 8081"],
+      "port": 8081,
+      "url": "http://localhost:8081"
+    },
+    {
+      "name": "web-nextjs",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000,

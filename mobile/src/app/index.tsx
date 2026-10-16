@@ -4,12 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
 import { useAuth } from '@/lib/auth-context';
+import { ES_MARCO_ESCRITORIO } from '@/lib/marco-web';
 import { getMiPerfil } from '@/lib/services/auth';
 import type { Profile } from '@/lib/types';
 import { AdminApp } from '@/hazlo/AdminApp';
 import { ClienteEmbajadorApp } from '@/hazlo/ClienteEmbajadorApp';
 import { NegocioApp } from '@/hazlo/NegocioApp';
 import { RoleSwitcher, type Experiencia } from '@/hazlo/RoleSwitcher';
+import { Escritorio } from '@/hazlo/lab/Escritorio';
 import { Splash } from '@/hazlo/Splash';
 import { AuthScreen } from '@/hazlo/screens/Auth';
 import { BG } from '@/hazlo/theme';
@@ -19,12 +21,17 @@ function experienciasDe(roles: string[]): Experiencia[] {
   const exps: Experiencia[] = [];
   if (roles.includes('admin')) exps.push({ key: 'admin', label: 'Admin', icon: 'settings' });
   if (roles.includes('negocio')) exps.push({ key: 'negocio', label: 'Negocio', icon: 'home' });
-  if (roles.includes('cliente') || roles.includes('embajador')) exps.push({ key: 'cliente', label: 'Cliente / Embajador', icon: 'user' });
+  if (roles.includes('cliente') || roles.includes('embajador')) exps.push({ key: 'cliente', label: 'Recomendador', icon: 'user' });
   return exps;
 }
 
+// En escritorio, / enseña la app dentro de un teléfono (ver lib/marco-web.ts).
+export default function Raiz() {
+  return ES_MARCO_ESCRITORIO ? <Escritorio /> : <HazloApp />;
+}
+
 // Router por rol: decide qué experiencia mostrar según los roles del perfil.
-export default function HazloApp() {
+function HazloApp() {
   const { session, loading } = useAuth();
   const [perfil, setPerfil] = useState<Profile | null>(null);
   const [perfilCargado, setPerfilCargado] = useState(false);

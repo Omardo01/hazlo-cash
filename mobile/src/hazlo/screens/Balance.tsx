@@ -1,8 +1,8 @@
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 
-import { useComisiones, useSaldo, useTotalRetirado } from '@/lib/datos/consultas';
+import { useAjustes, useComisiones, useSaldo, useTotalRetirado } from '@/lib/datos/consultas';
 import { ListaSkeleton } from '../Skeleton';
-import { Icon } from '../icons';
+import { Icon, IconName } from '../icons';
 import { Fade, PressableScale, STAGGER } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
 import { Glass, SectionHeader, Sparkline } from '../ui';
@@ -19,26 +19,48 @@ function fechaCorta(iso: string): string {
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
 }
 
-export function BalanceScreen({ openSheet, onAbrirRetiros }: ScreenProps & { onAbrirRetiros: () => void }) {
+export function BalanceScreen({ go, openSheet, onAbrirRetiros }: ScreenProps & { onAbrirRetiros: () => void }) {
   // Tres consultas independientes con su propia frescura. Al volver a esta
   // pestaña se pintan de caché y solo salen a la red las que estén viejas.
   const { datos: saldo = 0, refrescar: refrescarSaldo } = useSaldo();
   const { datos: comisiones = [], cargando, refrescar: refrescarComisiones } = useComisiones();
   const { datos: retirado = 0, refrescar: refrescarRetirado } = useTotalRetirado();
+  const { datos: ajustes = [], refrescar: refrescarAjustes } = useAjustes();
 
   const cargar = () => {
     refrescarSaldo();
     refrescarComisiones();
     refrescarRetirado();
+    refrescarAjustes();
   };
 
   const ahora = new Date();
-  const esteMes = comisiones
-    .filter((c) => {
-      const d = new Date(c.creada);
-      return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
-    })
-    .reduce((s, c) => s + c.monto, 0);
+  const delMes = comisiones.filter((c) => {
+    const d = new Date(c.creada);
+    return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
+  });
+  const esteMes = delMes.reduce((s, c) => s + c.monto, 0);
+
+  // Acumulado del mes día por día (del 1 a hoy): la línea termina justo en el
+  // total que dice la tarjeta.
+  const porDia = Array.from({ length: ahora.getDate() }, () => 0);
+  delMes.forEach((c) => {
+    porDia[new Date(c.creada).getDate() - 1] += c.monto;
+  });
+  const acumulado = porDia.reduce<number[]>((serie, v) => [...serie, (serie[serie.length - 1] ?? 0) + v], []);
+
+  // Comisiones y ajustes del admin en una sola lista, como en Inicio 2.
+  const actividad: { id: string; titulo: string; detalle: string; monto: number; fecha: string; icon: IconName }[] = [
+    ...comisiones.map((c) => ({ id: `c-${c.id}`, titulo: 'Comisión', detalle: c.negocio, monto: c.monto, fecha: c.creada, icon: 'send' as IconName })),
+    ...ajustes.map((a) => ({
+      id: `a-${a.id}`,
+      titulo: a.monto > 0 ? 'Abono de Hazlo Cash' : 'Cargo de Hazlo Cash',
+      detalle: a.motivo ?? 'Ajuste de saldo',
+      monto: a.monto,
+      fecha: a.creada,
+      icon: 'gift' as IconName,
+    })),
+  ].sort((a, b) => b.fecha.localeCompare(a.fecha));
 
   // Lo ganado menos lo que ya sacó en la simulación de retiros.
   const disponible = Math.max(0, saldo - retirado);
@@ -52,9 +74,11 @@ export function BalanceScreen({ openSheet, onAbrirRetiros }: ScreenProps & { onA
       <Fade desde={8}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <Text style={{ fontFamily: F.bold, fontSize: 22, color: FG, letterSpacing: -0.44 }}>Balance</Text>
-          <Glass style={{ width: 38, height: 38, borderRadius: 999, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="user" size={18} color={FG} />
-          </Glass>
+          <PressableScale onPress={() => go('profile')} hitSlop={6} accessibilityLabel="Ir a tu perfil">
+            <Glass style={{ width: 38, height: 38, borderRadius: 999, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="user" size={18} color={FG} />
+            </Glass>
+          </PressableScale>
         </View>
       </Fade>
 
@@ -108,9 +132,11 @@ export function BalanceScreen({ openSheet, onAbrirRetiros }: ScreenProps & { onA
               <Text style={{ fontFamily: F.base, fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.44 }}>Comisiones · este mes</Text>
               <Text style={{ fontFamily: F.bold, fontSize: 20, color: FG, letterSpacing: -0.4, marginTop: 2 }}>+${esteMes.toFixed(2)}</Text>
             </View>
-            <Text style={{ fontFamily: F.semi, fontSize: 11, color: C.primary }}>{comisiones.length} ventas</Text>
+            <Text style={{ fontFamily: F.semi, fontSize: 11, color: C.primary }}>
+              {delMes.length} {delMes.length === 1 ? 'venta' : 'ventas'}
+            </Text>
           </View>
-          <Sparkline color={C.primary} />
+          <Sparkline color={C.primary} points={acumulado} />
         </View>
       </Fade>
 
@@ -125,7 +151,7 @@ export function BalanceScreen({ openSheet, onAbrirRetiros }: ScreenProps & { onA
         </View>
       )}
 
-      {!cargando && comisiones.length === 0 && (
+      {!cargando && actividad.length === 0 && (
         <Fade delay={STAGGER * 5} desde={12}>
           <View style={{ borderRadius: R.md, padding: 22, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
             <Text style={{ fontFamily: F.semi, fontSize: 15, color: FG }}>Aún no tienes comisiones</Text>
@@ -136,23 +162,25 @@ export function BalanceScreen({ openSheet, onAbrirRetiros }: ScreenProps & { onA
         </Fade>
       )}
 
-      {!cargando && comisiones.length > 0 && (
+      {!cargando && actividad.length > 0 && (
         <View style={{ borderRadius: R.md, overflow: 'hidden', backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
-          {comisiones.map((c, i) => (
+          {actividad.map((c, i) => (
             <Fade key={c.id} delay={STAGGER * 5 + i * STAGGER} desde={10}>
               <View
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: i < comisiones.length - 1 ? 0.5 : 0, borderColor: 'rgba(0,0,0,0.05)' }}>
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: i < actividad.length - 1 ? 0.5 : 0, borderColor: 'rgba(0,0,0,0.05)' }}>
                 <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: `${C.primary}15`, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name="send" size={17} color={C.primary} />
+                  <Icon name={c.icon} size={17} color={C.primary} />
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <Text style={{ fontFamily: F.semi, fontSize: 13, color: FG }}>Comisión</Text>
-                    <Text style={{ fontFamily: F.bold, fontSize: 13, color: C.primary }}>+${c.monto.toFixed(2)}</Text>
+                    <Text style={{ fontFamily: F.semi, fontSize: 13, color: FG }}>{c.titulo}</Text>
+                    <Text style={{ fontFamily: F.bold, fontSize: 13, color: c.monto >= 0 ? C.primary : MUTED }}>
+                      {c.monto >= 0 ? '+' : '−'}${Math.abs(c.monto).toFixed(2)}
+                    </Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 1 }}>
-                    <Text numberOfLines={1} style={{ fontFamily: F.reg, fontSize: 11, color: MUTED, flex: 1, paddingRight: 6 }}>{c.negocio}</Text>
-                    <Text style={{ fontFamily: F.reg, fontSize: 11, color: MUTED }}>{fechaCorta(c.creada)}</Text>
+                    <Text numberOfLines={1} style={{ fontFamily: F.reg, fontSize: 11, color: MUTED, flex: 1, paddingRight: 6 }}>{c.detalle}</Text>
+                    <Text style={{ fontFamily: F.reg, fontSize: 11, color: MUTED }}>{fechaCorta(c.fecha)}</Text>
                   </View>
                 </View>
               </View>

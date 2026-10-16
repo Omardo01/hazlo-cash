@@ -9,14 +9,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { registrarConEmail } from '@/lib/services/auth';
+import { REGISTRO_DE_PRUEBA, registrarConEmail } from '@/lib/services/auth';
 import { HazloMark } from '../HazloMark';
 import { Icon } from '../icons';
 import { Fade, PressableScale, STAGGER } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
-import { Glass } from '../ui';
+import { CajaCampo } from '../ui';
 
 function Campo({
   label,
@@ -33,31 +34,34 @@ function Campo({
   secureTextEntry?: boolean;
   onSubmitEditing?: () => void;
 }) {
+  const [foco, setFoco] = useState(false);
   return (
     <View style={{ marginBottom: 14 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
         <Text style={{ fontFamily: F.base, fontSize: 12, color: FG }}>{label}</Text>
         {hint && <Text style={{ fontFamily: F.reg, fontSize: 11, color: MUTED }}>{hint}</Text>}
       </View>
-      <Glass style={{ borderRadius: R.md, paddingHorizontal: 14, paddingVertical: 12 }}>
+      <CajaCampo activo={foco}>
         <TextInput
           placeholderTextColor={MUTED}
           autoCorrect={false}
           style={{ fontFamily: F.reg, fontSize: 14, color: FG, padding: 0 }}
+          onFocus={() => setFoco(true)}
+          onBlur={() => setFoco(false)}
           {...input}
         />
-      </Glass>
+      </CajaCampo>
     </View>
   );
 }
 
-export function RegistroScreen({ onVolver }: { onVolver: () => void }) {
+export function RegistroScreen({ onEntrar, onNegocio }: { onEntrar: () => void; onNegocio: () => void }) {
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [telefono, setTelefono] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [recomendar, setRecomendar] = useState(true);
+  const [focoPass, setFocoPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,7 +77,6 @@ export function RegistroScreen({ onVolver }: { onVolver: () => void }) {
       email,
       password,
       telefono,
-      quiereRecomendar: recomendar,
     });
     // Si sale bien, el AuthProvider ve la sesión nueva y cambia de pantalla solo.
     if (!r.ok) {
@@ -101,6 +104,22 @@ export function RegistroScreen({ onVolver }: { onVolver: () => void }) {
             <Text style={{ fontFamily: F.reg, fontSize: 13, color: MUTED, marginTop: 4, textAlign: 'center' }}>
               Recomienda los lugares que ya te gustan y gana por cada venta.
             </Text>
+            {REGISTRO_DE_PRUEBA && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 7,
+                  marginTop: 12,
+                  paddingHorizontal: 12,
+                  paddingVertical: 5,
+                  borderRadius: 999,
+                  backgroundColor: `${C.primary}14`,
+                }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: C.primary }} />
+                <Text style={{ fontFamily: F.semi, fontSize: 11, color: C.accent }}>Cuenta de prueba · sin verificar correo</Text>
+              </View>
+            )}
           </View>
         </Fade>
 
@@ -117,6 +136,7 @@ export function RegistroScreen({ onVolver }: { onVolver: () => void }) {
         <Fade delay={STAGGER * 2} desde={10}>
           <Campo
             label="Correo electrónico"
+            hint={REGISTRO_DE_PRUEBA ? 'puede ser inventado' : undefined}
             value={email}
             onChangeText={setEmail}
             placeholder="tu@email.com"
@@ -144,8 +164,10 @@ export function RegistroScreen({ onVolver }: { onVolver: () => void }) {
                 <Text style={{ fontFamily: F.semi, fontSize: 12, color: C.primary }}>{showPass ? 'Ocultar' : 'Mostrar'}</Text>
               </Pressable>
             </View>
-            <Glass style={{ borderRadius: R.md, paddingHorizontal: 14, paddingVertical: 12 }}>
+            <CajaCampo activo={focoPass}>
               <TextInput
+                onFocus={() => setFocoPass(true)}
+                onBlur={() => setFocoPass(false)}
                 placeholder="Mínimo 6 caracteres"
                 placeholderTextColor={MUTED}
                 autoCapitalize="none"
@@ -157,45 +179,34 @@ export function RegistroScreen({ onVolver }: { onVolver: () => void }) {
                 returnKeyType="go"
                 style={{ fontFamily: F.reg, fontSize: 14, color: FG, padding: 0 }}
               />
-            </Glass>
+            </CajaCampo>
           </View>
         </Fade>
 
-        {/* Rol inicial: cualquiera puede recomendar, pero se pregunta para que
-            la app abra con la intención correcta (y para contarlos aparte). */}
+        {/* Todo el que se registra es recomendador: en vez de preguntar, se
+            explica cómo va a ganar. */}
         <Fade delay={STAGGER * 5} desde={10}>
-          <PressableScale
-            onPress={() => setRecomendar((v) => !v)}
+          <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
               gap: 12,
               padding: 14,
               borderRadius: R.md,
-              backgroundColor: recomendar ? `${C.primary}12` : '#fff',
+              backgroundColor: `${C.primary}12`,
               borderWidth: 1,
-              borderColor: recomendar ? `${C.primary}55` : 'rgba(0,0,0,0.08)',
+              borderColor: `${C.primary}33`,
             }}>
-            <View
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 7,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: recomendar ? C.primary : 'transparent',
-                borderWidth: recomendar ? 0 : 1.5,
-                borderColor: 'rgba(0,0,0,0.2)',
-              }}>
-              {recomendar && <Icon name="check" size={13} color="#fff" sw={3} />}
+            <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="qr" size={18} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: F.semi, fontSize: 13, color: FG }}>Quiero recomendar y ganar</Text>
-              <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED, marginTop: 2 }}>
-                Te damos tu código y tu QR para compartir.
+              <Text style={{ fontFamily: F.semi, fontSize: 13, color: FG }}>Tu cuenta de recomendador</Text>
+              <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED, marginTop: 2, lineHeight: 16 }}>
+                Generas un código y un QR distinto por cada negocio que recomiendes.
               </Text>
             </View>
-          </PressableScale>
+          </View>
         </Fade>
 
         {error && (
@@ -223,11 +234,34 @@ export function RegistroScreen({ onVolver }: { onVolver: () => void }) {
           </PressableScale>
         </Fade>
 
-        <Pressable onPress={onVolver} hitSlop={10} disabled={loading}>
+        <Pressable onPress={onEntrar} hitSlop={10} disabled={loading}>
           <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED, textAlign: 'center', marginTop: 20 }}>
             ¿Ya tienes cuenta? <Text style={{ fontFamily: F.semi, color: C.primary }}>Entrar</Text>
           </Text>
         </Pressable>
+
+        {/* Los negocios se registran aparte: otra cuenta y otro formulario. */}
+        <Fade delay={STAGGER * 7} desde={10}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 26, marginBottom: 14 }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(13,13,13,0.08)' }} />
+            <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED }}>¿Tienes un negocio?</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(13,13,13,0.08)' }} />
+          </View>
+          <PressableScale
+            onPress={onNegocio}
+            disabled={loading}
+            accessibilityRole="button"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(13,13,13,0.08)' }}>
+            <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: `${C.primary}15`, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="storefront-outline" size={19} color={C.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>Registrar mi negocio</Text>
+              <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED, marginTop: 1 }}>Recibe clientes recomendados y paga solo cuando vendes.</Text>
+            </View>
+            <Icon name="chevR" size={16} color={MUTED} />
+          </PressableScale>
+        </Fade>
       </ScrollView>
     </KeyboardAvoidingView>
   );

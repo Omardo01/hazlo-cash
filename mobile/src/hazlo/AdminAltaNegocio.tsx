@@ -4,7 +4,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -15,6 +14,7 @@ import { crearNegocio } from '@/lib/services/businesses';
 import type { ComisionTipo } from '@/lib/types';
 import { Icon } from './icons';
 import { BG, C, F, FG, MUTED, R } from './theme';
+import { PressableScale } from './motion';
 
 const CATEGORIAS = [
   'Comida',
@@ -110,9 +110,9 @@ export function AdminAltaNegocio({ visible, onClose }: { visible: boolean; onClo
       <View style={{ flex: 1, backgroundColor: BG }}>
         {/* Header */}
         <View style={{ paddingTop: 56, paddingHorizontal: 20, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Pressable onPress={cerrar} hitSlop={8} style={{ width: 38, height: 38, borderRadius: 999, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
+          <PressableScale onPress={cerrar} hitSlop={8} style={{ width: 38, height: 38, borderRadius: 999, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
             <Icon name="chevR" size={18} color={FG} sw={2} />
-          </Pressable>
+          </PressableScale>
           <View>
             <Text style={{ fontFamily: F.semi, fontSize: 10, color: C.primary, textTransform: 'uppercase', letterSpacing: 1 }}>Admin</Text>
             <Text style={{ fontFamily: F.bold, fontSize: 20, color: FG, letterSpacing: -0.4 }}>Dar de alta negocio</Text>
@@ -128,12 +128,12 @@ export function AdminAltaNegocio({ visible, onClose }: { visible: boolean; onClo
             <Text style={{ fontFamily: F.reg, fontSize: 13, color: MUTED, marginTop: 8, textAlign: 'center', lineHeight: 19 }}>
               <Text style={{ fontFamily: F.semi, color: FG }}>{exito}</Text> ya aparece en el catálogo de Hazlo Cash.
             </Text>
-            <Pressable onPress={reset} style={{ marginTop: 28, alignSelf: 'stretch', height: 52, borderRadius: R.md, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' }}>
+            <PressableScale onPress={reset} style={{ marginTop: 28, alignSelf: 'stretch', height: 52, borderRadius: R.md, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: F.semi, fontSize: 15, color: '#fff' }}>Registrar otro</Text>
-            </Pressable>
-            <Pressable onPress={cerrar} style={{ marginTop: 10, alignSelf: 'stretch', height: 50, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' }}>
+            </PressableScale>
+            <PressableScale onPress={cerrar} style={{ marginTop: 10, alignSelf: 'stretch', height: 50, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>Listo</Text>
-            </Pressable>
+            </PressableScale>
           </View>
         ) : (
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={20}>
@@ -146,12 +146,12 @@ export function AdminAltaNegocio({ visible, onClose }: { visible: boolean; onClo
                 {CATEGORIAS.map((c) => {
                   const sel = categoria === c;
                   return (
-                    <Pressable
+                    <PressableScale
                       key={c}
                       onPress={() => setCategoria(c)}
                       style={{ height: 36, paddingHorizontal: 14, borderRadius: 999, alignItems: 'center', justifyContent: 'center', borderWidth: sel ? 0 : 1, borderColor: 'rgba(0,0,0,0.1)', backgroundColor: sel ? C.primary : '#fff' }}>
                       <Text style={{ fontFamily: F.base, fontSize: 12.5, color: sel ? '#fff' : FG }}>{c}</Text>
-                    </Pressable>
+                    </PressableScale>
                   );
                 })}
               </View>
@@ -166,12 +166,12 @@ export function AdminAltaNegocio({ visible, onClose }: { visible: boolean; onClo
                 {(['fijo', 'porcentaje'] as ComisionTipo[]).map((t) => {
                   const sel = comisionTipo === t;
                   return (
-                    <Pressable
+                    <PressableScale
                       key={t}
                       onPress={() => setComisionTipo(t)}
                       style={{ flex: 1, height: 44, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', borderWidth: sel ? 0 : 1, borderColor: 'rgba(0,0,0,0.1)', backgroundColor: sel ? C.primary : '#fff' }}>
                       <Text style={{ fontFamily: F.semi, fontSize: 13, color: sel ? '#fff' : FG }}>{t === 'fijo' ? 'Monto fijo' : 'Porcentaje'}</Text>
-                    </Pressable>
+                    </PressableScale>
                   );
                 })}
               </View>
@@ -199,12 +199,12 @@ export function AdminAltaNegocio({ visible, onClose }: { visible: boolean; onClo
                 </View>
               )}
 
-              <Pressable
+              <PressableScale
                 onPress={guardar}
                 disabled={loading}
                 style={{ marginTop: 8, height: 52, borderRadius: R.md, backgroundColor: FG, alignItems: 'center', justifyContent: 'center', opacity: loading ? 0.7 : 1 }}>
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ fontFamily: F.semi, fontSize: 15, color: '#fff' }}>Dar de alta</Text>}
-              </Pressable>
+              </PressableScale>
             </ScrollView>
           </KeyboardAvoidingView>
         )}
