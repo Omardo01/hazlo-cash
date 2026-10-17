@@ -113,6 +113,31 @@ npx supabase functions deploy admin-usuarios --project-ref pihexutjvuifjzkukfwo
 Sin desplegarlas la app **no se rompe**: el panel de usuarios cae a la lectura
 por RLS (se ve la lista sin correos) y las acciones avisan que falta desplegar.
 
+### Avisos push (app web instalada) — `enviar-push`
+
+Montado y probado el 2026-10-17 (migración `20261017_qr_un_uso_y_avisos_push.sql`
+ya aplicada). Los disparadores de la base (comisión al recomendador, créditos
+bajos y recarga al negocio) llaman a la función por `pg_net`; la función cifra
+y entrega el aviso con las llaves VAPID.
+
+- Llaves y secreto: en el `.env.local` de la raíz (`VAPID_PUBLIC_KEY`,
+  `VAPID_PRIVATE_KEY`, `PUSH_SECRETO`). La pública también va en
+  `mobile/src/lib/services/push.ts`.
+- La función necesita esos secretos más `VAPID_SUBJECT`
+  (`npx supabase secrets set --env-file <archivo> --project-ref pihexutjvuifjzkukfwo`).
+- La base necesita en Vault `push_funcion_url` y `push_secreto` (el mismo
+  `PUSH_SECRETO`). Sin ellos los avisos no salen, pero las ventas siguen.
+- Se despliega **sin** verificar JWT (la llamada de la base no trae sesión; la
+  función valida el secreto o la sesión ella misma):
+
+```bash
+npx supabase functions deploy enviar-push --project-ref pihexutjvuifjzkukfwo --no-verify-jwt --use-api
+```
+
+Si se cambian las llaves VAPID, todos los teléfonos tienen que volver a
+activar los avisos. Para probar en un teléfono: instalar la app (en iPhone es
+obligatorio), Perfil → **Activar avisos**; llega un aviso de prueba al instante.
+
 ---
 
 ## 4. Generar el APK para Android

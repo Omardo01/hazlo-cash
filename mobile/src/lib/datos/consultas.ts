@@ -7,7 +7,7 @@ import {
   getResumenNegocio,
 } from '../services/businesses';
 import { getCodigosAdmin, getMetricasAdmin, getOrdenesAdmin, getUsuariosAdmin } from '../services/admin';
-import { getMiCodigo, getMisRecomendaciones, getMisVisitasCliente, getStatsEmbajador, getVisitasNegocio } from '../services/referrals';
+import { getCodigoPublico, getEstadoCodigo, getMiCodigo, getMisRecomendaciones, getMisVisitasCliente, getStatsEmbajador, getVisitasNegocio } from '../services/referrals';
 import { getMisAjustes, getMisComisiones, getMiSaldo } from '../services/wallet';
 import { getRetiros, totalRetirado } from '../simulacion/retiros';
 import { useConsulta } from './useConsulta';
@@ -41,6 +41,8 @@ export const K = {
   adminNegocios: 'admin-negocios',
   adminUsuarios: 'admin-usuarios',
   adminCodigos: 'admin-codigos',
+  codigoPublico: 'codigo-publico',
+  estadoCodigo: 'estado-codigo',
 } as const;
 
 /**
@@ -58,6 +60,13 @@ export const useComisiones = () => useConsulta(K.comisiones, getMisComisiones);
 export const useAjustes = () => useConsulta(K.ajustes, getMisAjustes);
 export const useStatsEmbajador = () => useConsulta(K.statsEmbajador, getStatsEmbajador);
 export const useMiCodigo = () => useConsulta(K.miCodigo, getMiCodigo, LENTO);
+// ¿Ya se usó el QR que tengo en pantalla? Una clave por código; Realtime las
+// marca viejas (por prefijo) cuando entra una venta.
+export const useEstadoCodigo = (codigo: string | null) =>
+  useConsulta(codigo ? `${K.estadoCodigo}:${codigo}` : null, () => getEstadoCodigo(codigo ?? ''), { staleMs: 15_000 });
+// Página pública /r/CODE (sin sesión): una clave por código.
+export const useCodigoPublico = (codigo: string) =>
+  useConsulta(codigo ? `${K.codigoPublico}:${codigo.toUpperCase()}` : null, () => getCodigoPublico(codigo), LENTO);
 export const useMisRecomendaciones = () => useConsulta(K.misRecomendaciones, getMisRecomendaciones);
 export const useRetiros = () => useConsulta(K.retiros, getRetiros);
 export const useTotalRetirado = () => useConsulta(K.totalRetirado, totalRetirado);

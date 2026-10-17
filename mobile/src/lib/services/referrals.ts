@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import { supabase } from '../supabase';
 import { CONFIRMADO, PENDIENTE, type EstadoReferral } from '../types';
 
@@ -9,17 +11,23 @@ export interface MiCodigo {
   shareUrl: string;
 }
 
+// Dominio de los links públicos. En web, el mismo de donde se abrió la app
+// (hazlocash.com, un preview de Vercel o localhost): así el link siempre abre
+// una página que existe. En el teléfono, el de la config o hazlocash.com.
+function baseApp(): string {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') return window.location.origin;
+  return (process.env.EXPO_PUBLIC_APP_URL ?? 'https://hazlocash.com').replace(/\/$/, '');
+}
+
 // Link público de referido (/r/CODE) que codifica el QR del embajador.
 export function linkReferido(codigo: string): string {
-  const base = (process.env.EXPO_PUBLIC_APP_URL ?? 'https://hazlocash.app').replace(/\/$/, '');
-  return `${base}/r/${codigo}`;
+  return `${baseApp()}/r/${codigo}`;
 }
 
 // QR de la VISITA que el cliente presenta en el negocio. Codifica el id del
 // referido para que el negocio lo escanee y confirme esa venta exacta.
 export function linkVisita(referralId: string): string {
-  const base = (process.env.EXPO_PUBLIC_APP_URL ?? 'https://hazlocash.app').replace(/\/$/, '');
-  return `${base}/v/${referralId}`;
+  return `${baseApp()}/v/${referralId}`;
 }
 
 // Extrae el id del referido de un QR escaneado. Tolerante: acepta la URL
@@ -69,6 +77,58 @@ export async function getMiCodigo(): Promise<MiCodigo | null> {
     codigo: data.codigo,
     negocio: negocio?.nombre ?? '',
     oferta: negocio?.oferta ?? null,
+    shareUrl: linkReferido(data.codigo),
+  };
+}
+
+// ¿Ya se usó este código? Cada QR sirve para una sola venta: al registrarse,
+// queda inactivo. RLS (codigo_select_embajador) solo deja leer los propios.
+export interface EstadoCodigo {
+  activo: boolean;
+  usadoAt: string | null;
+}
+
+export async function getEstadoCodigo(codigo: string): Promise<EstadoCodigo | null> {
+  const { data, error } = await supabase.from('referral_codes').select('activo, usado_at').eq('codigo', codigo).maybeSingle();
+  if (error) throw new Error(`Error al revisar tu código: ${error.message}`);
+  return data ? { activo: data.activo, usadoAt: data.usado_at } : null;
+}
+
+// Lo que ve quien abre un link /r/CODE: el negocio recomendado y su oferta.
+// Funciona sin sesión: RLS deja leer códigos y negocios activos
+// (codigo_select_activos, negocio_select_activos). null = código que no
+// existe, que se desactivó o cuyo negocio ya no está activo.
+export interface CodigoPublico {
+  codigo: string;
+  negocio: string;
+  categoria: string;
+  direccion: string | null;
+  oferta: string | null;
+  shareUrl: string;
+}
+
+export async function getCodigoPublico(entrada: string): Promise<CodigoPublico | null> {
+  const codigo = normalizarCodigo(entrada);
+  if (!codigo) return null;
+
+  const { data, error } = await supabase
+    .from('referral_codes')
+    .select('codigo, businesses(nombre, categoria, direccion, oferta)')
+    .eq('codigo', codigo)
+    .eq('activo', true)
+    .maybeSingle();
+
+  if (error) throw new Error(`Error al buscar el código: ${error.message}`);
+  // Sin tipos generados de la BD, supabase-js infiere la relación como array.
+  const negocio = data && (Array.isArray(data.businesses) ? data.businesses[0] : data.businesses);
+  if (!data || !negocio) return null;
+
+  return {
+    codigo: data.codigo,
+    negocio: negocio.nombre,
+    categoria: negocio.categoria,
+    direccion: negocio.direccion ?? null,
+    oferta: negocio.oferta ?? null,
     shareUrl: linkReferido(data.codigo),
   };
 }

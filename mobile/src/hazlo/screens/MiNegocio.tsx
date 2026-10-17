@@ -15,6 +15,7 @@ import { C, F, FG, MUTED, R } from '../theme';
 import { grupoDeCategoria } from '../categorias/grupoDeNegocio';
 import { IconoGrupo } from '../categorias/piezas';
 import { FoodTile, SectionHeader } from '../ui';
+import { TarjetaAvisos } from '../TarjetaAvisos';
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 
@@ -200,6 +201,9 @@ export function MiNegocioScreen() {
             </View>
           </Fade>
         )}
+
+        {/* Avisos push en este teléfono (solo app web). */}
+        <TarjetaAvisos para="negocio" style={{ marginBottom: 14 }} />
 
         {resumen && (
           <>

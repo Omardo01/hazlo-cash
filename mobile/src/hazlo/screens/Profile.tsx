@@ -11,6 +11,7 @@ import { Icon, IconName } from '../icons';
 import { DUR, EASE, Fade, PressableScale, STAGGER } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
 import { SectionHeader } from '../ui';
+import { TarjetaAvisos } from '../TarjetaAvisos';
 import type { ScreenProps } from './types';
 
 // Iniciales para el avatar a partir del nombre del perfil.
@@ -178,6 +179,9 @@ export function ProfileScreen({ openSheet, onAbrirCuentas }: ScreenProps & { onA
           </Fade>
         ))}
       </View>
+
+      {/* Avisos push en este teléfono (solo app web). */}
+      <TarjetaAvisos para="recomendador" style={{ marginTop: 18 }} />
 
       {/* Ajustes */}
       <Fade delay={STAGGER * 6}>

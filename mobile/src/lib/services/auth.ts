@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import type { Profile, Rol } from '../types';
+import { olvidarEsteTelefono } from './push';
 
 export interface ResultadoLogin {
   ok: boolean;
@@ -25,6 +26,8 @@ export async function loginConEmail(
 }
 
 export async function logout(): Promise<void> {
+  // Antes de soltar la sesión (después ya no se podría borrar por RLS).
+  await olvidarEsteTelefono();
   await supabase.auth.signOut();
 }
 

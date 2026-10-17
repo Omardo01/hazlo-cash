@@ -52,7 +52,7 @@ export const QrShareCard = forwardRef<View, { codigo: MiCodigo }>(function QrSha
 
       <Text style={{ fontFamily: F.bold, fontSize: 22, color: '#fff', letterSpacing: 1.4, marginTop: 16 }}>{codigo.codigo}</Text>
       <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: 'rgba(255,255,255,0.6)', marginTop: 6, textAlign: 'center', lineHeight: 17 }}>
-        Escanea el QR o usa mi código{'\n'}en hazlocash.app
+        Enséñalo al pagar o escanéalo{'\n'}para ver tu promo en hazlocash.com
       </Text>
     </View>
   );

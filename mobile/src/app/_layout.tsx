@@ -14,6 +14,7 @@ import * as SplashScreen from 'expo-splash-screen';
 
 import { AuthProvider } from '@/lib/auth-context';
 import { RealtimeProvider } from '@/lib/datos/realtime';
+import { registrarServiceWorker } from '@/lib/services/push';
 import { AvisoLive } from '@/hazlo/AvisoLive';
 import { BG } from '@/hazlo/theme';
 
@@ -26,6 +27,9 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
   estilo.textContent = 'input:focus, textarea:focus { outline: none; }';
   document.head.appendChild(estilo);
 }
+
+// Web: el service worker de los avisos push (solo avisos, sin caché).
+registrarServiceWorker();
 
 export default function RootLayout() {
   const [loaded] = useFonts({

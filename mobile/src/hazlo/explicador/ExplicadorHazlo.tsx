@@ -171,7 +171,7 @@ function EscenaQr({ t, quieto, activa }: { t: Valor; quieto: boolean; activa: bo
       <View style={{ padding: 14, borderRadius: R.lg, backgroundColor: '#fff' }}>
         <View style={{ width: 150, height: 150 }}>
           <Animated.View style={pop(t, e.ini + 2700, quieto)}>
-            <QRCode value={`https://hazlocash.app/r/${CODIGO}`} size={150} color="#0D0D0D" backgroundColor="#fff" ecl="H" />
+            <QRCode value={`https://hazlocash.com/r/${CODIGO}`} size={150} color="#0D0D0D" backgroundColor="#fff" ecl="H" />
           </Animated.View>
           <Animated.View style={[{ position: 'absolute', left: 54, top: 54, width: 42, height: 42, borderRadius: 11, backgroundColor: '#fff', borderWidth: 2, borderColor: '#0D0D0D', alignItems: 'center', justifyContent: 'center' }, pop(t, e.ini + 3400, quieto)]}>
             <HazloMark size={20} />
@@ -201,7 +201,7 @@ function EscenaCompartir({ t, quieto }: { t: Valor; quieto: boolean }) {
         <Animated.View style={[{ alignSelf: 'flex-end', maxWidth: 220, borderRadius: 14, borderTopRightRadius: 4, backgroundColor: '#005C4B', padding: 8 }, entrada(t, e.ini + 700, null, quieto, 30)]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 6, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)' }}>
             <View style={{ padding: 3, borderRadius: 6, backgroundColor: '#fff' }}>
-              <QRCode value={`https://hazlocash.app/r/${CODIGO}`} size={40} color="#0D0D0D" backgroundColor="#fff" />
+              <QRCode value={`https://hazlocash.com/r/${CODIGO}`} size={40} color="#0D0D0D" backgroundColor="#fff" />
             </View>
             <View>
               <Text style={{ fontFamily: F.semi, fontSize: 12, color: '#fff' }}>{NEGOCIO}</Text>
@@ -245,7 +245,7 @@ function EscenaCompra({ t, quieto }: { t: Valor; quieto: boolean }) {
           />
         ))}
         <View style={{ padding: 8, borderRadius: 12, backgroundColor: '#fff' }}>
-          <QRCode value={`https://hazlocash.app/r/${CODIGO}`} size={134} color="#0D0D0D" backgroundColor="#fff" ecl="H" />
+          <QRCode value={`https://hazlocash.com/r/${CODIGO}`} size={134} color="#0D0D0D" backgroundColor="#fff" ecl="H" />
         </View>
         <Animated.View style={{ position: 'absolute', left: 14, right: 14, top: 18, height: 3, borderRadius: 2, backgroundColor: C.primary, shadowColor: C.primary, shadowOpacity: 0.9, shadowRadius: 8, transform: [{ translateY: linea }], opacity: t.interpolate({ inputRange: [confirma - 100, confirma], outputRange: [1, 0], extrapolate: 'clamp' }) }} />
         {/* Venta confirmada */}

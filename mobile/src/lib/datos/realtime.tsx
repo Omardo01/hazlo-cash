@@ -109,7 +109,8 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     const sub = AppState.addEventListener('change', (estado) => {
       if (estado === 'active') {
         abrir();
-        [K.visitasCliente, K.visitasNegocio, K.saldo, K.comisiones, K.ajustes, K.misRecomendaciones].forEach((k) => invalidar(k));
+        [K.visitasCliente, K.visitasNegocio, K.saldo, K.comisiones, K.ajustes, K.misRecomendaciones, K.miCodigo].forEach((k) => invalidar(k));
+        invalidar(K.estadoCodigo, true);
       } else {
         cerrar();
       }
@@ -179,8 +180,11 @@ function aplicarInsert(fila: FilaReferral, userId: string, avisar: (a: Aviso) =>
   invalidar(K.visitasNegocio);
   invalidar(K.adminOrdenes);
   invalidar(K.adminMetricas);
-  // Si la visita vino de un código del recomendador en sesión, sube su conteo.
+  // Si la visita vino de un código del recomendador en sesión, sube su conteo
+  // y ese QR ya se usó (cada QR sirve para una sola venta).
   invalidar(K.misRecomendaciones);
+  invalidar(K.miCodigo);
+  invalidar(K.estadoCodigo, true);
 
   // El propio cliente ya vio su reclamo al hacerlo; el aviso es para el negocio.
   if (fila.cliente_id === userId) {

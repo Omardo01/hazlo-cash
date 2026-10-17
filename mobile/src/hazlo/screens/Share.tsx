@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, ScrollView, Share, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, ScrollView, Share, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 
 import { escribir, invalidar } from '@/lib/datos/cache';
-import { K, useMiCodigo, useNegocios } from '@/lib/datos/consultas';
+import { K, useEstadoCodigo, useMiCodigo, useNegocios } from '@/lib/datos/consultas';
 import { crearCodigoReferido, mensajeReferido, type MiCodigo } from '@/lib/services/referrals';
 import type { Business } from '@/lib/types';
 import { CodigoScramble } from '../CodigoScramble';
+import { esCancelacion, fotoDeTarjeta, puedeCompartirFoto } from '../fotoQrWeb';
 import { HazloMark } from '../HazloMark';
 import { Icon, IconName } from '../icons';
 import { Fade, PressableScale, STAGGER } from '../motion';
@@ -36,6 +37,8 @@ export function ShareScreen() {
   // porque WhatsApp no acepta imagen + texto prellenado en el mismo intent.
   const [pegarHint, setPegarHint] = useState(false);
   const cardRef = useRef<View>(null);
+  // Web: la foto del QR ya lista para compartir (ver fotoQrWeb.ts).
+  const fotoWeb = useRef<File | null>(null);
   // Generación animada, igual que el código de invitación: 0 el código gira
   // mientras el servidor lo genera, 1 aparece el QR, 2 listo (botones activos).
   // genKey 0 = el código vino de la caché al abrir: se muestra ya listo.
@@ -47,6 +50,10 @@ export function ShareScreen() {
   // pantalla ya no vuelve a pedirlos.
   const { datos: negociosCache = [], cargando: cargandoNegocios } = useNegocios();
   const { datos: mio, cargando: cargandoCodigo } = useMiCodigo();
+  // Cada QR sirve para una sola venta: si el que está en pantalla ya se usó,
+  // en vez de mandarlo otra vez se ofrece uno nuevo.
+  const { datos: estadoCodigo } = useEstadoCodigo(fase >= 2 && codigo ? codigo.codigo : null);
+  const usado = estadoCodigo?.activo === false;
 
   useEffect(() => {
     setNegocios(negociosCache);
@@ -67,6 +74,23 @@ export function ShareScreen() {
   useEffect(() => {
     setLoading(cargandoNegocios || cargandoCodigo);
   }, [cargandoNegocios, cargandoCodigo]);
+
+  // Web: en cuanto el QR está completo se prepara la foto, para que el toque
+  // en "Enviar" abra el menú de compartir sin esperar la captura.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || fase < 2 || !codigo) return;
+    fotoWeb.current = null;
+    let vivo = true;
+    // Un momento para que la tarjeta oculta termine de pintarse.
+    const t = setTimeout(async () => {
+      const foto = await fotoDeTarjeta(cardRef, `hazlo-cash-${codigo.codigo}.png`);
+      if (vivo) fotoWeb.current = foto;
+    }, 200);
+    return () => {
+      vivo = false;
+      clearTimeout(t);
+    };
+  }, [fase, codigo]);
 
   const seleccionar = async (negocio: Business) => {
     if (generando) return;
@@ -118,8 +142,9 @@ export function ShareScreen() {
   // enlace wa.me de siempre (solo texto) para no dejar al usuario sin salida.
   const enviarWhatsApp = async () => {
     if (!codigo || enviando) return;
-    setEnviando(true);
     const mensaje = mensajeReferido(codigo);
+    if (Platform.OS === 'web') return enviarDesdeWeb(mensaje);
+    setEnviando(true);
     try {
       const uri = await capturarTarjeta();
       if (uri && (await Sharing.isAvailableAsync())) {
@@ -140,10 +165,40 @@ export function ShareScreen() {
     }
   };
 
+  // Web: foto + mensaje juntos con el menú de compartir del teléfono (en
+  // Android WhatsApp toma el texto como descripción de la foto). Sin compartir
+  // archivos —una compu, o si la foto no se pudo preparar— abre WhatsApp con el
+  // texto, que trae el link a la página del QR.
+  const enviarDesdeWeb = async (mensaje: string) => {
+    const foto = fotoWeb.current;
+    if (!puedeCompartirFoto(foto)) {
+      window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+      return;
+    }
+    // Respaldo por si la app elegida se queda solo con la foto. Sin await: el
+    // menú tiene que abrirse dentro del toque.
+    Clipboard.setStringAsync(mensaje).catch(() => {});
+    setPegarHint(true);
+    try {
+      await navigator.share({ files: [foto], text: mensaje });
+    } catch (e) {
+      if (!esCancelacion(e)) setError('No pudimos abrir el menú para compartir. Intenta de nuevo.');
+    }
+  };
+
   // Solo texto: útil para pegar el código en un chat o correo.
   const compartir = async () => {
     if (!codigo) return;
-    await Share.share({ message: mensajeReferido(codigo) });
+    const mensaje = mensajeReferido(codigo);
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && !navigator.share) {
+      window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+      return;
+    }
+    try {
+      await Share.share({ message: mensaje });
+    } catch (e) {
+      if (!esCancelacion(e)) setError('No pudimos abrir el menú para compartir. Intenta de nuevo.');
+    }
   };
 
   return (
@@ -204,7 +259,7 @@ export function ShareScreen() {
               <View style={{ borderRadius: R.lg, padding: 22, marginBottom: 22, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
                 <Text style={{ fontFamily: F.semi, fontSize: 15, color: FG }}>Elige un negocio</Text>
                 <Text style={{ fontFamily: F.reg, fontSize: 13, color: MUTED, marginTop: 6, lineHeight: 19 }}>
-                  Toca un negocio de arriba y generaremos tu código y tu QR personal para recomendarlo.
+                  Toca un negocio de arriba y generaremos tu QR para recomendarlo. Cada QR sirve para una compra.
                 </Text>
               </View>
             )}
@@ -220,7 +275,7 @@ export function ShareScreen() {
                   </View>
 
                   <Text style={{ fontFamily: F.semi, fontSize: 11, color: 'rgba(255,255,255,0.7)', letterSpacing: 0.88, textTransform: 'uppercase', alignSelf: 'flex-start' }}>
-                    {fase === 0 ? 'Generando tu QR…' : 'Tu QR de recomendación'}
+                    {fase === 0 ? 'Generando tu QR…' : usado ? 'Este QR ya se usó' : 'Tu QR de recomendación'}
                   </Text>
 
                   <View style={{ marginTop: 16, padding: 16, borderRadius: R.lg, backgroundColor: '#fff' }}>
@@ -228,6 +283,17 @@ export function ShareScreen() {
                       {codigo && fase >= 1 && (
                         <Fade key={`qr-${genKey}`}>
                           <QRCode value={codigo.shareUrl} size={188} color="#0D0D0D" backgroundColor="#fff" ecl="H" />
+                        </Fade>
+                      )}
+                      {usado && (
+                        <Fade
+                          key={`usado-${codigo?.codigo}`}
+                          style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 2, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' }}>
+                            <Icon name="check" size={24} color="#fff" sw={2.6} />
+                          </View>
+                          <Text style={{ fontFamily: F.bold, fontSize: 15, color: FG }}>Ya se usó</Text>
+                          <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED, textAlign: 'center', paddingHorizontal: 16 }}>Tu comisión ya está en tu saldo.</Text>
                         </Fade>
                       )}
                       {codigo && fase >= 2 && (
@@ -261,7 +327,23 @@ export function ShareScreen() {
                   <Text style={{ fontFamily: F.reg, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>{codigo?.negocio ?? generandoPara}</Text>
                 </Fade>
 
-                {/* Los botones se activan cuando el QR ya está completo. */}
+                {usado ? (
+                  <Fade key={`nuevo-${codigo?.codigo}`} desde={8} style={{ marginBottom: 22 }}>
+                    <PressableScale
+                      onPress={() => {
+                        const negocio = negocios.find((n) => n.id === sel);
+                        if (negocio) seleccionar(negocio);
+                      }}
+                      style={{ height: 52, borderRadius: R.md, backgroundColor: C.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <Icon name="refresh" size={18} color="#fff" />
+                      <Text style={{ fontFamily: F.semi, fontSize: 15, color: '#fff' }}>Generar QR nuevo</Text>
+                    </PressableScale>
+                    <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED, textAlign: 'center', marginTop: 8, lineHeight: 16 }}>
+                      Cada QR sirve para una compra. Genera otro para tu siguiente amigo.
+                    </Text>
+                  </Fade>
+                ) : (
+                /* Los botones se activan cuando el QR ya está completo. */
                 <View style={{ opacity: fase >= 2 && codigo ? 1 : 0.4 }} pointerEvents={fase >= 2 && codigo ? 'auto' : 'none'}>
                   <PressableScale
                     onPress={enviarWhatsApp}
@@ -279,7 +361,9 @@ export function ShareScreen() {
 
                   {pegarHint && (
                     <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED, textAlign: 'center', marginTop: 8, lineHeight: 16 }}>
-                      Copiamos tu mensaje: pégalo como descripción de la foto.
+                      {Platform.OS === 'web'
+                        ? 'Tu mensaje también quedó copiado, por si no llegó con la foto.'
+                        : 'Copiamos tu mensaje: pégalo como descripción de la foto.'}
                     </Text>
                   )}
 
@@ -290,6 +374,7 @@ export function ShareScreen() {
                     <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>Compartir solo el texto</Text>
                   </PressableScale>
                 </View>
+                )}
               </>
             )}
           </>

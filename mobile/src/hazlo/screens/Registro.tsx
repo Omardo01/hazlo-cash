@@ -203,7 +203,7 @@ export function RegistroScreen({ onEntrar, onNegocio }: { onEntrar: () => void; 
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: F.semi, fontSize: 13, color: FG }}>Tu cuenta de recomendador</Text>
               <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED, marginTop: 2, lineHeight: 16 }}>
-                Generas un código y un QR distinto por cada negocio que recomiendes.
+                Generas un QR para cada recomendación: sirve para una compra y, al usarse, ganas.
               </Text>
             </View>
           </View>
