@@ -53,7 +53,7 @@ export function LoginScreen({ onCrearCuenta }: { onCrearCuenta: () => void }) {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{ width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-            <HazloMark size={40} primary="#fff" secondary="#fff" />
+            <HazloMark size={40} mono="#fff" />
           </LinearGradient>
           <Text style={{ fontFamily: F.bold, fontSize: 24, color: FG, letterSpacing: -0.5 }}>Bienvenido de vuelta</Text>
           <Text style={{ fontFamily: F.reg, fontSize: 13, color: MUTED, marginTop: 4, textAlign: 'center' }}>

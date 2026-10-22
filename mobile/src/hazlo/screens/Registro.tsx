@@ -98,7 +98,7 @@ export function RegistroScreen({ onEntrar, onNegocio }: { onEntrar: () => void; 
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={{ width: 60, height: 60, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginBottom: 13 }}>
-              <HazloMark size={37} primary="#fff" secondary="#fff" />
+              <HazloMark size={37} mono="#fff" />
             </LinearGradient>
             <Text style={{ fontFamily: F.bold, fontSize: 23, color: FG, letterSpacing: -0.5 }}>Crea tu cuenta</Text>
             <Text style={{ fontFamily: F.reg, fontSize: 13, color: MUTED, marginTop: 4, textAlign: 'center' }}>

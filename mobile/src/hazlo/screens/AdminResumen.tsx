@@ -63,7 +63,7 @@ export function AdminResumenScreen() {
             <View style={{ borderRadius: R.lg, padding: 20, marginBottom: 16, overflow: 'hidden', position: 'relative' }}>
               <LinearGradient colors={['#1A1840', '#2D2B8F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
               <View style={{ position: 'absolute', right: -34, bottom: -34, opacity: 0.18 }}>
-                <HazloMark size={170} primary="#fff" secondary="#fff" />
+                <HazloMark size={170} mono="#fff" />
               </View>
               <Text style={{ fontFamily: F.semi, fontSize: 10, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>
                 Comisiones pagadas
