@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
-import { BackHandler, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { useNegocios } from '@/lib/datos/consultas';
-import type { Business } from '@/lib/types';
+import { useAtras } from '@/lib/atras';
+import { useCatalogo } from '@/lib/datos/consultas';
+import type { NegocioCatalogo as Business } from '@/lib/types';
 import { buscarGiros, GRUPOS, normalizar, type Grupo } from '../categorias/catalogo';
 import { girosDeNegocio, grupoDeCategoria } from '../categorias/grupoDeNegocio';
 import { Buscador, IconoGrupo, TextoResaltado } from '../categorias/piezas';
@@ -28,7 +29,28 @@ function plural(n: number, uno: string, varios: string): string {
 // Valor de "giro" que abre la lista completa del grupo (ningún giro se llama así).
 const TODOS = '__todos__';
 
-function FilaNegocio({ n, delay }: { n: Business; delay: number }) {
+// Sin cuenta, la promo se ve como candado: tocarla invita a registrarse.
+type AlBloqueo = (negocio?: string) => void;
+
+function PromoBloqueada({ n, onPress }: { n: Business; onPress: AlBloqueo }) {
+  return (
+    <PressableScale
+      onPress={() => onPress(n.nombre)}
+      accessibilityRole="button"
+      accessibilityLabel={`${n.nombre} tiene promoción. Regístrate para verla`}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, alignSelf: 'flex-start', paddingVertical: 4, paddingLeft: 6, paddingRight: 10, borderRadius: 999, backgroundColor: `${C.primary}14` }}>
+      <View style={{ width: 16, height: 16, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+        <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        <View>
+          <Icon name="lock" size={9} color="#fff" sw={2.6} />
+        </View>
+      </View>
+      <Text numberOfLines={1} style={{ fontFamily: F.semi, fontSize: 11, color: C.primary }}>Tiene promo · Regístrate para verla</Text>
+    </PressableScale>
+  );
+}
+
+function FilaNegocio({ n, delay, onPromoBloqueada }: { n: Business; delay: number; onPromoBloqueada?: AlBloqueo }) {
   return (
     <Fade
       delay={delay}
@@ -48,8 +70,29 @@ function FilaNegocio({ n, delay }: { n: Business; delay: number }) {
             </View>
           </View>
         )}
+        {n.promoOculta && onPromoBloqueada && <PromoBloqueada n={n} onPress={onPromoBloqueada} />}
       </View>
     </Fade>
+  );
+}
+
+// Tarjeta de promoción del carrusel. Sin cuenta, el texto de la promo se
+// cambia por un candado.
+function TarjetaPromo({ n, onPromoBloqueada }: { n: Business; onPromoBloqueada?: AlBloqueo }) {
+  if (!n.promoOculta || !onPromoBloqueada) {
+    return <FoodTile name={n.nombre} type={n.oferta ?? n.categoria} hue={hueDeId(n.id)} radius={R.md} height={180} />;
+  }
+  return (
+    <PressableScale onPress={() => onPromoBloqueada(n.nombre)} accessibilityRole="button" accessibilityLabel={`Promoción de ${n.nombre}. Regístrate para verla`}>
+      <FoodTile name={n.nombre} type={n.categoria} hue={hueDeId(n.id)} radius={R.md} height={180} />
+      <View style={{ position: 'absolute', top: 12, left: 12, maxWidth: 176, flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.45)' }}>
+        <Icon name="lock" size={12} color="#fff" sw={2.4} />
+        <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.semi, fontSize: 11, color: '#fff' }}>Promo exclusiva</Text>
+      </View>
+      <View style={{ position: 'absolute', top: 52, left: 12, right: 12 }}>
+        <Text style={{ fontFamily: F.semi, fontSize: 12, lineHeight: 16, color: 'rgba(255,255,255,0.92)' }}>Regístrate para verla</Text>
+      </View>
+    </PressableScale>
   );
 }
 
@@ -267,7 +310,21 @@ function VistaGrupo({
 }
 
 // Un giro (o "todos los negocios" del grupo): la lista o la invitación a recomendar.
-function VistaGiro({ grupo, giro, negocios, cargando, onVolver }: { grupo: Grupo; giro: string; negocios: Business[]; cargando: boolean; onVolver: () => void }) {
+function VistaGiro({
+  grupo,
+  giro,
+  negocios,
+  cargando,
+  onVolver,
+  onPromoBloqueada,
+}: {
+  grupo: Grupo;
+  giro: string;
+  negocios: Business[];
+  cargando: boolean;
+  onVolver: () => void;
+  onPromoBloqueada?: AlBloqueo;
+}) {
   const todos = giro === TODOS;
   return (
     <>
@@ -286,7 +343,7 @@ function VistaGiro({ grupo, giro, negocios, cargando, onVolver }: { grupo: Grupo
       ) : (
         <View style={{ gap: 12 }}>
           {negocios.map((n, i) => (
-            <FilaNegocio key={n.id} n={n} delay={(2 + Math.min(i, 6)) * STAGGER} />
+            <FilaNegocio key={n.id} n={n} delay={(2 + Math.min(i, 6)) * STAGGER} onPromoBloqueada={onPromoBloqueada} />
           ))}
         </View>
       )}
@@ -295,7 +352,17 @@ function VistaGiro({ grupo, giro, negocios, cargando, onVolver }: { grupo: Grupo
 }
 
 // Búsqueda: negocios por nombre/oferta y giros del catálogo (que llevan a su categoría).
-function Resultados({ busqueda, negocios, onAbrir }: { busqueda: string; negocios: Business[]; onAbrir: (g: Grupo, giro?: string) => void }) {
+function Resultados({
+  busqueda,
+  negocios,
+  onAbrir,
+  onPromoBloqueada,
+}: {
+  busqueda: string;
+  negocios: Business[];
+  onAbrir: (g: Grupo, giro?: string) => void;
+  onPromoBloqueada?: AlBloqueo;
+}) {
   const q = normalizar(busqueda.trim());
   const deNegocios = negocios.filter((n) => [n.nombre, n.categoria, n.oferta ?? ''].some((campo) => normalizar(campo).includes(q)));
   const giros = buscarGiros(busqueda).slice(0, 20);
@@ -318,7 +385,7 @@ function Resultados({ busqueda, negocios, onAbrir }: { busqueda: string; negocio
           <SectionHeader title="Negocios" />
           <View style={{ gap: 12, marginBottom: 22 }}>
             {deNegocios.map((n, i) => (
-              <FilaNegocio key={n.id} n={n} delay={Math.min(i, 6) * STAGGER} />
+              <FilaNegocio key={n.id} n={n} delay={Math.min(i, 6) * STAGGER} onPromoBloqueada={onPromoBloqueada} />
             ))}
           </View>
         </>
@@ -351,14 +418,17 @@ function Resultados({ busqueda, negocios, onAbrir }: { busqueda: string; negocio
 }
 
 // Descubre: el catálogo de categorías del Excel (12 grupos) con los negocios
-// que hay en cada una y en cada giro.
-export function DiscoverScreen() {
+// que hay en cada una y en cada giro. `invitado`: se entró sin cuenta desde el
+// landing; las promociones se ven con candado y tocarlas llama
+// `onPromoBloqueada`.
+export function DiscoverScreen({ invitado = false, onPromoBloqueada }: { invitado?: boolean; onPromoBloqueada?: AlBloqueo } = {}) {
   const [grupo, setGrupo] = useState<Grupo | null>(null);
   // Giro abierto dentro del grupo (o TODOS para la lista completa del grupo).
   const [giro, setGiro] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
   // El catálogo de negocios cambia poco: se revalida cada 5 minutos.
-  const { datos: negocios = [], cargando, error } = useNegocios();
+  const { datos: negocios = [], cargando, error } = useCatalogo(invitado);
+  const alBloqueo = invitado ? onPromoBloqueada : undefined;
 
   const porGrupo = new Map<string, Business[]>();
   const porGiro = new Map<string, Business[]>();
@@ -367,7 +437,7 @@ export function DiscoverScreen() {
     porGrupo.set(slug, [...(porGrupo.get(slug) ?? []), n]);
     for (const g of girosDeNegocio(n)) porGiro.set(g, [...(porGiro.get(g) ?? []), n]);
   }
-  const conPromo = negocios.filter((n) => n.oferta);
+  const conPromo = negocios.filter((n) => n.oferta || n.promoOculta);
 
   const abrir = (g: Grupo, conGiro?: string) => {
     setBusqueda('');
@@ -377,16 +447,12 @@ export function DiscoverScreen() {
 
   const volver = () => (giro ? setGiro(null) : setGrupo(null));
 
-  // Android: el botón atrás regresa un nivel en vez de salir.
-  useEffect(() => {
-    if (!grupo) return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (giro) setGiro(null);
-      else setGrupo(null);
-      return true;
-    });
-    return () => sub.remove();
-  }, [grupo, giro]);
+  // Atrás (Android o navegador) regresa un nivel en vez de salir.
+  useAtras(!!grupo, () => {
+    setGiro(null);
+    setGrupo(null);
+  });
+  useAtras(!!grupo && !!giro, () => setGiro(null));
 
   return (
     <ScrollView
@@ -401,6 +467,7 @@ export function DiscoverScreen() {
           negocios={giro === TODOS ? porGrupo.get(grupo.slug) ?? [] : porGiro.get(giro) ?? []}
           cargando={cargando}
           onVolver={volver}
+          onPromoBloqueada={alBloqueo}
         />
       ) : grupo ? (
         <VistaGrupo
@@ -422,7 +489,7 @@ export function DiscoverScreen() {
           </Fade>
 
           {busqueda.trim() ? (
-            <Resultados busqueda={busqueda} negocios={negocios} onAbrir={abrir} />
+            <Resultados busqueda={busqueda} negocios={negocios} onAbrir={abrir} onPromoBloqueada={alBloqueo} />
           ) : (
             <>
               {/* Promociones reales de los negocios que ya están. */}
@@ -432,7 +499,7 @@ export function DiscoverScreen() {
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 4 }} style={{ marginBottom: 22 }}>
                     {conPromo.map((n, i) => (
                       <Fade key={n.id} delay={(2 + i) * STAGGER} desde={10} style={{ width: 200 }}>
-                        <FoodTile name={n.nombre} type={n.oferta ?? n.categoria} hue={hueDeId(n.id)} radius={R.md} height={180} />
+                        <TarjetaPromo n={n} onPromoBloqueada={alBloqueo} />
                       </Fade>
                     ))}
                   </ScrollView>

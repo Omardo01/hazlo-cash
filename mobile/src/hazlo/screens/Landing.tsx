@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Animated, Easing, Pressable, Text, useWindowDimensions, View, type LayoutRectangle } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, useWindowDimensions, View, type LayoutRectangle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HazloMark } from '../HazloMark';
-import { Icon } from '../icons';
+import { Icon, type IconName } from '../icons';
 import { INTERNO_VISIBLE } from '../interno/SoloInterno';
 import { FondoLanding, VisorFondos } from '../landing/FondoLanding';
 import { useFondoLanding, type Zonas } from '../landing/fondos';
@@ -50,13 +50,55 @@ function zonasDe(m: Partial<Record<Pieza, LayoutRectangle>>): Zonas | null {
 const igual = (a: LayoutRectangle | undefined, b: LayoutRectangle) =>
   !!a && Math.round(a.x) === Math.round(b.x) && Math.round(a.y) === Math.round(b.y) && Math.round(a.width) === Math.round(b.width) && Math.round(a.height) === Math.round(b.height);
 
+// Una de las dos puertas del landing. La principal (recomendar) va en el
+// degradado de marca; la otra, en vidrio sobre el fondo negro.
+function OpcionLanding({
+  titulo,
+  detalle,
+  icono,
+  principal = false,
+  onPress,
+}: {
+  titulo: string;
+  detalle: string;
+  icono: IconName;
+  principal?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${titulo} ${detalle}`}
+      style={[
+        { height: 96, borderRadius: R.md, overflow: 'hidden', padding: 14, justifyContent: 'space-between' },
+        principal
+          ? { shadowColor: C.accent, shadowOpacity: 0.5, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } }
+          : { backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+      ]}>
+      {principal && <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: principal ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name={icono} size={15} color="#fff" sw={2.2} />
+        </View>
+        <Icon name="chevR" size={15} color="rgba(255,255,255,0.8)" sw={2.4} />
+      </View>
+      <View>
+        <Text style={{ fontFamily: F.semi, fontSize: 16, color: '#fff', letterSpacing: -0.2 }}>{titulo}</Text>
+        <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: principal ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.6)' }}>{detalle}</Text>
+      </View>
+    </PressableScale>
+  );
+}
+
 /**
  * Landing: la primera pantalla sin sesión. Un cuadro negro con un fondo
- * animado que cuenta qué es Hazlo Cash, el titular y una acción: registrarse.
+ * animado que cuenta qué es Hazlo Cash, el titular y la pregunta de qué
+ * quiere hacer: recomendar (registro) o buscar (catálogo sin cuenta).
  * Quien ya tiene cuenta entra con el enlace de abajo. El fondo se dibuja en
  * los huecos de arriba y abajo del titular, que se miden aquí.
  */
-export function LandingScreen({ onRegistrarse, onEntrar }: { onRegistrarse: () => void; onEntrar: () => void }) {
+export function LandingScreen({ onRecomendar, onBuscar, onEntrar }: { onRecomendar: () => void; onBuscar: () => void; onEntrar: () => void }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   // "Tu recomendación" en una sola línea: mide ~9.3 × el tamaño de letra y el
@@ -143,20 +185,26 @@ export function LandingScreen({ onRegistrarse, onEntrar }: { onRegistrarse: () =
 
             <View onLayout={medir('boton')}>
               <Fade delay={STAGGER * 5} desde={14}>
-                <PressableScale
-                  onPress={onRegistrarse}
-                  accessibilityRole="button"
-                  style={{ borderRadius: R.md, shadowColor: C.accent, shadowOpacity: 0.5, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } }}>
-                  <LinearGradient
-                    colors={[C.primary, C.accent]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={{ height: 54, borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    <Text style={{ fontFamily: F.semi, fontSize: 16, color: '#fff' }}>Regístrate</Text>
-                    <Icon name="chevR" size={16} color="#fff" sw={2.4} />
-                  </LinearGradient>
-                </PressableScale>
+                <Text style={{ fontFamily: F.semi, fontSize: 10.5, letterSpacing: 1.6, color: 'rgba(255,255,255,0.6)', textAlign: 'center', textTransform: 'uppercase', marginBottom: 12 }}>
+                  ¿Qué quieres hacer?
+                </Text>
+              </Fade>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <Fade delay={STAGGER * 6} desde={14} style={{ flex: 1 }}>
+                  <OpcionLanding
+                    titulo="Recomendar"
+                    detalle="y ganar dinero"
+                    icono="send"
+                    principal
+                    onPress={onRecomendar}
+                  />
+                </Fade>
+                <Fade delay={STAGGER * 7} desde={14} style={{ flex: 1 }}>
+                  <OpcionLanding titulo="Buscar" detalle="negocios y servicios" icono="search" onPress={onBuscar} />
+                </Fade>
+              </View>
 
+              <Fade delay={STAGGER * 8}>
                 <Pressable onPress={onEntrar} hitSlop={10} accessibilityRole="link">
                   <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: 'rgba(255,255,255,0.55)', textAlign: 'center', marginTop: 18 }}>
                     ¿Ya tienes cuenta? <Text style={{ fontFamily: F.semi, color: C.primary }}>Entrar</Text>

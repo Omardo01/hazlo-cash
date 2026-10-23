@@ -21,6 +21,12 @@ export interface Business {
   activo: boolean;
 }
 
+// Negocio tal como lo ve el catálogo. Sin sesión, `oferta` llega vacía y
+// `promoOculta` dice si hay una promoción esperando a que se registre.
+export interface NegocioCatalogo extends Business {
+  promoOculta?: boolean;
+}
+
 // Cómo el negocio paga al recomendador: monto fijo en pesos por venta,
 // o un porcentaje del monto de la venta.
 export type ComisionTipo = 'fijo' | 'porcentaje';

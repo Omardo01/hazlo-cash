@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
-import { BackHandler, View } from 'react-native';
+import { useState } from 'react';
+import { View } from 'react-native';
 
+import { useAtras } from '@/lib/atras';
+import { ExplorarInvitado } from '../ExplorarInvitado';
 import { Icon } from '../icons';
 import { Fade, PressableScale } from '../motion';
 import { FG } from '../theme';
@@ -9,37 +11,45 @@ import { LoginScreen } from './Login';
 import { RegistroScreen } from './Registro';
 import { RegistroNegocioScreen } from './RegistroNegocio';
 
-type Modo = 'landing' | 'login' | 'registro' | 'negocio';
+type Modo = 'landing' | 'explorar' | 'login' | 'registro' | 'negocio';
 
-// Puerta de entrada. Un solo contenedor alterna landing → login / registro: la
-// `key` distinta por modo hace que el cambio entre de nuevo con fade en vez de
-// aparecer de golpe (ver la sección de Movimiento en CLAUDE.md).
+// Lo más hondo que se llega: landing → explorar → registro → negocio.
+const MAX_PASOS = 4;
+
+// Puerta de entrada. Un solo contenedor alterna landing → explorar / login /
+// registro: la `key` distinta por modo hace que el cambio entre de nuevo con
+// fade en vez de aparecer de golpe (ver la sección de Movimiento en CLAUDE.md).
 export function AuthScreen() {
-  const [modo, setModo] = useState<Modo>('landing');
+  // Camino recorrido: el botón ‹ y el atrás (Android o navegador) regresan a
+  // la pantalla anterior, no al landing.
+  const [pasos, setPasos] = useState<Modo[]>(['landing']);
+  const modo = pasos[pasos.length - 1];
 
-  // A dónde lleva el botón ‹ (y el atrás de Android): el registro de negocio
-  // vuelve al registro; lo demás, al landing.
-  const atras: Modo = modo === 'negocio' ? 'registro' : 'landing';
+  const ir = (m: Modo) => setPasos((p) => (p.length < MAX_PASOS ? [...p, m] : [...p.slice(0, -1), m]));
+  // Login ↔ registro se reemplazan entre sí: ir y venir no apila pasos.
+  const cambiar = (m: Modo) => setPasos((p) => [...p.slice(0, -1), m]);
+  const atras = () => setPasos((p) => (p.length > 1 ? p.slice(0, -1) : p));
 
-  useEffect(() => {
-    if (modo === 'landing') return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      setModo(atras);
-      return true;
-    });
-    return () => sub.remove();
-  }, [modo, atras]);
+  // Una entrada de historial por cada paso encima del landing.
+  useAtras(pasos.length > 1, atras);
+  useAtras(pasos.length > 2, atras);
+  useAtras(pasos.length > 3, atras);
+
+  const registrarse = () => (modo === 'login' ? cambiar('registro') : ir('registro'));
+  const entrar = () => (modo === 'registro' ? cambiar('login') : ir('login'));
 
   return (
     <View style={{ flex: 1 }}>
       <Fade key={modo} style={{ flex: 1 }} desde={8}>
         {modo === 'landing' ? (
-          <LandingScreen onRegistrarse={() => setModo('registro')} onEntrar={() => setModo('login')} />
+          <LandingScreen onRecomendar={() => ir('registro')} onBuscar={() => ir('explorar')} onEntrar={() => ir('login')} />
+        ) : modo === 'explorar' ? (
+          <ExplorarInvitado onVolver={atras} onRegistrarse={registrarse} onEntrar={entrar} />
         ) : (
           <View style={{ flex: 1 }}>
             <View style={{ height: 52, paddingHorizontal: 16, justifyContent: 'center' }}>
               <PressableScale
-                onPress={() => setModo(atras)}
+                onPress={atras}
                 accessibilityRole="button"
                 accessibilityLabel="Volver"
                 hitSlop={8}
@@ -59,11 +69,11 @@ export function AuthScreen() {
               </PressableScale>
             </View>
             {modo === 'login' ? (
-              <LoginScreen onCrearCuenta={() => setModo('registro')} />
+              <LoginScreen onCrearCuenta={registrarse} />
             ) : modo === 'negocio' ? (
               <RegistroNegocioScreen conAreaSegura={false} />
             ) : (
-              <RegistroScreen onEntrar={() => setModo('login')} onNegocio={() => setModo('negocio')} />
+              <RegistroScreen onEntrar={entrar} onNegocio={() => ir('negocio')} />
             )}
           </View>
         )}

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { useAtras } from '@/lib/atras';
 import { reclamarCodigo, type Reclamo } from '@/lib/services/referrals';
 import { getMiSaldo } from '@/lib/services/wallet';
 import {
@@ -38,7 +39,7 @@ import type { SheetName, Tab } from './screens/types';
 // iOS, y para poder animar también la salida antes de desmontar.
 const ALTO_ESTIMADO = 560;
 
-function SheetShell({
+export function SheetShell({
   progreso,
   onCerrar,
   children,
@@ -612,6 +613,9 @@ export function Sheet({
     },
     [progreso, onClose],
   );
+
+  // Atrás del navegador cierra la hoja (animada), no la pantalla de abajo.
+  useAtras(true, () => cerrar());
 
   return (
     <SheetShell progreso={progreso} onCerrar={() => cerrar()}>

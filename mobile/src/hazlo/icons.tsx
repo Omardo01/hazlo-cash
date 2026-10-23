@@ -5,11 +5,17 @@ export type IconName =
   | 'home' | 'search' | 'plus' | 'activity' | 'user' | 'heart' | 'share'
   | 'bell' | 'gift' | 'dollar' | 'chart' | 'send' | 'star' | 'bookmark'
   | 'wallet' | 'check' | 'chevR' | 'copy' | 'qr' | 'arrowUp' | 'arrowDown'
-  | 'settings' | 'refresh' | 'x';
+  | 'settings' | 'refresh' | 'x' | 'lock';
 
 type P = { color: string; sw: number; fill: string };
 
 const paths: Record<IconName, (p: P) => React.ReactNode> = {
+  lock: ({ color, sw }) => (
+    <>
+      <Rect x={5} y={11} width={14} height={10} rx={2.5} stroke={color} strokeWidth={sw} fill="none" />
+      <Path d="M8 11V8a4 4 0 0 1 8 0v3" stroke={color} strokeWidth={sw} fill="none" />
+    </>
+  ),
   home: ({ color, sw }) => (
     <>
       <Path d="M3 11.5 12 4l9 7.5" stroke={color} strokeWidth={sw} fill="none" />

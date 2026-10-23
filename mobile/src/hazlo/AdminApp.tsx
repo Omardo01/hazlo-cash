@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { useAtras } from '@/lib/atras';
 import { getMiPerfil, logout } from '@/lib/services/auth';
 import type { Profile } from '@/lib/types';
 import { TabBar, type TabItem } from './TabBar';
@@ -65,6 +66,8 @@ const TABS: TabItem<TabAdmin>[] = [
 
 export function AdminApp() {
   const [tab, setTab] = useState<TabAdmin>('resumen');
+  // Atrás (Android o navegador) desde otra pestaña regresa a Resumen.
+  useAtras(tab !== 'resumen', () => setTab('resumen'));
 
   const screen = () => {
     if (tab === 'negocios') return <AdminNegociosScreen />;

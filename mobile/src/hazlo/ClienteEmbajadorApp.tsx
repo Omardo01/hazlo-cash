@@ -3,6 +3,8 @@ import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
+import { useAtras } from '@/lib/atras';
+
 import { ExplicadorHazlo } from './explicador/ExplicadorHazlo';
 import { Retiros } from './Retiros';
 import { TabBar, type TabItem } from './TabBar';
@@ -36,6 +38,13 @@ export function ClienteEmbajadorApp() {
   const openSheet = (s: SheetName) => setSheet(s);
 
   const cerrarSheet = () => setSheet(null);
+
+  // Atrás (Android o navegador): de otra pestaña vuelve a Inicio; retiros y
+  // el explicador se cierran. Las hojas manejan su propio atrás (animan su
+  // salida). Sin esto, atrás en web sacaba de la app.
+  useAtras(tab !== 'home', () => setTab('home'));
+  useAtras(retiros !== null, () => setRetiros(null));
+  useAtras(explicador, () => setExplicador(false));
 
   const screen = () => {
     switch (tab) {

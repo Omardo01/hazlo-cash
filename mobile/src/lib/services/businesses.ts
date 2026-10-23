@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { Business, BusinessAdmin, ComisionTipo } from '../types';
+import type { Business, BusinessAdmin, ComisionTipo, NegocioCatalogo } from '../types';
 
 // Columnas extra que sólo ven admin y dueño (dueño + saldo + config de comisión).
 const COLS_ADMIN = 'id, nombre, categoria, descripcion, direccion, oferta, activo, owner_id, creditos, comision_tipo, comision_valor';
@@ -15,6 +15,19 @@ export async function getNegociosActivos(): Promise<Business[]> {
 
   if (error) throw new Error(`Error al cargar negocios: ${error.message}`);
   return data ?? [];
+}
+
+// Catálogo para quien entra sin cuenta: los negocios sin el texto de su
+// promoción (se ve hasta registrarse), solo si tienen una. Así la promo ni
+// siquiera viaja al teléfono del invitado.
+export async function getNegociosPublicos(): Promise<NegocioCatalogo[]> {
+  const [lista, conPromo] = await Promise.all([
+    supabase.from('businesses').select('id, nombre, categoria, descripcion, direccion, activo').eq('activo', true).order('nombre'),
+    supabase.from('businesses').select('id').eq('activo', true).not('oferta', 'is', null),
+  ]);
+  if (lista.error) throw new Error(`Error al cargar negocios: ${lista.error.message}`);
+  const ids = new Set((conPromo.data ?? []).map((n) => n.id));
+  return (lista.data ?? []).map((n) => ({ ...n, oferta: null, promoOculta: ids.has(n.id) }));
 }
 
 // Todos los negocios (incl. inactivos) — vista admin. RLS negocio_all_admin.

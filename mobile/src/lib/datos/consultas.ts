@@ -4,12 +4,14 @@ import {
   getMiNegocio,
   getNegociosActivos,
   getNegociosAdmin,
+  getNegociosPublicos,
   getResumenNegocio,
 } from '../services/businesses';
 import { getCodigosAdmin, getMetricasAdmin, getOrdenesAdmin, getUsuariosAdmin } from '../services/admin';
 import { getCodigoPublico, getEstadoCodigo, getMiCodigo, getMisRecomendaciones, getMisVisitasCliente, getStatsEmbajador, getVisitasNegocio } from '../services/referrals';
 import { getMisAjustes, getMisComisiones, getMiSaldo } from '../services/wallet';
 import { getRetiros, totalRetirado } from '../simulacion/retiros';
+import type { NegocioCatalogo } from '../types';
 import { useConsulta } from './useConsulta';
 
 /**
@@ -32,6 +34,7 @@ export const K = {
   retiros: 'retiros',
   totalRetirado: 'total-retirado',
   negocios: 'negocios',
+  negociosPublicos: 'negocios-publicos',
   miNegocio: 'mi-negocio',
   visitasNegocio: 'visitas-negocio',
   resumenNegocio: 'resumen-negocio',
@@ -71,6 +74,10 @@ export const useMisRecomendaciones = () => useConsulta(K.misRecomendaciones, get
 export const useRetiros = () => useConsulta(K.retiros, getRetiros);
 export const useTotalRetirado = () => useConsulta(K.totalRetirado, totalRetirado);
 export const useNegocios = () => useConsulta(K.negocios, getNegociosActivos, LENTO);
+// Catálogo de Descubre. Sin sesión (landing → "Quiero buscar") llega sin el
+// texto de las promociones; `invitado` no cambia mientras la pantalla vive.
+export const useCatalogo = (invitado: boolean) =>
+  useConsulta<NegocioCatalogo[]>(invitado ? K.negociosPublicos : K.negocios, invitado ? getNegociosPublicos : getNegociosActivos, LENTO);
 
 // ── Negocio ───────────────────────────────────────────────────────────────────
 export const useMiNegocio = () => useConsulta(K.miNegocio, getMiNegocio, LENTO);

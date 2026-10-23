@@ -3,6 +3,8 @@ import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
+import { useAtras } from '@/lib/atras';
+
 import { TabBar, type TabItem } from './TabBar';
 import { Fade } from './motion';
 import { EmbajadoresNegocioScreen } from './screens/EmbajadoresNegocio';
@@ -37,6 +39,9 @@ export function NegocioApp() {
     setTab(t);
     setEscanear(0);
   };
+
+  // Atrás (Android o navegador) desde otra pestaña regresa a Inicio.
+  useAtras(tab !== 'inicio', () => ir('inicio'));
 
   const screen = () => {
     if (tab === 'inicio') return <InicioNegocioScreen onEscanear={abrirEscaner} ir={ir} />;
