@@ -97,7 +97,7 @@ function validar(d: DatosNegocio): Errores {
 
 // ── Piezas del formulario ──────────────────────────────────────────────────────
 
-function CampoTexto({
+export function CampoTexto({
   label,
   hint,
   error,
@@ -421,7 +421,7 @@ function Formulario({
 
 // ── Resumen ────────────────────────────────────────────────────────────────────
 
-function Palomita() {
+export function Palomita() {
   const p = useState(() => new Animated.Value(0))[0];
   const reduce = useReduceMotion();
 

@@ -14,6 +14,7 @@ import { Icon } from '../icons';
 import { Fade, PressableScale, STAGGER } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
 import { FoodTile, hueColors, SectionHeader } from '../ui';
+import { VistaRecomendarNegocio, type GiroElegido } from './RecomendarNegocio';
 
 // Hue estable por negocio para que los tiles se vean variados sin foto real.
 function hueDeId(id: string): number {
@@ -232,7 +233,7 @@ function Encabezado({ grupo, titulo, detalle }: { grupo: Grupo; titulo: string; 
   );
 }
 
-function SinNegocios({ grupo, que }: { grupo: Grupo; que: string }) {
+function SinNegocios({ grupo, que, onRecomendar }: { grupo: Grupo; que: string; onRecomendar?: () => void }) {
   return (
     <Fade delay={STAGGER * 2} desde={10} style={{ alignItems: 'center', paddingVertical: 26, paddingHorizontal: 20, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
       <IconoGrupo grupo={grupo} size={48} />
@@ -240,6 +241,38 @@ function SinNegocios({ grupo, que }: { grupo: Grupo; que: string }) {
       <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: MUTED, marginTop: 4, textAlign: 'center', lineHeight: 18 }}>
         ¿Conoces uno bueno de {que}? Cuando se sume a Hazlo Cash podrás ganar por recomendarlo.
       </Text>
+      {onRecomendar && (
+        <PressableScale
+          onPress={onRecomendar}
+          accessibilityRole="button"
+          style={{ marginTop: 16, height: 44, paddingHorizontal: 20, borderRadius: 999, backgroundColor: C.primary, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Icon name="send" size={15} color="#fff" />
+          <Text style={{ fontFamily: F.semi, fontSize: 13.5, color: '#fff' }}>Recomendar un negocio</Text>
+        </PressableScale>
+      )}
+    </Fade>
+  );
+}
+
+// Entrada al formulario "Recomienda un negocio" en la vista principal.
+function TarjetaRecomendar({ onPress }: { onPress: () => void }) {
+  return (
+    <Fade delay={STAGGER * 2} desde={10} style={{ marginBottom: 22 }}>
+      <PressableScale
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel="Recomienda un negocio que aún no está en Hazlo Cash"
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: R.md, overflow: 'hidden' }}>
+        <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="send" size={19} color="#fff" />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ fontFamily: F.semi, fontSize: 15, color: '#fff' }}>Recomienda un negocio</Text>
+          <Text style={{ fontFamily: F.reg, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>¿Conoces uno que aún no está? Cuéntanos</Text>
+        </View>
+        <Icon name="chevR" size={17} color="rgba(255,255,255,0.85)" />
+      </PressableScale>
     </Fade>
   );
 }
@@ -359,6 +392,7 @@ function VistaGiro({
   onVolver,
   onPromoBloqueada,
   onElegir,
+  onRecomendar,
 }: {
   grupo: Grupo;
   giro: string;
@@ -367,6 +401,7 @@ function VistaGiro({
   onVolver: () => void;
   onPromoBloqueada?: AlBloqueo;
   onElegir?: AlElegir;
+  onRecomendar?: () => void;
 }) {
   const todos = giro === TODOS;
   return (
@@ -382,7 +417,7 @@ function VistaGiro({
           <ListaSkeleton filas={2} />
         </View>
       ) : negocios.length === 0 ? (
-        <SinNegocios grupo={grupo} que={(todos ? grupo.nombre : giro).toLowerCase()} />
+        <SinNegocios grupo={grupo} que={(todos ? grupo.nombre : giro).toLowerCase()} onRecomendar={onRecomendar} />
       ) : (
         <View style={{ gap: 12 }}>
           {negocios.map((n, i) => (
@@ -484,6 +519,8 @@ export function DiscoverScreen({
   // Giro abierto dentro del grupo (o TODOS para la lista completa del grupo).
   const [giro, setGiro] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
+  // Formulario "Recomienda un negocio" abierto, quizá con el giro ya puesto.
+  const [recomendando, setRecomendando] = useState<{ giro?: GiroElegido } | null>(null);
   // El catálogo de negocios cambia poco: se revalida cada 5 minutos.
   const { datos: negocios = [], cargando, error } = useCatalogo(invitado);
   const alBloqueo = invitado ? onPromoBloqueada : undefined;
@@ -511,14 +548,24 @@ export function DiscoverScreen({
     setGrupo(null);
   });
   useAtras(!!grupo && !!giro, () => setGiro(null));
+  // Cerrar el formulario regresa a donde se abrió (categorías o el giro).
+  useAtras(!!recomendando, () => setRecomendando(null));
+
+  // En la pantalla Recomienda (elegir para QR) no se ofrece el formulario.
+  const puedeRecomendar = !onElegir;
 
   return (
     <ScrollView
-      key={`${grupo?.slug ?? 'categorias'}-${giro ?? ''}`}
+      key={recomendando ? 'recomendar' : `${grupo?.slug ?? 'categorias'}-${giro ?? ''}`}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 }}>
-      {grupo && giro ? (
+      {recomendando ? (
+        <>
+          <Volver etiqueta={grupo && giro ? (giro === TODOS ? grupo.nombre : giro) : titulo} onPress={() => setRecomendando(null)} />
+          <VistaRecomendarNegocio giroInicial={recomendando.giro} onVolver={() => setRecomendando(null)} />
+        </>
+      ) : grupo && giro ? (
         <VistaGiro
           grupo={grupo}
           giro={giro}
@@ -527,6 +574,7 @@ export function DiscoverScreen({
           onVolver={volver}
           onPromoBloqueada={alBloqueo}
           onElegir={onElegir}
+          onRecomendar={puedeRecomendar ? () => setRecomendando({ giro: giro === TODOS ? undefined : { grupo, giro } }) : undefined}
         />
       ) : grupo ? (
         <VistaGrupo
@@ -552,6 +600,8 @@ export function DiscoverScreen({
             <Resultados busqueda={busqueda} negocios={negocios} onAbrir={abrir} onPromoBloqueada={alBloqueo} onElegir={onElegir} />
           ) : (
             <>
+              {puedeRecomendar && <TarjetaRecomendar onPress={() => setRecomendando({})} />}
+
               {/* Promociones reales de los negocios que ya están. */}
               {conPromo.length > 0 && (
                 <>
