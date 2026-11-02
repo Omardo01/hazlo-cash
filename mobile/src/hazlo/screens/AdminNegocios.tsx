@@ -12,11 +12,12 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { mutar } from '@/lib/datos/cache';
-import { K, useAdminNegocios } from '@/lib/datos/consultas';
+import { invalidar, mutar } from '@/lib/datos/cache';
+import { K, useAdminNegocios, useAdminRecargas } from '@/lib/datos/consultas';
 import { getUsuariosAdmin, type UsuarioAdmin } from '@/lib/services/admin';
 import { asignarDuenoNegocio, recargarCreditos, setComisionNegocio, setNegocioActivo } from '@/lib/services/businesses';
-import type { BusinessAdmin, ComisionTipo } from '@/lib/types';
+import { resolverRecarga } from '@/lib/services/recargas';
+import type { BusinessAdmin, ComisionTipo, SolicitudRecargaAdmin } from '@/lib/types';
 import { AdminAltaNegocio } from '../AdminAltaNegocio';
 import { EditarNegocio } from '../EditarNegocio';
 import { HazloMark } from '../HazloMark';
@@ -250,19 +251,186 @@ function GestionNegocio({
   );
 }
 
+// Comisión al recomendador editable desde la lista, sin abrir Gestionar.
+// El botón de guardar aparece solo cuando hay un cambio; la línea de abajo dice
+// en palabras cuánto se paga (o qué está mal), siempre en el mismo renglón.
+function FilaComision({ n, onGuardada }: { n: BusinessAdmin; onGuardada: (tipo: ComisionTipo, valor: number) => void }) {
+  const [tipo, setTipo] = useState<ComisionTipo>(n.comision_tipo);
+  const [valor, setValor] = useState(String(Number(n.comision_valor)));
+  const [foco, setFoco] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const v = parseFloat(valor.replace(',', '.'));
+  const cambio = tipo !== n.comision_tipo || v !== Number(n.comision_valor);
+  const invalido = isNaN(v) || v < 0 ? 'Escribe una cantidad válida' : tipo === 'porcentaje' && v > 100 ? 'Máximo 100%' : null;
+  const resumen = invalido ?? error ?? (tipo === 'porcentaje' ? `Paga ${v}% de cada venta` : `Paga ${money(v)} por venta`);
+
+  const guardar = async () => {
+    if (invalido || !cambio) return;
+    setGuardando(true);
+    setError(null);
+    const r = await setComisionNegocio(n.id, tipo, v);
+    setGuardando(false);
+    if (!r.ok) return setError('No se pudo guardar');
+    onGuardada(tipo, v);
+  };
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={{ fontFamily: F.semi, fontSize: 13.5, color: n.activo ? FG : MUTED }}>{n.nombre}</Text>
+        <Text numberOfLines={1} style={{ fontFamily: F.reg, fontSize: 11, color: invalido || error ? C.accent : MUTED, marginTop: 1 }}>{resumen}</Text>
+      </View>
+      {/* Monto fijo o porcentaje */}
+      <View style={{ flexDirection: 'row', padding: 3, borderRadius: 11, backgroundColor: 'rgba(13,13,13,0.06)' }}>
+        {(['fijo', 'porcentaje'] as ComisionTipo[]).map((t) => {
+          const sel = tipo === t;
+          return (
+            <PressableScale
+              key={t}
+              onPress={() => {
+                setTipo(t);
+                setError(null);
+              }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: sel }}
+              accessibilityLabel={t === 'fijo' ? 'Monto fijo' : 'Porcentaje'}
+              style={{ width: 30, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: sel ? '#fff' : 'transparent' }}>
+              <Text style={{ fontFamily: F.bold, fontSize: 13, color: sel ? C.primary : MUTED }}>{t === 'fijo' ? '$' : '%'}</Text>
+            </PressableScale>
+          );
+        })}
+      </View>
+      <View style={{ width: 64, height: 34, borderRadius: 10, borderWidth: 1, borderColor: foco ? C.primary : 'rgba(0,0,0,0.1)', backgroundColor: '#fff', justifyContent: 'center', paddingHorizontal: 8 }}>
+        <TextInput
+          value={valor}
+          onChangeText={(t) => {
+            setValor(t.replace(/[^\d.,]/g, '').slice(0, 7));
+            setError(null);
+          }}
+          onFocus={() => setFoco(true)}
+          onBlur={() => setFoco(false)}
+          onSubmitEditing={guardar}
+          keyboardType="decimal-pad"
+          accessibilityLabel={`Comisión de ${n.nombre}`}
+          style={{ fontFamily: F.semi, fontSize: 14, color: FG, padding: 0, textAlign: 'right' }}
+        />
+      </View>
+      {/* Lugar reservado: el botón entra con fade sin mover la fila. */}
+      <View style={{ width: 34, height: 34 }}>
+        {cambio && (
+          <Fade desde={0}>
+            <PressableScale
+              onPress={guardar}
+              disabled={guardando || !!invalido}
+              accessibilityRole="button"
+              accessibilityLabel={`Guardar comisión de ${n.nombre}`}
+              style={{ width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: invalido ? 'rgba(13,13,13,0.15)' : C.primary }}>
+              {guardando ? <ActivityIndicator size="small" color="#fff" /> : <Icon name="check" size={16} color="#fff" sw={2.6} />}
+            </PressableScale>
+          </Fade>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function hace(fecha: string): string {
+  const min = Math.max(0, Math.round((Date.now() - new Date(fecha).getTime()) / 60_000));
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  const d = Math.round(h / 24);
+  return d === 1 ? 'ayer' : `hace ${d} días`;
+}
+
+// Recarga pedida por un negocio. Aceptar mueve dinero: pide un segundo toque
+// («Sí, llegó») antes de sumar los créditos.
+function TarjetaRecarga({ r, onResuelta }: { r: SolicitudRecargaAdmin; onResuelta: (saldo: number | null, aceptada: boolean) => void }) {
+  const [confirmando, setConfirmando] = useState(false);
+  const [enviando, setEnviando] = useState<'aceptar' | 'rechazar' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const resolver = async (aceptar: boolean) => {
+    setEnviando(aceptar ? 'aceptar' : 'rechazar');
+    setError(null);
+    const res = await resolverRecarga(r.id, aceptar);
+    setEnviando(null);
+    if (!res.ok) return setError(res.error ?? 'No se pudo resolver.');
+    onResuelta(res.saldo, aceptar);
+  };
+
+  return (
+    <View style={{ padding: 14, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: `${C.primary}14`, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="wallet" size={18} color={C.primary} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text numberOfLines={1} style={{ fontFamily: F.semi, fontSize: 14.5, color: FG }}>{r.negocio}</Text>
+          <Text style={{ fontFamily: F.reg, fontSize: 11, color: MUTED, marginTop: 1 }}>
+            Ref. <Text style={{ fontFamily: F.semi, color: FG }}>{r.referencia}</Text> · {hace(r.created_at)}
+          </Text>
+        </View>
+        <Text style={{ fontFamily: F.bold, fontSize: 17, color: FG, letterSpacing: -0.3 }}>{money(r.monto)}</Text>
+      </View>
+      {error && <Text style={{ fontFamily: F.base, fontSize: 11.5, color: C.accent, marginTop: 10 }}>{error}</Text>}
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+        <PressableScale
+          onPress={() => (confirmando ? setConfirmando(false) : resolver(false))}
+          disabled={enviando !== null}
+          style={{ flex: 1, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(13,13,13,0.05)' }}>
+          {enviando === 'rechazar' ? (
+            <ActivityIndicator size="small" color={MUTED} />
+          ) : (
+            <Text style={{ fontFamily: F.semi, fontSize: 12.5, color: confirmando ? FG : C.accent }}>{confirmando ? 'Cancelar' : 'Rechazar'}</Text>
+          )}
+        </PressableScale>
+        <PressableScale
+          onPress={() => (confirmando ? resolver(true) : setConfirmando(true))}
+          disabled={enviando !== null}
+          style={{ flex: 1.6, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: confirmando ? '#00A896' : FG }}>
+          {enviando === 'aceptar' ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={{ fontFamily: F.semi, fontSize: 12.5, color: '#fff' }}>
+              {confirmando ? `Sí, llegó: cargar ${money(r.monto)}` : 'Ya llegó la transferencia'}
+            </Text>
+          )}
+        </PressableScale>
+      </View>
+    </View>
+  );
+}
+
 export function AdminNegociosScreen() {
   const { datos: negocios = [], cargando: loading, error, refrescar: cargar } = useAdminNegocios();
   const [altaVisible, setAltaVisible] = useState(false);
   const [toggling, setToggling] = useState<string | null>(null);
   const [gestion, setGestion] = useState<BusinessAdmin | null>(null);
   const [editando, setEditando] = useState<BusinessAdmin | null>(null);
+  const { datos: recargas = [], refrescar: refrescarRecargas } = useAdminRecargas();
+
+  const refrescar = () => {
+    cargar();
+    refrescarRecargas();
+  };
+
+  // Aceptada: el saldo nuevo ya viene del servidor; se parcha sin recargar todo.
+  const alResolver = (r: SolicitudRecargaAdmin, saldo: number | null, aceptada: boolean) => {
+    mutar<SolicitudRecargaAdmin[]>(K.adminRecargas, (prev) => prev.filter((x) => x.id !== r.id));
+    if (aceptada && saldo !== null)
+      mutar<BusinessAdmin[]>(K.adminNegocios, (prev) => prev.map((b) => (b.id === r.negocio_id ? { ...b, creditos: saldo } : b)));
+    invalidar(K.adminMetricas);
+  };
 
   const toggle = async (n: BusinessAdmin) => {
     setToggling(n.id);
     const { ok } = await setNegocioActivo(n.id, !n.activo);
     if (ok)
       mutar<BusinessAdmin[]>(K.adminNegocios, (prev) =>
-        prev.map((b) => (b.id === n.id ? { ...b, activo: !b.activo } : b)),
+        prev.map((b) => (b.id === n.id ? { ...b, activo: !b.activo, por_aprobar: b.activo ? b.por_aprobar : false } : b)),
       );
     setToggling(null);
   };
@@ -277,12 +445,13 @@ export function AdminNegociosScreen() {
   // Lo que pide atención del admin: negocios que no pueden operar todavía.
   const sinDueno = negocios.filter((n) => !n.owner_id).length;
   const sinCreditos = negocios.filter((n) => n.activo && n.creditos <= 0).length;
+  const porAprobar = negocios.filter((n) => n.por_aprobar && !n.activo);
 
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 }}
-      refreshControl={<RefreshControl refreshing={false} onRefresh={cargar} tintColor={C.primary} />}>
+      refreshControl={<RefreshControl refreshing={false} onRefresh={refrescar} tintColor={C.primary} />}>
       {/* Saludo */}
       <Fade desde={8}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
@@ -331,6 +500,76 @@ export function AdminNegociosScreen() {
         ))}
       </View>
 
+      {recargas.length > 0 && (
+        <>
+          <SectionHeader title={`Recargas por confirmar · ${recargas.length}`} />
+          <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED, marginTop: -6, marginBottom: 12, lineHeight: 16 }}>
+            Acéptala sólo cuando veas la transferencia en el banco con esa referencia en el concepto.
+          </Text>
+          <View style={{ gap: 10, marginBottom: 26 }}>
+            {recargas.map((r, i) => (
+              <Fade key={r.id} delay={STAGGER * Math.min(i, 6)} desde={10}>
+                <TarjetaRecarga r={r} onResuelta={(saldo, aceptada) => alResolver(r, saldo, aceptada)} />
+              </Fade>
+            ))}
+          </View>
+        </>
+      )}
+
+      {porAprobar.length > 0 && (
+        <>
+          <SectionHeader title={`Por aprobar · ${porAprobar.length}`} />
+          <View style={{ gap: 10, marginBottom: 26 }}>
+            {porAprobar.map((n, i) => (
+              <Fade key={n.id} delay={STAGGER * Math.min(i, 6)} desde={10}>
+                <PressableScale
+                  onPress={() => setGestion(n)}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 1, borderColor: `${C.primary}33` }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text numberOfLines={1} style={{ fontFamily: F.semi, fontSize: 14.5, color: FG }}>{n.nombre}</Text>
+                    <Text numberOfLines={1} style={{ fontFamily: F.reg, fontSize: 11, color: MUTED, marginTop: 1 }}>
+                      {(n.giros.length ? n.giros.join(', ') : n.categoria)} · {n.direccion ?? 'Sin dirección'}
+                    </Text>
+                    {!!n.oferta && <Text numberOfLines={1} style={{ fontFamily: F.base, fontSize: 11.5, color: C.accent, marginTop: 3 }}>{n.oferta}</Text>}
+                  </View>
+                  <PressableScale
+                    onPress={() => toggle(n)}
+                    disabled={toggling === n.id}
+                    style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, backgroundColor: FG, minWidth: 82, alignItems: 'center' }}>
+                    {toggling === n.id ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ fontFamily: F.semi, fontSize: 12, color: '#fff' }}>Aprobar</Text>}
+                  </PressableScale>
+                </PressableScale>
+              </Fade>
+            ))}
+          </View>
+        </>
+      )}
+
+      {negocios.length > 0 && (
+        <>
+          <SectionHeader title="Comisión al recomendador" />
+          <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED, marginTop: -6, marginBottom: 10, lineHeight: 16 }}>
+            Lo que cada negocio paga de sus créditos por venta confirmada: monto fijo ($) o porcentaje de la venta (%).
+          </Text>
+          <Fade desde={10} style={{ marginBottom: 26 }}>
+            <View style={{ borderRadius: R.md, paddingHorizontal: 14, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
+              {negocios.map((n, i) => (
+                <View key={`${n.id}-${n.comision_tipo}-${n.comision_valor}`} style={{ borderTopWidth: i === 0 ? 0 : 0.5, borderTopColor: 'rgba(13,13,13,0.08)' }}>
+                  <FilaComision
+                    n={n}
+                    onGuardada={(tipo, valor) =>
+                      mutar<BusinessAdmin[]>(K.adminNegocios, (prev) =>
+                        prev.map((b) => (b.id === n.id ? { ...b, comision_tipo: tipo, comision_valor: valor } : b)),
+                      )
+                    }
+                  />
+                </View>
+              ))}
+            </View>
+          </Fade>
+        </>
+      )}
+
       <SectionHeader title="Todos los negocios" />
 
       {loading && (
@@ -355,7 +594,12 @@ export function AdminNegociosScreen() {
               </LinearGradient>
               <View style={{ flex: 1, minWidth: 0, paddingRight: 6 }}>
                 <Text numberOfLines={1} style={{ fontFamily: F.semi, fontSize: 15, color: FG }}>{n.nombre}</Text>
-                <Text style={{ fontFamily: F.reg, fontSize: 11, color: MUTED, marginTop: 1 }}>{n.categoria} · {comisionLabel(n)}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: `${C.primary}14` }}>
+                    <Text style={{ fontFamily: F.semi, fontSize: 10.5, color: C.primary }}>{comisionLabel(n)}</Text>
+                  </View>
+                  <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.reg, fontSize: 11, color: MUTED }}>{n.categoria}</Text>
+                </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 }}>
                   <Icon name="wallet" size={12} color={n.creditos > 0 ? C.primary : MUTED} sw={2} />
                   <Text style={{ fontFamily: F.semi, fontSize: 11, color: n.creditos > 0 ? C.primary : MUTED }}>{money(n.creditos)} en créditos</Text>
@@ -373,7 +617,9 @@ export function AdminNegociosScreen() {
                 {toggling === n.id ? (
                   <ActivityIndicator size="small" color={MUTED} />
                 ) : (
-                  <Text style={{ fontFamily: F.semi, fontSize: 11, color: n.activo ? '#00A896' : MUTED }}>{n.activo ? 'Activo' : 'Inactivo'}</Text>
+                  <Text style={{ fontFamily: F.semi, fontSize: 11, color: n.activo ? '#00A896' : n.por_aprobar ? C.accent : MUTED }}>
+                    {n.activo ? 'Activo' : n.por_aprobar ? 'Por aprobar' : 'Inactivo'}
+                  </Text>
                 )}
               </PressableScale>
             </PressableScale>

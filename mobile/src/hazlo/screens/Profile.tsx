@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ActivityIndicator, Animated, ScrollView, Text, View } from 'react-native';
@@ -62,7 +63,7 @@ export function ProfileScreen({ openSheet, onAbrirCuentas }: ScreenProps & { onA
     { t: 'Métodos de pago', icon: 'wallet', onPress: onAbrirCuentas },
     { t: 'Cuenta y verificación', icon: 'user', badge: 'Pronto' },
     { t: 'Notificaciones', icon: 'bell', badge: 'Pronto' },
-    { t: 'Privacidad', icon: 'settings', badge: 'Pronto' },
+    { t: 'Privacidad y contrato', icon: 'lock', onPress: () => router.push('/legal') },
   ];
 
   const tarjetas: { v: string; l: string }[] = [

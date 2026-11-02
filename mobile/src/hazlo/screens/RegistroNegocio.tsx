@@ -2,12 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react';
-import { Animated, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { registrarNegocio } from '@/lib/services/auth';
 import { grupoPorSlug } from '../categorias/catalogo';
 import { ETIQUETADO_VACIO, SelectorGiros, type Etiquetado } from '../categorias/SelectorGiros';
 import { Icon } from '../icons';
+import { irADocumentoLegal } from '../legal/PantallaLegal';
 import { DUR, EASE, Fade, PressableScale, STAGGER, useReduceMotion } from '../motion';
 import { BG, C, F, FG, MUTED, R } from '../theme';
 import { CajaCampo, hueColors } from '../ui';
@@ -16,8 +18,9 @@ import { CajaCampo, hueColors } from '../ui';
  * /registro-negocio — alta de un negocio, etiquetado con un grupo y sus giros
  * del catálogo del Excel (categorias/catalogo.ts).
  *
- * Por ahora es solo la vista: valida y enseña un resumen local, no escribe en
- * Supabase. Ver el comentario en `registrar` para dónde se conecta.
+ * Formulario → resumen para revisar → la Edge Function `registro-negocio` crea
+ * la cuenta dueña (rol negocio) y el negocio oculto y por aprobar. Al entrar,
+ * el AuthProvider lleva al panel del negocio, que avisa que está en revisión.
  */
 
 interface DatosNegocio {
@@ -29,6 +32,7 @@ interface DatosNegocio {
   responsable: string;
   telefono: string;
   correo: string;
+  password: string;
   oferta: string;
 }
 
@@ -44,6 +48,7 @@ const VACIO: DatosNegocio = {
   responsable: '',
   telefono: '',
   correo: '',
+  password: '',
   oferta: '',
 };
 
@@ -59,8 +64,9 @@ const SECCION: Record<Campo, number> = {
   ciudad: 2,
   responsable: 3,
   telefono: 3,
-  correo: 3,
   oferta: 4,
+  correo: 5,
+  password: 5,
 };
 
 /** 10 dígitos, sin espacios ni lada +52. */
@@ -83,8 +89,9 @@ function validar(d: DatosNegocio): Errores {
   if (!d.ciudad.trim()) e.ciudad = 'Escribe la ciudad';
   if (!d.responsable.trim()) e.responsable = 'Escribe quién atiende';
   if (soloDigitos(d.telefono).length !== 10) e.telefono = 'Debe tener 10 dígitos';
-  if (d.correo.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.correo.trim())) e.correo = 'Revisa el correo';
   if (d.oferta.trim().length < 3) e.oferta = 'Escribe el beneficio';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.correo.trim())) e.correo = 'Revisa el correo';
+  if (d.password.length < 6) e.password = 'Mínimo 6 caracteres';
   return e;
 }
 
@@ -108,6 +115,7 @@ function CampoTexto({
   autoCapitalize?: 'none' | 'words' | 'sentences';
   multiline?: boolean;
   maxLength?: number;
+  secureTextEntry?: boolean;
 }) {
   const [foco, setFoco] = useState(false);
   const derecha = [hint, multiline && maxLength ? `${input.value.length}/${maxLength}` : undefined].filter(Boolean).join(' · ');
@@ -271,20 +279,6 @@ function Formulario({
               <Text style={{ fontFamily: F.reg, fontSize: 13, color: MUTED, marginTop: 4, textAlign: 'center', lineHeight: 19 }}>
                 Te llegan clientes recomendados y solo pagas comisión cuando vendes.
               </Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 7,
-                  marginTop: 12,
-                  paddingHorizontal: 12,
-                  paddingVertical: 5,
-                  borderRadius: 999,
-                  backgroundColor: `${C.primary}14`,
-                }}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: C.primary }} />
-                <Text style={{ fontFamily: F.semi, fontSize: 11, color: C.accent }}>Vista previa · todavía no se guarda</Text>
-              </View>
             </View>
           </Fade>
 
@@ -351,16 +345,6 @@ function Formulario({
               maxLength={16}
               error={errores.telefono}
             />
-            <CampoTexto
-              label="Correo electrónico"
-              hint="opcional"
-              value={datos.correo}
-              onChangeText={(t) => set('correo', t)}
-              placeholder="negocio@correo.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              error={errores.correo}
-            />
           </Seccion>
 
           <Seccion n={4} titulo="Oferta Hazlo Cash" nota="El beneficio para quien llega con un código de recomendación." refSeccion={refSeccion}>
@@ -389,7 +373,29 @@ function Formulario({
             <VistaOferta nombre={datos.nombre} oferta={datos.oferta} />
           </Seccion>
 
-          <Fade delay={6 * STAGGER} desde={10} style={{ marginTop: 22 }}>
+          <Seccion n={5} titulo="Tu cuenta" nota="Con este correo y contraseña entras a tu panel de negocio." refSeccion={refSeccion}>
+            <CampoTexto
+              label="Correo electrónico"
+              value={datos.correo}
+              onChangeText={(t) => set('correo', t)}
+              placeholder="negocio@correo.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              error={errores.correo}
+            />
+            <CampoTexto
+              label="Contraseña"
+              hint="mínimo 6 caracteres"
+              value={datos.password}
+              onChangeText={(t) => set('password', t)}
+              placeholder="Crea una contraseña"
+              autoCapitalize="none"
+              secureTextEntry
+              error={errores.password}
+            />
+          </Seccion>
+
+          <Fade delay={7 * STAGGER} desde={10} style={{ marginTop: 22 }}>
             {/* Alto fijo: el aviso entra y sale sin mover el botón. */}
             <View style={{ height: 20, justifyContent: 'center', marginBottom: 6 }}>
               {faltan > 0 && (
@@ -404,7 +410,7 @@ function Formulario({
               onPress={() => onRegistrar(scrollA)}
               accessibilityRole="button"
               style={{ height: 52, borderRadius: R.md, backgroundColor: FG, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontFamily: F.semi, fontSize: 15, color: '#fff' }}>Registrar negocio</Text>
+              <Text style={{ fontFamily: F.semi, fontSize: 15, color: '#fff' }}>Revisar y registrar</Text>
             </PressableScale>
           </Fade>
         </ScrollView>
@@ -476,7 +482,27 @@ function TarjetaDatos({ titulo, icono, filas }: { titulo: string; icono: NombreI
   );
 }
 
-function Resumen({ datos, onEditar, onOtro }: { datos: DatosNegocio; onEditar: () => void; onOtro: () => void }) {
+function Resumen({
+  datos,
+  enviando,
+  error,
+  onEditar,
+  onEnviar,
+}: {
+  datos: DatosNegocio;
+  enviando: boolean;
+  error: string | null;
+  onEditar: () => void;
+  onEnviar: () => void;
+}) {
+  // Casilla no premarcada: el contrato pide aceptación expresa.
+  const [acepta, setAcepta] = useState(false);
+  const [falta, setFalta] = useState(false);
+  const enviar = () => {
+    if (!acepta) return setFalta(true);
+    onEnviar();
+  };
+
   const grupo = grupoPorSlug(datos.etiquetado.grupo ?? undefined);
   const hue = grupo?.hue ?? 26;
   const [a, b, c] = hueColors(hue);
@@ -491,16 +517,16 @@ function Resumen({ datos, onEditar, onOtro }: { datos: DatosNegocio; onEditar: (
     { icono: 'person-outline', label: 'Responsable', valor: datos.responsable.trim() },
     { icono: 'call-outline', label: 'Teléfono', valor: formatearTelefono(datos.telefono) },
   ];
-  if (datos.correo.trim()) contacto.push({ icono: 'mail-outline', label: 'Correo', valor: datos.correo.trim() });
+  contacto.push({ icono: 'mail-outline', label: 'Correo', valor: datos.correo.trim().toLowerCase() });
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 48 }}>
       <View style={{ alignItems: 'center' }}>
         <Palomita />
         <Fade delay={STAGGER} desde={8} style={{ alignItems: 'center' }}>
-          <Text style={{ fontFamily: F.bold, fontSize: 23, color: FG, letterSpacing: -0.5, marginTop: 14 }}>¡Listo! Así quedó</Text>
+          <Text style={{ fontFamily: F.bold, fontSize: 23, color: FG, letterSpacing: -0.5, marginTop: 14 }}>Revisa tus datos</Text>
           <Text style={{ fontFamily: F.reg, fontSize: 13, color: MUTED, marginTop: 4, textAlign: 'center', lineHeight: 19 }}>
-            Revisa que todo esté bien. Es una vista previa: todavía no se guarda en Hazlo Cash.
+            Así quedará tu negocio. Antes de publicarlo en el catálogo, el equipo de Hazlo Cash lo revisa.
           </Text>
         </Fade>
       </View>
@@ -560,15 +586,66 @@ function Resumen({ datos, onEditar, onOtro }: { datos: DatosNegocio; onEditar: (
       </Fade>
 
       <Fade delay={STAGGER * 5} desde={10} style={{ marginTop: 20 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+          <PressableScale
+            onPress={() => {
+              setAcepta((v) => !v);
+              setFalta(false);
+            }}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: acepta }}
+            accessibilityLabel="Acepto el contrato para negocios y el aviso de privacidad"
+            hitSlop={8}
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 7,
+              marginTop: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1.5,
+              borderColor: acepta ? C.primary : falta ? C.accent : 'rgba(13,13,13,0.25)',
+              backgroundColor: acepta ? C.primary : '#fff',
+            }}>
+            {acepta && <Ionicons name="checkmark" size={15} color="#fff" />}
+          </PressableScale>
+          <Text style={{ flex: 1, fontFamily: F.reg, fontSize: 12, lineHeight: 18, color: MUTED }}>
+            Acepto el{' '}
+            <Text onPress={() => irADocumentoLegal('negocios')} accessibilityRole="link" style={{ fontFamily: F.semi, color: C.primary }}>
+              Contrato para negocios
+            </Text>{' '}
+            y el{' '}
+            <Text onPress={() => irADocumentoLegal('privacidad')} accessibilityRole="link" style={{ fontFamily: F.semi, color: C.primary }}>
+              Aviso de privacidad
+            </Text>
+            .
+          </Text>
+        </View>
+
+        {(falta || error) && (
+          <Fade key={falta ? 'falta' : error}>
+            <View style={{ backgroundColor: 'rgba(235,78,0,0.08)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 12 }}>
+              <Text style={{ fontFamily: F.base, fontSize: 12, color: C.accent }}>
+                {falta ? 'Para registrar tu negocio acepta el contrato y el aviso de privacidad.' : error}
+              </Text>
+            </View>
+          </Fade>
+        )}
+
+        <PressableScale
+          onPress={enviar}
+          disabled={enviando}
+          accessibilityRole="button"
+          style={{ marginTop: 16, height: 52, borderRadius: R.md, backgroundColor: FG, alignItems: 'center', justifyContent: 'center', opacity: enviando ? 0.7 : 1 }}>
+          {enviando ? <ActivityIndicator color="#fff" /> : <Text style={{ fontFamily: F.semi, fontSize: 15, color: '#fff' }}>Registrar negocio</Text>}
+        </PressableScale>
         <PressableScale
           onPress={onEditar}
+          disabled={enviando}
           accessibilityRole="button"
-          style={{ height: 50, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)', flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+          style={{ marginTop: 10, height: 50, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)', flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
           <Ionicons name="create-outline" size={18} color={FG} />
           <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>Editar datos</Text>
-        </PressableScale>
-        <PressableScale onPress={onOtro} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'center', marginTop: 16, paddingVertical: 4, paddingHorizontal: 8 }}>
-          <Text style={{ fontFamily: F.semi, fontSize: 13, color: C.primary }}>Registrar otro negocio</Text>
         </PressableScale>
       </Fade>
     </ScrollView>
@@ -578,10 +655,14 @@ function Resumen({ datos, onEditar, onOtro }: { datos: DatosNegocio; onEditar: (
 // ── Pantalla ───────────────────────────────────────────────────────────────────
 
 // `conAreaSegura` en false cuando ya la pone quien la contiene (la puerta de
-// entrada de la app), para no sumar dos veces el margen de arriba.
-export function RegistroNegocioScreen({ conAreaSegura = true }: { conAreaSegura?: boolean } = {}) {
+// entrada de la app), para no sumar dos veces el margen de arriba. `onListo`
+// corre ya con la sesión del dueño abierta; dentro de la puerta de entrada no
+// hace falta: el AuthProvider cambia de pantalla solo.
+export function RegistroNegocioScreen({ conAreaSegura = true, onListo }: { conAreaSegura?: boolean; onListo?: () => void } = {}) {
   const [datos, setDatos] = useState<DatosNegocio>(VACIO);
   const [errores, setErrores] = useState<Errores>({});
+  const [enviando, setEnviando] = useState(false);
+  const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
   const [vista, setVista] = useState<'formulario' | 'resumen'>('formulario');
   const opacidad = useState(() => new Animated.Value(1))[0];
   const enTransicion = useRef(false);
@@ -620,13 +701,38 @@ export function RegistroNegocioScreen({ conAreaSegura = true }: { conAreaSegura?
       scrollA(Math.min(...conError.map((k) => SECCION[k])));
       return;
     }
-    // Guardado pendiente (lo decide Omar): aquí iría crearNegocio() de
-    // lib/services/businesses.ts. El grupo cabe en `businesses.categoria`
-    // (hoy guarda una de las 10 CATEGORIAS viejas; habría que pasar a los slugs
-    // de GRUPOS) y los giros necesitan lugar propio: `businesses.giros text[]`
-    // o una tabla `business_giros`. Responsable/teléfono/correo son privados
-    // (anti-bypass): no van en columnas que lean los clientes.
+    setErrorEnvio(null);
     irA('resumen');
+  };
+
+  // El grupo va a `businesses.categoria` (slug) y los giros a `giros`.
+  // Responsable y teléfono quedan en el perfil del dueño: son privados
+  // (anti-bypass), no columnas que lean los clientes.
+  const enviar = async () => {
+    if (enviando) return;
+    setEnviando(true);
+    setErrorEnvio(null);
+    const r = await registrarNegocio({
+      negocio: {
+        nombre: datos.nombre,
+        descripcion: datos.descripcion,
+        grupo: datos.etiquetado.grupo ?? '',
+        giros: datos.etiquetado.giros,
+        direccion: datos.direccion,
+        ciudad: datos.ciudad,
+        oferta: datos.oferta,
+      },
+      responsable: datos.responsable,
+      telefono: soloDigitos(datos.telefono),
+      email: datos.correo,
+      password: datos.password,
+    });
+    if (!r.ok) {
+      setErrorEnvio(r.error);
+      setEnviando(false);
+      return;
+    }
+    onListo?.();
   };
 
   return (
@@ -637,15 +743,7 @@ export function RegistroNegocioScreen({ conAreaSegura = true }: { conAreaSegura?
           {vista === 'formulario' ? (
             <Formulario datos={datos} errores={errores} set={set} onEtiquetado={onEtiquetado} onRegistrar={registrar} />
           ) : (
-            <Resumen
-              datos={datos}
-              onEditar={() => irA('formulario')}
-              onOtro={() => {
-                setDatos(VACIO);
-                setErrores({});
-                irA('formulario');
-              }}
-            />
+            <Resumen datos={datos} enviando={enviando} error={errorEnvio} onEditar={() => irA('formulario')} onEnviar={enviar} />
           )}
         </Animated.View>
       </SafeAreaView>

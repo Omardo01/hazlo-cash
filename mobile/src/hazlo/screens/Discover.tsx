@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -31,6 +31,21 @@ const TODOS = '__todos__';
 
 // Sin cuenta, la promo se ve como candado: tocarla invita a registrarse.
 type AlBloqueo = (negocio?: string) => void;
+// Modo elegir (pantalla Recomienda): tocar un negocio genera su QR.
+type AlElegir = (negocio: Business) => void;
+
+// Insignia de QR del modo elegir. En su propia View: en web el ícono suelto
+// queda debajo del degradado.
+function InsigniaQr({ size = 40 }: { size?: number }) {
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 3, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+      <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View>
+        <Icon name="qr" size={Math.round(size * 0.45)} color="#fff" sw={2} />
+      </View>
+    </View>
+  );
+}
 
 function PromoBloqueada({ n, onPress }: { n: Business; onPress: AlBloqueo }) {
   return (
@@ -50,12 +65,28 @@ function PromoBloqueada({ n, onPress }: { n: Business; onPress: AlBloqueo }) {
   );
 }
 
-function FilaNegocio({ n, delay, onPromoBloqueada }: { n: Business; delay: number; onPromoBloqueada?: AlBloqueo }) {
+function FilaNegocio({ n, delay, onPromoBloqueada, onElegir }: { n: Business; delay: number; onPromoBloqueada?: AlBloqueo; onElegir?: AlElegir }) {
+  const fila = { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' } as const;
+  if (onElegir) {
+    return (
+      <Fade delay={delay} desde={12}>
+        <PressableScale onPress={() => onElegir(n)} accessibilityRole="button" accessibilityLabel={`Generar QR para recomendar ${n.nombre}`} style={fila}>
+          <ContenidoFila n={n} />
+          <InsigniaQr />
+        </PressableScale>
+      </Fade>
+    );
+  }
   return (
-    <Fade
-      delay={delay}
-      desde={12}
-      style={{ flexDirection: 'row', gap: 12, padding: 10, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
+    <Fade delay={delay} desde={12} style={fila}>
+      <ContenidoFila n={n} onPromoBloqueada={onPromoBloqueada} />
+    </Fade>
+  );
+}
+
+function ContenidoFila({ n, onPromoBloqueada }: { n: Business; onPromoBloqueada?: AlBloqueo }) {
+  return (
+    <>
       <View style={{ width: 72, height: 72 }}>
         <FoodTile hue={hueDeId(n.id)} radius={14} height={72} />
       </View>
@@ -72,13 +103,23 @@ function FilaNegocio({ n, delay, onPromoBloqueada }: { n: Business; delay: numbe
         )}
         {n.promoOculta && onPromoBloqueada && <PromoBloqueada n={n} onPress={onPromoBloqueada} />}
       </View>
-    </Fade>
+    </>
   );
 }
 
 // Tarjeta de promoción del carrusel. Sin cuenta, el texto de la promo se
 // cambia por un candado.
-function TarjetaPromo({ n, onPromoBloqueada }: { n: Business; onPromoBloqueada?: AlBloqueo }) {
+function TarjetaPromo({ n, onPromoBloqueada, onElegir }: { n: Business; onPromoBloqueada?: AlBloqueo; onElegir?: AlElegir }) {
+  if (onElegir) {
+    return (
+      <PressableScale onPress={() => onElegir(n)} accessibilityRole="button" accessibilityLabel={`Generar QR para recomendar ${n.nombre}`}>
+        <FoodTile name={n.nombre} type={n.oferta ?? n.categoria} hue={hueDeId(n.id)} radius={R.md} height={180} />
+        <View style={{ position: 'absolute', top: 12, right: 12 }}>
+          <InsigniaQr size={36} />
+        </View>
+      </PressableScale>
+    );
+  }
   if (!n.promoOculta || !onPromoBloqueada) {
     return <FoodTile name={n.nombre} type={n.oferta ?? n.categoria} hue={hueDeId(n.id)} radius={R.md} height={180} />;
   }
@@ -317,6 +358,7 @@ function VistaGiro({
   cargando,
   onVolver,
   onPromoBloqueada,
+  onElegir,
 }: {
   grupo: Grupo;
   giro: string;
@@ -324,6 +366,7 @@ function VistaGiro({
   cargando: boolean;
   onVolver: () => void;
   onPromoBloqueada?: AlBloqueo;
+  onElegir?: AlElegir;
 }) {
   const todos = giro === TODOS;
   return (
@@ -343,7 +386,7 @@ function VistaGiro({
       ) : (
         <View style={{ gap: 12 }}>
           {negocios.map((n, i) => (
-            <FilaNegocio key={n.id} n={n} delay={(2 + Math.min(i, 6)) * STAGGER} onPromoBloqueada={onPromoBloqueada} />
+            <FilaNegocio key={n.id} n={n} delay={(2 + Math.min(i, 6)) * STAGGER} onPromoBloqueada={onPromoBloqueada} onElegir={onElegir} />
           ))}
         </View>
       )}
@@ -357,11 +400,13 @@ function Resultados({
   negocios,
   onAbrir,
   onPromoBloqueada,
+  onElegir,
 }: {
   busqueda: string;
   negocios: Business[];
   onAbrir: (g: Grupo, giro?: string) => void;
   onPromoBloqueada?: AlBloqueo;
+  onElegir?: AlElegir;
 }) {
   const q = normalizar(busqueda.trim());
   const deNegocios = negocios.filter((n) => [n.nombre, n.categoria, n.oferta ?? ''].some((campo) => normalizar(campo).includes(q)));
@@ -385,7 +430,7 @@ function Resultados({
           <SectionHeader title="Negocios" />
           <View style={{ gap: 12, marginBottom: 22 }}>
             {deNegocios.map((n, i) => (
-              <FilaNegocio key={n.id} n={n} delay={Math.min(i, 6) * STAGGER} onPromoBloqueada={onPromoBloqueada} />
+              <FilaNegocio key={n.id} n={n} delay={Math.min(i, 6) * STAGGER} onPromoBloqueada={onPromoBloqueada} onElegir={onElegir} />
             ))}
           </View>
         </>
@@ -420,8 +465,21 @@ function Resultados({
 // Descubre: el catálogo de categorías del Excel (12 grupos) con los negocios
 // que hay en cada una y en cada giro. `invitado`: se entró sin cuenta desde el
 // landing; las promociones se ven con candado y tocarlas llama
-// `onPromoBloqueada`.
-export function DiscoverScreen({ invitado = false, onPromoBloqueada }: { invitado?: boolean; onPromoBloqueada?: AlBloqueo } = {}) {
+// `onPromoBloqueada`. Con `onElegir` (pantalla Recomienda) cada negocio se
+// puede tocar para generar su QR; `titulo` y `encabezado` cambian lo de arriba.
+export function DiscoverScreen({
+  invitado = false,
+  onPromoBloqueada,
+  onElegir,
+  titulo = 'Descubre',
+  encabezado,
+}: {
+  invitado?: boolean;
+  onPromoBloqueada?: AlBloqueo;
+  onElegir?: AlElegir;
+  titulo?: string;
+  encabezado?: ReactNode;
+} = {}) {
   const [grupo, setGrupo] = useState<Grupo | null>(null);
   // Giro abierto dentro del grupo (o TODOS para la lista completa del grupo).
   const [giro, setGiro] = useState<string | null>(null);
@@ -468,6 +526,7 @@ export function DiscoverScreen({ invitado = false, onPromoBloqueada }: { invitad
           cargando={cargando}
           onVolver={volver}
           onPromoBloqueada={alBloqueo}
+          onElegir={onElegir}
         />
       ) : grupo ? (
         <VistaGrupo
@@ -481,15 +540,16 @@ export function DiscoverScreen({ invitado = false, onPromoBloqueada }: { invitad
       ) : (
         <>
           <Fade desde={8}>
-            <Text style={{ fontFamily: F.bold, fontSize: 28, color: FG, letterSpacing: -0.7, marginBottom: 14 }}>Descubre</Text>
+            <Text style={{ fontFamily: F.bold, fontSize: 28, color: FG, letterSpacing: -0.7, marginBottom: 14 }}>{titulo}</Text>
           </Fade>
+          {encabezado}
 
           <Fade delay={STAGGER} desde={8} style={{ marginBottom: 18 }}>
             <Buscador valor={busqueda} onCambio={setBusqueda} placeholder="Busca un negocio o un giro: tacos, dentista…" />
           </Fade>
 
           {busqueda.trim() ? (
-            <Resultados busqueda={busqueda} negocios={negocios} onAbrir={abrir} onPromoBloqueada={alBloqueo} />
+            <Resultados busqueda={busqueda} negocios={negocios} onAbrir={abrir} onPromoBloqueada={alBloqueo} onElegir={onElegir} />
           ) : (
             <>
               {/* Promociones reales de los negocios que ya están. */}
@@ -499,7 +559,7 @@ export function DiscoverScreen({ invitado = false, onPromoBloqueada }: { invitad
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 4 }} style={{ marginBottom: 22 }}>
                     {conPromo.map((n, i) => (
                       <Fade key={n.id} delay={(2 + i) * STAGGER} desde={10} style={{ width: 200 }}>
-                        <TarjetaPromo n={n} onPromoBloqueada={alBloqueo} />
+                        <TarjetaPromo n={n} onPromoBloqueada={alBloqueo} onElegir={onElegir} />
                       </Fade>
                     ))}
                   </ScrollView>

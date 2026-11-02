@@ -19,6 +19,7 @@ export interface Business {
   direccion: string | null;
   oferta: string | null;
   activo: boolean;
+  giros?: string[]; // giros del catálogo (vacío en negocios dados de alta antes)
 }
 
 // Negocio tal como lo ve el catálogo. Sin sesión, `oferta` llega vacía y
@@ -38,6 +39,23 @@ export interface BusinessAdmin extends Business {
   creditos: number;
   comision_tipo: ComisionTipo;
   comision_valor: number;
+  giros: string[]; // giros del catálogo que eligió al registrarse
+  por_aprobar: boolean; // se registró solo y el admin aún no lo activa
+}
+
+// El negocio pide créditos y transfiere; el admin acepta al ver llegar el dinero.
+export interface SolicitudRecarga {
+  id: string;
+  negocio_id: string;
+  monto: number;
+  referencia: string; // va en el concepto de la transferencia
+  estado: 'pendiente' | 'aceptada' | 'rechazada';
+  created_at: string;
+  resuelta_en: string | null;
+}
+
+export interface SolicitudRecargaAdmin extends SolicitudRecarga {
+  negocio: string; // nombre del negocio
 }
 
 export interface ReferralCode {

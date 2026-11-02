@@ -1,11 +1,13 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { mutar } from '@/lib/datos/cache';
-import { K, useMiNegocio, useResumenNegocio } from '@/lib/datos/consultas';
+import { K, useMiNegocio, useMisRecargas, useResumenNegocio } from '@/lib/datos/consultas';
 import { logout } from '@/lib/services/auth';
 import type { BusinessAdmin } from '@/lib/types';
+import { CargarCreditos } from '../CargarCreditos';
 import { EditarNegocio } from '../EditarNegocio';
 import { HazloMark } from '../HazloMark';
 import { Icon, IconName } from '../icons';
@@ -100,6 +102,13 @@ export function SinNegocio() {
           style={{ marginTop: 16, height: 48, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
           <Text style={{ fontFamily: F.semi, fontSize: 13, color: C.accent }}>Cerrar sesión</Text>
         </PressableScale>
+        <PressableScale
+          onPress={() => router.push('/legal')}
+          accessibilityRole="link"
+          hitSlop={8}
+          style={{ alignSelf: 'center', marginTop: 14, paddingVertical: 4, paddingHorizontal: 8 }}>
+          <Text style={{ fontFamily: F.semi, fontSize: 12, color: MUTED }}>Contrato y aviso de privacidad</Text>
+        </PressableScale>
       </Fade>
     </ScrollView>
   );
@@ -108,11 +117,14 @@ export function SinNegocio() {
 export function MiNegocioScreen() {
   const { datos: negocio, cargando, refrescar: refrescarNegocio } = useMiNegocio();
   const { datos: resumen, refrescar: refrescarResumen } = useResumenNegocio();
+  const { datos: recargas, refrescar: refrescarRecargas } = useMisRecargas();
   const [editando, setEditando] = useState(false);
+  const [cargandoCreditos, setCargandoCreditos] = useState(false);
 
   const refrescar = () => {
     refrescarNegocio();
     refrescarResumen();
+    refrescarRecargas();
   };
 
   if (cargando) {
@@ -144,6 +156,7 @@ export function MiNegocioScreen() {
       : null;
 
   const sinCreditos = Number(negocio.creditos) <= 0;
+  const recargaPendiente = recargas?.find((r) => r.estado === 'pendiente') ?? null;
 
   return (
     <>
@@ -154,6 +167,28 @@ export function MiNegocioScreen() {
         <Fade desde={8}>
           <Text style={{ fontFamily: F.bold, fontSize: 22, color: FG, letterSpacing: -0.44, marginBottom: 18 }}>Mi negocio</Text>
         </Fade>
+
+        {/* Se registró solo: hasta que el admin lo apruebe no sale en el catálogo
+            ni puede cargar créditos. */}
+        {!negocio.activo && (
+          <Fade delay={STAGGER} desde={10}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14, padding: 14, borderRadius: R.md, backgroundColor: `${C.primary}12`, borderWidth: 1, borderColor: `${C.primary}33` }}>
+              <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={negocio.por_aprobar ? 'activity' : 'lock'} size={17} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: F.semi, fontSize: 13.5, color: FG }}>
+                  {negocio.por_aprobar ? 'Estamos revisando tu negocio' : 'Tu negocio está pausado'}
+                </Text>
+                <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED, marginTop: 2, lineHeight: 17 }}>
+                  {negocio.por_aprobar
+                    ? 'Te avisamos cuando quede aprobado. Entonces saldrá en el catálogo y podrás cargar créditos.'
+                    : 'No aparece en el catálogo. Escríbele a Hazlo Cash para reactivarlo.'}
+                </Text>
+              </View>
+            </View>
+          </Fade>
+        )}
 
         {/* Créditos: es lo que paga las comisiones, va primero y grande. */}
         <Fade delay={STAGGER} desde={12}>
@@ -187,16 +222,42 @@ export function MiNegocioScreen() {
                 </View>
               )}
             </View>
+            {negocio.activo && (
+              <PressableScale
+                onPress={() => setCargandoCreditos(true)}
+                accessibilityRole="button"
+                style={{ marginTop: 16, height: 44, borderRadius: R.md, backgroundColor: '#fff', flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={recargaPendiente ? 'activity' : 'plus'} size={15} color={FG} sw={2.2} />
+                <Text style={{ fontFamily: F.semi, fontSize: 13.5, color: FG }}>
+                  {recargaPendiente ? `Recarga de ${money(recargaPendiente.monto)} en camino` : 'Cargar créditos'}
+                </Text>
+              </PressableScale>
+            )}
           </View>
         </Fade>
 
-        {sinCreditos && (
+        {recargaPendiente && (
+          <Fade delay={STAGGER * 2} desde={10}>
+            <PressableScale
+              onPress={() => setCargandoCreditos(true)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14, padding: 14, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.06)' }}>
+              <Icon name="wallet" size={16} color={C.primary} />
+              <Text style={{ flex: 1, fontFamily: F.base, fontSize: 12.5, color: FG, lineHeight: 18 }}>
+                Esperamos tu transferencia de {money(recargaPendiente.monto)} con referencia{' '}
+                <Text style={{ fontFamily: F.semi }}>{recargaPendiente.referencia}</Text>. Al llegar, cargamos tus créditos.
+              </Text>
+              <Icon name="chevR" size={14} color={MUTED} />
+            </PressableScale>
+          </Fade>
+        )}
+
+        {sinCreditos && negocio.activo && !recargaPendiente && (
           <Fade delay={STAGGER * 2} desde={10}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14, padding: 14, borderRadius: R.md, backgroundColor: 'rgba(235,78,0,0.09)' }}>
               <Icon name="bell" size={16} color={C.accent} />
               <Text style={{ flex: 1, fontFamily: F.base, fontSize: 12.5, color: FG, lineHeight: 18 }}>
-                Te quedaste sin créditos: no vas a poder confirmar ventas hasta recargar. Escríbele a
-                Hazlo Cash para activarlos.
+                Te quedaste sin créditos: no vas a poder confirmar ventas hasta recargar. Toca «Cargar
+                créditos» para seguir.
               </Text>
             </View>
           </Fade>
@@ -266,6 +327,13 @@ export function MiNegocioScreen() {
             style={{ marginTop: 16, height: 48, borderRadius: R.md, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.08)' }}>
             <Text style={{ fontFamily: F.semi, fontSize: 13, color: C.accent }}>Cerrar sesión</Text>
           </PressableScale>
+          <PressableScale
+            onPress={() => router.push('/legal')}
+            accessibilityRole="link"
+            hitSlop={8}
+            style={{ alignSelf: 'center', marginTop: 14, paddingVertical: 4, paddingHorizontal: 8 }}>
+            <Text style={{ fontFamily: F.semi, fontSize: 12, color: MUTED }}>Contrato y aviso de privacidad</Text>
+          </PressableScale>
           <Text style={{ marginTop: 14, textAlign: 'center', fontFamily: F.reg, fontSize: 11, color: MUTED }}>Hazlo Cash · Negocio</Text>
         </Fade>
       </ScrollView>
@@ -275,6 +343,12 @@ export function MiNegocioScreen() {
         visible={editando}
         onClose={() => setEditando(false)}
         onGuardado={(n) => mutar<BusinessAdmin | null>(K.miNegocio, () => n)}
+      />
+      <CargarCreditos
+        negocio={negocio}
+        pendiente={recargaPendiente}
+        visible={cargandoCreditos}
+        onClose={() => setCargandoCreditos(false)}
       />
     </>
   );

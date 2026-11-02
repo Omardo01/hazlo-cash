@@ -14,7 +14,11 @@
 // queda marcada en app_metadata.cuenta_prueba (el usuario no puede editarlo)
 // para poder limpiarlas después.
 //
-// POST { nombre, email, password, telefono? }
+// La aceptación del contrato de recomendador y del aviso de privacidad llega en
+// `legal` (versiones) y se guarda en app_metadata.legal con la hora del
+// servidor: es la evidencia de consentimiento que pide el contrato.
+//
+// POST { nombre, email, password, telefono?, legal? }
 // → { ok: true } | { ok: false, codigo: 'datos' | 'ya_existe' | 'error', error }
 // Los errores esperados vuelven con 200 para que la app los lea en `data`.
 
@@ -52,6 +56,15 @@ export async function handler(req: Request): Promise<Response> {
   const telefono = texto('telefono').slice(0, 20);
   const password = String(body.password ?? '');
   const roles = ['embajador'];
+  const legal = body.legal as Record<string, unknown> | undefined;
+  const version = (k: string) => String(legal?.[k] ?? '').slice(0, 20);
+  const aceptacion = legal
+    ? {
+        contrato_recomendador: version('contrato_recomendador'),
+        aviso_privacidad: version('aviso_privacidad'),
+        aceptado_en: new Date().toISOString(),
+      }
+    : null;
 
   if (!nombre) return falla('datos', 'Escribe tu nombre.');
   // Correo inventado vale, pero con forma de correo: es el usuario para entrar.
@@ -69,7 +82,7 @@ export async function handler(req: Request): Promise<Response> {
     password,
     email_confirm: true,
     user_metadata: { nombre, telefono: telefono || null, roles },
-    app_metadata: { cuenta_prueba: true },
+    app_metadata: { cuenta_prueba: true, ...(aceptacion ? { legal: aceptacion } : {}) },
   });
 
   if (error) {

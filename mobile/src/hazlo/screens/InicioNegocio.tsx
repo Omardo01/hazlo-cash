@@ -258,15 +258,34 @@ export function InicioNegocioScreen({ onEscanear, ir }: { onEscanear: () => void
             </PressableScale>
           </Fade>
         )}
-        {creditos <= 0 && (
+        {!negocio.activo ? (
           <Fade delay={STAGGER * 6} desde={12}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12, padding: 14, borderRadius: R.md, backgroundColor: 'rgba(235,78,0,0.09)' }}>
-              <Icon name="wallet" size={16} color={C.accent} />
+            <PressableScale
+              onPress={() => ir('negocio')}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12, padding: 14, borderRadius: R.md, backgroundColor: `${C.primary}12`, borderWidth: 1, borderColor: `${C.primary}33` }}>
+              <Icon name={negocio.por_aprobar ? 'activity' : 'lock'} size={16} color={C.primary} />
               <Text style={{ flex: 1, fontFamily: F.base, fontSize: 12.5, color: FG, lineHeight: 18 }}>
-                Te quedaste sin créditos: no podrás confirmar ventas hasta recargar con Hazlo Cash.
+                {negocio.por_aprobar
+                  ? 'Estamos revisando tu negocio. Al aprobarlo saldrá en el catálogo y podrás cargar créditos.'
+                  : 'Tu negocio está pausado y no aparece en el catálogo.'}
               </Text>
-            </View>
+              <Icon name="chevR" size={14} color={MUTED} />
+            </PressableScale>
           </Fade>
+        ) : (
+          creditos <= 0 && (
+            <Fade delay={STAGGER * 6} desde={12}>
+              <PressableScale
+                onPress={() => ir('negocio')}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12, padding: 14, borderRadius: R.md, backgroundColor: 'rgba(235,78,0,0.09)' }}>
+                <Icon name="wallet" size={16} color={C.accent} />
+                <Text style={{ flex: 1, fontFamily: F.base, fontSize: 12.5, color: FG, lineHeight: 18 }}>
+                  Te quedaste sin créditos: no podrás confirmar ventas. Toca para cargar créditos.
+                </Text>
+                <Icon name="chevR" size={14} color={MUTED} />
+              </PressableScale>
+            </Fade>
+          )
         )}
 
         {/* Gráfica de la semana */}

@@ -9,6 +9,7 @@ import {
 } from '../services/businesses';
 import { getCodigosAdmin, getMetricasAdmin, getOrdenesAdmin, getUsuariosAdmin } from '../services/admin';
 import { getCodigoPublico, getEstadoCodigo, getMiCodigo, getMisRecomendaciones, getMisVisitasCliente, getStatsEmbajador, getVisitasNegocio } from '../services/referrals';
+import { getMisRecargas, getRecargasPendientesAdmin } from '../services/recargas';
 import { getMisAjustes, getMisComisiones, getMiSaldo } from '../services/wallet';
 import { getRetiros, totalRetirado } from '../simulacion/retiros';
 import type { NegocioCatalogo } from '../types';
@@ -44,6 +45,8 @@ export const K = {
   adminNegocios: 'admin-negocios',
   adminUsuarios: 'admin-usuarios',
   adminCodigos: 'admin-codigos',
+  misRecargas: 'mis-recargas',
+  adminRecargas: 'admin-recargas',
   codigoPublico: 'codigo-publico',
   estadoCodigo: 'estado-codigo',
 } as const;
@@ -83,6 +86,7 @@ export const useCatalogo = (invitado: boolean) =>
 export const useMiNegocio = () => useConsulta(K.miNegocio, getMiNegocio, LENTO);
 export const useVisitasNegocio = () => useConsulta(K.visitasNegocio, getVisitasNegocio);
 export const useResumenNegocio = () => useConsulta(K.resumenNegocio, getResumenNegocio);
+export const useMisRecargas = () => useConsulta(K.misRecargas, getMisRecargas);
 export const useEmbajadoresNegocio = () => useConsulta(K.embajadoresNegocio, getEmbajadoresNegocio, LENTO);
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
@@ -90,4 +94,5 @@ export const useAdminMetricas = () => useConsulta(K.adminMetricas, getMetricasAd
 export const useAdminOrdenes = () => useConsulta(K.adminOrdenes, getOrdenesAdmin);
 export const useAdminNegocios = () => useConsulta(K.adminNegocios, getNegociosAdmin, LENTO);
 export const useAdminUsuarios = () => useConsulta(K.adminUsuarios, getUsuariosAdmin, LENTO);
+export const useAdminRecargas = () => useConsulta(K.adminRecargas, getRecargasPendientesAdmin);
 export const useAdminCodigos = () => useConsulta(K.adminCodigos, getCodigosAdmin, LENTO);

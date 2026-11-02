@@ -1,3 +1,4 @@
+import { ACEPTACION_NEGOCIO, ACEPTACION_REGISTRO } from '@/hazlo/legal/textos';
 import { supabase } from '../supabase';
 import type { Profile, Rol } from '../types';
 import { olvidarEsteTelefono } from './push';
@@ -77,6 +78,7 @@ export async function registrarConEmail(d: DatosRegistro): Promise<ResultadoLogi
         nombre: d.nombre.trim(),
         telefono: d.telefono?.trim() || null,
         roles,
+        legal: ACEPTACION_REGISTRO,
       },
     },
   });
@@ -103,6 +105,9 @@ async function registrarCuentaDePrueba(d: DatosRegistro): Promise<ResultadoLogin
       email,
       password: d.password,
       telefono: d.telefono?.trim() ?? '',
+      // Versiones del contrato y del aviso que aceptó; la función guarda la
+      // fecha con la hora del servidor como evidencia.
+      legal: ACEPTACION_REGISTRO,
     },
   });
 
@@ -116,6 +121,46 @@ async function registrarCuentaDePrueba(d: DatosRegistro): Promise<ResultadoLogin
   const entrar = await supabase.auth.signInWithPassword({ email, password: d.password });
   if (entrar.error) {
     return { ok: false, error: 'Tu cuenta quedó creada, pero no pudimos entrar. Usa «Entrar» con tu correo.' };
+  }
+  return { ok: true, error: null };
+}
+
+export interface DatosRegistroNegocio {
+  negocio: {
+    nombre: string;
+    descripcion: string;
+    grupo: string;
+    giros: string[];
+    direccion: string;
+    ciudad: string;
+    oferta: string;
+  };
+  responsable: string;
+  telefono: string;
+  email: string;
+  password: string;
+}
+
+// Alta de un negocio con su cuenta dueña. La Edge Function `registro-negocio`
+// crea la cuenta con rol 'negocio' y el negocio oculto y por aprobar (el rol
+// sólo se da en el servidor). Después se entra con la misma contraseña y el
+// AuthProvider lleva al panel del negocio.
+export async function registrarNegocio(d: DatosRegistroNegocio): Promise<ResultadoLogin> {
+  const email = d.email.trim().toLowerCase();
+  const { data, error } = await supabase.functions.invoke('registro-negocio', {
+    body: { ...d, email, legal: ACEPTACION_NEGOCIO },
+  });
+
+  if (error) return { ok: false, error: 'No pudimos registrar tu negocio. Revisa tu conexión e inténtalo de nuevo.' };
+  const r = data as { ok?: boolean; codigo?: string; error?: string } | null;
+  if (!r?.ok) {
+    if (r?.codigo === 'datos' || r?.codigo === 'ya_existe') return { ok: false, error: r.error ?? 'Revisa tus datos.' };
+    return { ok: false, error: 'No pudimos registrar tu negocio. Inténtalo de nuevo.' };
+  }
+
+  const entrar = await supabase.auth.signInWithPassword({ email, password: d.password });
+  if (entrar.error) {
+    return { ok: false, error: 'Tu negocio quedó registrado, pero no pudimos entrar. Usa «Entrar» con tu correo.' };
   }
   return { ok: true, error: null };
 }

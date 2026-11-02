@@ -5,9 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HazloMark } from '../HazloMark';
 import { Icon, type IconName } from '../icons';
-import { INTERNO_VISIBLE } from '../interno/SoloInterno';
-import { FondoLanding, VisorFondos } from '../landing/FondoLanding';
-import { useFondoLanding, type Zonas } from '../landing/fondos';
+import { FondoCiclo, type Zonas } from '../landing/FondoCiclo';
 import { Fade, PressableScale, STAGGER, useReduceMotion } from '../motion';
 import { C, F, R } from '../theme';
 
@@ -104,8 +102,8 @@ export function LandingScreen({ onRecomendar, onBuscar, onEntrar }: { onRecomend
   // "Tu recomendación" en una sola línea: mide ~9.3 × el tamaño de letra y el
   // cuadro deja 72 puntos de márgenes. De 33 en un SE a 38 en pantallas grandes.
   const titulo = Math.max(28, Math.min(38, Math.floor((width - 72) / 9.3)));
-  const fondo = useFondoLanding();
   const [medidas, setMedidas] = useState<Partial<Record<Pieza, LayoutRectangle>>>({});
+  const zonas = zonasDe(medidas);
   const medir = (p: Pieza) => (e: { nativeEvent: { layout: LayoutRectangle } }) => {
     const l = e.nativeEvent.layout;
     setMedidas((m) => (igual(m[p], l) ? m : { ...m, [p]: l }));
@@ -115,7 +113,12 @@ export function LandingScreen({ onRecomendar, onBuscar, onEntrar }: { onRecomend
     <View style={{ flex: 1, padding: 10, paddingBottom: 10 + insets.bottom }}>
       <Fade style={{ flex: 1 }}>
         <View onLayout={medir('cuadro')} style={{ flex: 1, borderRadius: 32, overflow: 'hidden', backgroundColor: '#000' }}>
-          <FondoLanding id={fondo.id} z={zonasDe(medidas)} />
+          {/* Hasta tener las zonas medidas no pinta nada (el cuadro es negro igual). */}
+          {zonas && (
+            <Fade style={StyleSheet.absoluteFill}>
+              <FondoCiclo z={zonas} />
+            </Fade>
+          )}
 
           <View style={{ flex: 1, paddingHorizontal: 26, paddingTop: 28, paddingBottom: 26 }}>
             <View onLayout={medir('logo')}>
@@ -127,7 +130,26 @@ export function LandingScreen({ onRecomendar, onBuscar, onEntrar }: { onRecomend
                       Hazlo <Text style={{ color: C.primary }}>Cash</Text>
                     </Text>
                   </View>
-                  {INTERNO_VISIBLE && <VisorFondos />}
+                  <PressableScale
+                    onPress={onEntrar}
+                    accessibilityRole="button"
+                    accessibilityLabel="Iniciar sesión"
+                    hitSlop={8}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      height: 34,
+                      paddingLeft: 11,
+                      paddingRight: 14,
+                      borderRadius: 999,
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,255,255,0.18)',
+                    }}>
+                    <Icon name="user" size={14} color="#fff" sw={2.2} />
+                    <Text style={{ fontFamily: F.semi, fontSize: 12.5, color: '#fff' }}>Iniciar sesión</Text>
+                  </PressableScale>
                 </View>
               </Fade>
             </View>
@@ -176,9 +198,32 @@ export function LandingScreen({ onRecomendar, onBuscar, onEntrar }: { onRecomend
                       marginTop: 16,
                       maxWidth: 300,
                     }}>
-                    Hazlo Cash convierte el boca en boca en ingresos reales. Recomienda negocios que ya conoces: cada vez que alguien use tu código,{' '}
-                    <Text style={{ fontFamily: F.semi, color: '#fff' }}>tú cobras.</Text>
+                    Recomienda tus negocios favoritos, comparte tu código y{' '}
+                    <Text style={{ fontFamily: F.semi, color: '#fff' }}>gana dinero cada vez que alguien lo utilice.</Text>
                   </Text>
+                </Fade>
+
+                {/* Mismo destino que «Buscar» de abajo: el catálogo sin cuenta. */}
+                <Fade delay={STAGGER * 5} desde={14}>
+                  <PressableScale
+                    onPress={onBuscar}
+                    accessibilityRole="button"
+                    accessibilityLabel="Buscar negocios y servicios"
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      alignSelf: 'center',
+                      height: 42,
+                      marginTop: 20,
+                      paddingLeft: 14,
+                      paddingRight: 18,
+                      borderRadius: 999,
+                      backgroundColor: '#fff',
+                    }}>
+                    <Icon name="search" size={16} color="#0D0D0D" sw={2.3} />
+                    <Text style={{ fontFamily: F.semi, fontSize: 14, color: '#0D0D0D' }}>Buscar</Text>
+                  </PressableScale>
                 </Fade>
               </View>
             </View>

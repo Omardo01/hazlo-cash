@@ -2,14 +2,14 @@ import { supabase } from '../supabase';
 import type { Business, BusinessAdmin, ComisionTipo, NegocioCatalogo } from '../types';
 
 // Columnas extra que sólo ven admin y dueño (dueño + saldo + config de comisión).
-const COLS_ADMIN = 'id, nombre, categoria, descripcion, direccion, oferta, activo, owner_id, creditos, comision_tipo, comision_valor';
+const COLS_ADMIN = 'id, nombre, categoria, descripcion, direccion, oferta, activo, owner_id, creditos, comision_tipo, comision_valor, giros, por_aprobar';
 
 // Catálogo público de negocios activos (vista Cliente / Discover).
 // RLS permite la lectura anónima de negocios con activo = true.
 export async function getNegociosActivos(): Promise<Business[]> {
   const { data, error } = await supabase
     .from('businesses')
-    .select('id, nombre, categoria, descripcion, direccion, oferta, activo')
+    .select('id, nombre, categoria, descripcion, direccion, oferta, activo, giros')
     .eq('activo', true)
     .order('nombre');
 
@@ -61,8 +61,10 @@ export async function getMiNegocio(): Promise<BusinessAdmin | null> {
 }
 
 // Activar / desactivar un negocio (admin).
+// Activar uno que se registró solo es aprobarlo: deja de estar por aprobar.
 export async function setNegocioActivo(id: string, activo: boolean): Promise<{ ok: boolean }> {
-  const { error } = await supabase.from('businesses').update({ activo }).eq('id', id);
+  const cambios = activo ? { activo, por_aprobar: false } : { activo };
+  const { error } = await supabase.from('businesses').update(cambios).eq('id', id);
   return { ok: !error };
 }
 

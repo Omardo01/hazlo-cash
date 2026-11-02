@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { REGISTRO_DE_PRUEBA, registrarConEmail } from '@/lib/services/auth';
 import { HazloMark } from '../HazloMark';
+import { irADocumentoLegal } from '../legal/PantallaLegal';
 import { Icon } from '../icons';
 import { Fade, PressableScale, STAGGER } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
@@ -64,11 +65,14 @@ export function RegistroScreen({ onEntrar, onNegocio }: { onEntrar: () => void; 
   const [focoPass, setFocoPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Casilla no premarcada: el contrato pide aceptación expresa (DÉCIMA SEGUNDA).
+  const [acepta, setAcepta] = useState(false);
 
   const onSubmit = async () => {
     if (!nombre.trim()) return setError('Escribe tu nombre.');
     if (!email.trim().includes('@')) return setError('Escribe un correo válido.');
     if (password.length < 6) return setError('La contraseña necesita al menos 6 caracteres.');
+    if (!acepta) return setError('Para crear tu cuenta acepta el contrato y el aviso de privacidad.');
 
     setError(null);
     setLoading(true);
@@ -206,6 +210,44 @@ export function RegistroScreen({ onEntrar, onNegocio }: { onEntrar: () => void; 
                 Generas un QR para cada recomendación: sirve para una compra y, al usarse, ganas.
               </Text>
             </View>
+          </View>
+        </Fade>
+
+        <Fade delay={STAGGER * 5} desde={10}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 14 }}>
+            <PressableScale
+              onPress={() => {
+                setAcepta((v) => !v);
+                setError(null);
+              }}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: acepta }}
+              accessibilityLabel="Acepto el contrato de recomendador y el aviso de privacidad"
+              hitSlop={8}
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 7,
+                marginTop: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1.5,
+                borderColor: acepta ? C.primary : 'rgba(13,13,13,0.25)',
+                backgroundColor: acepta ? C.primary : '#fff',
+              }}>
+              {acepta && <Ionicons name="checkmark" size={15} color="#fff" />}
+            </PressableScale>
+            <Text style={{ flex: 1, fontFamily: F.reg, fontSize: 12, lineHeight: 18, color: MUTED }}>
+              Acepto el{' '}
+              <Text onPress={() => irADocumentoLegal('recomendadores')} accessibilityRole="link" style={{ fontFamily: F.semi, color: C.primary }}>
+                Contrato de recomendador
+              </Text>{' '}
+              y el{' '}
+              <Text onPress={() => irADocumentoLegal('privacidad')} accessibilityRole="link" style={{ fontFamily: F.semi, color: C.primary }}>
+                Aviso de privacidad
+              </Text>
+              . Soy mayor de edad.
+            </Text>
           </View>
         </Fade>
 
