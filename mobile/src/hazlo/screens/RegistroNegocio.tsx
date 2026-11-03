@@ -6,6 +6,8 @@ import { ActivityIndicator, Animated, KeyboardAvoidingView, Platform, ScrollView
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { registrarNegocio } from '@/lib/services/auth';
+import { getPrecargaRegistro } from '@/lib/services/sugerencias';
+import type { PrecargaRegistro } from '@/lib/types';
 import { grupoPorSlug } from '../categorias/catalogo';
 import { ETIQUETADO_VACIO, SelectorGiros, type Etiquetado } from '../categorias/SelectorGiros';
 import { Icon } from '../icons';
@@ -21,6 +23,10 @@ import { CajaCampo, hueColors } from '../ui';
  * Formulario → resumen para revisar → la Edge Function `registro-negocio` crea
  * la cuenta dueña (rol negocio) y el negocio oculto y por aprobar. Al entrar,
  * el AuthProvider lleva al panel del negocio, que avisa que está en revisión.
+ *
+ * Con `?s=<id>` (link de invitación que el admin manda por WhatsApp) llega
+ * lleno con lo que los usuarios contaron al recomendarlo, y al registrarse el
+ * negocio queda ligado a quienes lo recomendaron.
  */
 
 interface DatosNegocio {
@@ -189,6 +195,37 @@ function Seccion({
   );
 }
 
+// Arriba del formulario cuando se llega por el link de invitación.
+function AvisoInvitacion({ invitacion }: { invitacion: PrecargaRegistro }) {
+  if (invitacion.ya_registrado) {
+    return (
+      <Fade delay={STAGGER} desde={10} style={{ marginTop: 20, padding: 14, borderRadius: R.md, backgroundColor: 'rgba(235,78,0,0.08)', borderWidth: 1, borderColor: 'rgba(235,78,0,0.18)' }}>
+        <Text style={{ fontFamily: F.semi, fontSize: 13.5, color: FG }}>Este negocio ya está registrado</Text>
+        <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED, marginTop: 3, lineHeight: 17 }}>
+          Si es tuyo, entra con el correo con el que lo registraste.
+        </Text>
+      </Fade>
+    );
+  }
+  const n = invitacion.recomendaciones;
+  return (
+    <Fade delay={STAGGER} desde={10} style={{ marginTop: 20, borderRadius: R.md, overflow: 'hidden', padding: 16 }}>
+      <LinearGradient colors={['#1A1840', '#2D2B8F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="heart" size={18} color="#fff" sw={2.2} />
+        </View>
+        <Text style={{ flex: 1, fontFamily: F.bold, fontSize: 15.5, color: '#fff', letterSpacing: -0.2 }}>
+          {n > 1 ? `${n} personas te recomendaron` : 'Alguien te recomendó'}
+        </Text>
+      </View>
+      <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: 'rgba(255,255,255,0.88)', marginTop: 10, lineHeight: 18 }}>
+        Ya llenamos lo que nos contaron de tu negocio. Revísalo y completa lo que falta.
+      </Text>
+    </Fade>
+  );
+}
+
 /** Cómo verá la oferta quien llega recomendado. Se actualiza mientras se escribe. */
 function VistaOferta({ nombre, oferta }: { nombre: string; oferta: string }) {
   const vacia = !oferta.trim();
@@ -224,12 +261,14 @@ function Formulario({
   set,
   onEtiquetado,
   onRegistrar,
+  invitacion,
 }: {
   datos: DatosNegocio;
   errores: Errores;
   set: (campo: Exclude<Campo, 'etiquetado'>, valor: string) => void;
   onEtiquetado: (v: Etiquetado) => void;
   onRegistrar: (scrollA: (seccion: number) => void) => void;
+  invitacion: PrecargaRegistro | null;
 }) {
   const scroll = useRef<ScrollView>(null);
   const marco = useRef<View>(null);
@@ -281,6 +320,8 @@ function Formulario({
               </Text>
             </View>
           </Fade>
+
+          {invitacion && <AvisoInvitacion invitacion={invitacion} />}
 
           <Seccion n={0} titulo="Tu negocio" refSeccion={refSeccion}>
             <CampoTexto
@@ -657,9 +698,16 @@ function Resumen({
 // `conAreaSegura` en false cuando ya la pone quien la contiene (la puerta de
 // entrada de la app), para no sumar dos veces el margen de arriba. `onListo`
 // corre ya con la sesión del dueño abierta; dentro de la puerta de entrada no
-// hace falta: el AuthProvider cambia de pantalla solo.
-export function RegistroNegocioScreen({ conAreaSegura = true, onListo }: { conAreaSegura?: boolean; onListo?: () => void } = {}) {
+// hace falta: el AuthProvider cambia de pantalla solo. `sugerencia`: el id del
+// link de invitación; precarga el formulario.
+export function RegistroNegocioScreen({
+  conAreaSegura = true,
+  onListo,
+  sugerencia,
+}: { conAreaSegura?: boolean; onListo?: () => void; sugerencia?: string } = {}) {
   const [datos, setDatos] = useState<DatosNegocio>(VACIO);
+  const [invitacion, setInvitacion] = useState<PrecargaRegistro | null>(null);
+  const [precargando, setPrecargando] = useState(!!sugerencia);
   const [errores, setErrores] = useState<Errores>({});
   const [enviando, setEnviando] = useState(false);
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
@@ -674,6 +722,30 @@ export function RegistroNegocioScreen({ conAreaSegura = true, onListo }: { conAr
     setErrores((e) => (e[campo] ? { ...e, [campo]: undefined } : e));
   }, []);
   const onEtiquetado = useCallback((v: Etiquetado) => set('etiquetado', v), [set]);
+
+  // Lo que los usuarios ya contaron llega a los campos; el resto lo llena el dueño.
+  useEffect(() => {
+    if (!sugerencia) return;
+    let vivo = true;
+    getPrecargaRegistro(sugerencia).then((p) => {
+      if (!vivo) return;
+      setInvitacion(p);
+      if (p && !p.ya_registrado) {
+        const grupo = grupoPorSlug(p.grupo);
+        setDatos((d) => ({
+          ...d,
+          nombre: p.nombre,
+          direccion: p.direccion,
+          telefono: p.contacto ? formatearTelefono(p.contacto) : d.telefono,
+          etiquetado: grupo ? { grupo: grupo.slug, giros: grupo.giros.includes(p.giro) ? [p.giro] : [] } : d.etiquetado,
+        }));
+      }
+      setPrecargando(false);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [sugerencia]);
 
   // La vista que se va sale con fade antes de desmontarse; la nueva entra con
   // sus propios Fade. La opacidad vuelve a 1 ya con la nueva montada.
@@ -726,6 +798,7 @@ export function RegistroNegocioScreen({ conAreaSegura = true, onListo }: { conAr
       telefono: soloDigitos(datos.telefono),
       email: datos.correo,
       password: datos.password,
+      sugerencia: invitacion && !invitacion.ya_registrado ? sugerencia : undefined,
     });
     if (!r.ok) {
       setErrorEnvio(r.error);
@@ -740,8 +813,12 @@ export function RegistroNegocioScreen({ conAreaSegura = true, onListo }: { conAr
       <StatusBar style="dark" />
       <SafeAreaView style={{ flex: 1 }} edges={conAreaSegura ? ['top'] : []}>
         <Animated.View style={{ flex: 1, opacity: opacidad }}>
-          {vista === 'formulario' ? (
-            <Formulario datos={datos} errores={errores} set={set} onEtiquetado={onEtiquetado} onRegistrar={registrar} />
+          {precargando ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator color={C.primary} />
+            </View>
+          ) : vista === 'formulario' ? (
+            <Formulario datos={datos} errores={errores} set={set} onEtiquetado={onEtiquetado} onRegistrar={registrar} invitacion={invitacion} />
           ) : (
             <Resumen datos={datos} enviando={enviando} error={errorEnvio} onEditar={() => irA('formulario')} onEnviar={enviar} />
           )}

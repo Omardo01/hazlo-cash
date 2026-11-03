@@ -13,6 +13,7 @@ import { C, F, FG, MUTED, R } from './theme';
 export type MotivoCuenta =
   | { k: 'inicio' }
   | { k: 'recomendar' }
+  | { k: 'sugerir' }
   | { k: 'actividad' }
   | { k: 'perfil' }
   | { k: 'promo'; negocio?: string };
@@ -20,6 +21,7 @@ export type MotivoCuenta =
 const TEXTOS: Record<MotivoCuenta['k'], { icono: IconName; titulo: string; texto: string }> = {
   inicio: { icono: 'home', titulo: 'Tu panel de recomendador', texto: 'Ve cuánto llevas ganado, tus códigos y quién usó tus recomendaciones.' },
   recomendar: { icono: 'send', titulo: 'Recomienda y gana', texto: 'Comparte un negocio que te guste y cobra cada vez que alguien llegue con tu código.' },
+  sugerir: { icono: 'send', titulo: 'Recomienda un negocio nuevo', texto: 'Crea tu cuenta para mandárnoslo. Cuando se sume a Hazlo Cash, podrás ganar por recomendarlo.' },
   actividad: { icono: 'activity', titulo: 'Tus ganancias', texto: 'Aquí verás cada comisión que entra y podrás retirar tu dinero.' },
   perfil: { icono: 'user', titulo: 'Tu perfil', texto: 'Crea tu cuenta para tener tu código personal y tu QR.' },
   promo: { icono: 'gift', titulo: 'Promociones exclusivas', texto: 'Las promos de los negocios son solo para quien tiene cuenta en Hazlo Cash.' },

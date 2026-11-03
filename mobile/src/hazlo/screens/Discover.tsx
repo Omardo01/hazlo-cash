@@ -15,6 +15,7 @@ import { Fade, PressableScale, STAGGER } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
 import { FoodTile, hueColors, SectionHeader } from '../ui';
 import { VistaRecomendarNegocio, type GiroElegido } from './RecomendarNegocio';
+import { TusRecomendaciones } from './TusRecomendaciones';
 
 // Hue estable por negocio para que los tiles se vean variados sin foto real.
 function hueDeId(id: string): number {
@@ -500,17 +501,20 @@ function Resultados({
 // Descubre: el catálogo de categorías del Excel (12 grupos) con los negocios
 // que hay en cada una y en cada giro. `invitado`: se entró sin cuenta desde el
 // landing; las promociones se ven con candado y tocarlas llama
-// `onPromoBloqueada`. Con `onElegir` (pantalla Recomienda) cada negocio se
+// `onPromoBloqueada`, y "Recomienda un negocio" (pide sesión para guardarse)
+// llama `onSugerirBloqueado`. Con `onElegir` (pantalla Recomienda) cada negocio se
 // puede tocar para generar su QR; `titulo` y `encabezado` cambian lo de arriba.
 export function DiscoverScreen({
   invitado = false,
   onPromoBloqueada,
+  onSugerirBloqueado,
   onElegir,
   titulo = 'Descubre',
   encabezado,
 }: {
   invitado?: boolean;
   onPromoBloqueada?: AlBloqueo;
+  onSugerirBloqueado?: () => void;
   onElegir?: AlElegir;
   titulo?: string;
   encabezado?: ReactNode;
@@ -553,6 +557,8 @@ export function DiscoverScreen({
 
   // En la pantalla Recomienda (elegir para QR) no se ofrece el formulario.
   const puedeRecomendar = !onElegir;
+  // Sin sesión no se puede guardar: en vez del formulario sale la puerta de cuenta.
+  const recomendar = (g?: GiroElegido) => (invitado ? onSugerirBloqueado?.() : setRecomendando({ giro: g }));
 
   return (
     <ScrollView
@@ -574,7 +580,7 @@ export function DiscoverScreen({
           onVolver={volver}
           onPromoBloqueada={alBloqueo}
           onElegir={onElegir}
-          onRecomendar={puedeRecomendar ? () => setRecomendando({ giro: giro === TODOS ? undefined : { grupo, giro } }) : undefined}
+          onRecomendar={puedeRecomendar ? () => recomendar(giro === TODOS ? undefined : { grupo, giro }) : undefined}
         />
       ) : grupo ? (
         <VistaGrupo
@@ -600,7 +606,8 @@ export function DiscoverScreen({
             <Resultados busqueda={busqueda} negocios={negocios} onAbrir={abrir} onPromoBloqueada={alBloqueo} onElegir={onElegir} />
           ) : (
             <>
-              {puedeRecomendar && <TarjetaRecomendar onPress={() => setRecomendando({})} />}
+              {puedeRecomendar && <TarjetaRecomendar onPress={() => recomendar()} />}
+              {puedeRecomendar && <TusRecomendaciones conSesion={!invitado} />}
 
               {/* Promociones reales de los negocios que ya están. */}
               {conPromo.length > 0 && (

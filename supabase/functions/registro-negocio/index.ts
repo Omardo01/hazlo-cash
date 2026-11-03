@@ -15,8 +15,13 @@
 // negocios y del aviso de privacidad se guarda en app_metadata.legal con la
 // hora del servidor.
 //
+// Si llega `sugerencia` (el id del link /registro-negocio?s=… que el admin
+// mandó por WhatsApp), el negocio nuevo se liga con todas las
+// recomendaciones de ese negocio y quedan como sumadas. Si eso falla, el
+// registro sigue: el admin lo puede ligar después.
+//
 // POST { negocio: { nombre, descripcion?, grupo, giros[], direccion, ciudad,
-//        oferta }, responsable, telefono, email, password, legal? }
+//        oferta }, responsable, telefono, email, password, legal?, sugerencia? }
 // → { ok: true } | { ok: false, codigo: 'datos' | 'ya_existe' | 'error', error }
 // Los errores esperados vuelven con 200 para que la app los lea en `data`.
 
@@ -69,6 +74,8 @@ export async function handler(req: Request): Promise<Response> {
   const password = String(body.password ?? '');
   const legal = body.legal as Record<string, unknown> | undefined;
   const version = (k: string) => String(legal?.[k] ?? '').slice(0, 20);
+  const sugerencia = String(body.sugerencia ?? '');
+  const esUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sugerencia);
 
   if (nombre.length < 2) return falla('datos', 'Escribe el nombre del negocio.');
   if (!grupo || giros.length === 0) return falla('datos', 'Elige a qué se dedica tu negocio.');
@@ -129,8 +136,16 @@ export async function handler(req: Request): Promise<Response> {
     oferta,
     activo: false,
     por_aprobar: true,
-  });
+  }).select('id').single();
   if (negocio.error) return deshacer(negocio.error.message);
+
+  if (esUuid) {
+    const liga = await admin.rpc('vincular_sugerencia_negocio', {
+      p_sugerencia_id: sugerencia,
+      p_negocio_id: negocio.data.id,
+    });
+    if (liga.error) console.error('vincular_sugerencia_negocio', liga.error.message);
+  }
 
   return json({ ok: true });
 }

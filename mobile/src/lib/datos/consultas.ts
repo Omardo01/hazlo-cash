@@ -10,6 +10,7 @@ import {
 import { getCodigosAdmin, getMetricasAdmin, getOrdenesAdmin, getUsuariosAdmin } from '../services/admin';
 import { getCodigoPublico, getEstadoCodigo, getMiCodigo, getMisRecomendaciones, getMisVisitasCliente, getStatsEmbajador, getVisitasNegocio } from '../services/referrals';
 import { getMisRecargas, getRecargasPendientesAdmin } from '../services/recargas';
+import { getMisSugerencias, getSugerenciasAdmin } from '../services/sugerencias';
 import { getMisAjustes, getMisComisiones, getMiSaldo } from '../services/wallet';
 import { getRetiros, totalRetirado } from '../simulacion/retiros';
 import type { NegocioCatalogo } from '../types';
@@ -47,6 +48,8 @@ export const K = {
   adminCodigos: 'admin-codigos',
   misRecargas: 'mis-recargas',
   adminRecargas: 'admin-recargas',
+  adminSugerencias: 'admin-sugerencias',
+  misSugerencias: 'mis-sugerencias',
   codigoPublico: 'codigo-publico',
   estadoCodigo: 'estado-codigo',
 } as const;
@@ -74,6 +77,8 @@ export const useEstadoCodigo = (codigo: string | null) =>
 export const useCodigoPublico = (codigo: string) =>
   useConsulta(codigo ? `${K.codigoPublico}:${codigo.toUpperCase()}` : null, () => getCodigoPublico(codigo), LENTO);
 export const useMisRecomendaciones = () => useConsulta(K.misRecomendaciones, getMisRecomendaciones);
+// Negocios que propuse sumar (Descubre). Sin sesión no se consulta.
+export const useMisSugerencias = (conSesion: boolean) => useConsulta(conSesion ? K.misSugerencias : null, getMisSugerencias);
 export const useRetiros = () => useConsulta(K.retiros, getRetiros);
 export const useTotalRetirado = () => useConsulta(K.totalRetirado, totalRetirado);
 export const useNegocios = () => useConsulta(K.negocios, getNegociosActivos, LENTO);
@@ -95,4 +100,5 @@ export const useAdminOrdenes = () => useConsulta(K.adminOrdenes, getOrdenesAdmin
 export const useAdminNegocios = () => useConsulta(K.adminNegocios, getNegociosAdmin, LENTO);
 export const useAdminUsuarios = () => useConsulta(K.adminUsuarios, getUsuariosAdmin, LENTO);
 export const useAdminRecargas = () => useConsulta(K.adminRecargas, getRecargasPendientesAdmin);
+export const useAdminSugerencias = () => useConsulta(K.adminSugerencias, getSugerenciasAdmin);
 export const useAdminCodigos = () => useConsulta(K.adminCodigos, getCodigosAdmin, LENTO);

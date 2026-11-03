@@ -12,11 +12,12 @@ import { Icon } from './icons';
 import { AdminNegociosScreen } from './screens/AdminNegocios';
 import { AdminOrdenesScreen } from './screens/AdminOrdenes';
 import { AdminResumenScreen } from './screens/AdminResumen';
+import { AdminSugerenciasScreen } from './screens/AdminSugerencias';
 import { AdminUsuariosScreen } from './screens/AdminUsuarios';
 import { Fade, PressableScale } from './motion';
 import { BG, C, F, FG, MUTED, R } from './theme';
 
-type TabAdmin = 'resumen' | 'negocios' | 'ordenes' | 'usuarios' | 'cuenta';
+type TabAdmin = 'resumen' | 'negocios' | 'sugerencias' | 'ordenes' | 'usuarios' | 'cuenta';
 
 function CuentaAdmin() {
   const [perfil, setPerfil] = useState<Profile | null>(null);
@@ -59,6 +60,8 @@ function CuentaAdmin() {
 const TABS: TabItem<TabAdmin>[] = [
   { k: 'resumen', label: 'Resumen', icon: 'chart' },
   { k: 'negocios', label: 'Negocios', icon: 'home' },
+  // Etiqueta corta: con 6 pestañas "Sugerencias" se encima con Negocios.
+  { k: 'sugerencias', label: 'Sugeridos', icon: 'send' },
   { k: 'ordenes', label: 'Órdenes', icon: 'activity' },
   { k: 'usuarios', label: 'Usuarios', icon: 'user' },
   { k: 'cuenta', label: 'Cuenta', icon: 'settings' },
@@ -71,6 +74,7 @@ export function AdminApp() {
 
   const screen = () => {
     if (tab === 'negocios') return <AdminNegociosScreen />;
+    if (tab === 'sugerencias') return <AdminSugerenciasScreen />;
     if (tab === 'ordenes') return <AdminOrdenesScreen />;
     if (tab === 'usuarios') return <AdminUsuariosScreen />;
     if (tab === 'cuenta') return <CuentaAdmin />;

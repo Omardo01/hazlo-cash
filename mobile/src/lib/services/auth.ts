@@ -139,6 +139,8 @@ export interface DatosRegistroNegocio {
   telefono: string;
   email: string;
   password: string;
+  /** Id del link de invitación: liga el negocio con quienes lo recomendaron. */
+  sugerencia?: string;
 }
 
 // Alta de un negocio con su cuenta dueña. La Edge Function `registro-negocio`

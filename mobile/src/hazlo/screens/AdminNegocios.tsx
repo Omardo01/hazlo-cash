@@ -336,8 +336,9 @@ function FilaComision({ n, onGuardada }: { n: BusinessAdmin; onGuardada: (tipo: 
   );
 }
 
-function hace(fecha: string): string {
+export function hace(fecha: string): string {
   const min = Math.max(0, Math.round((Date.now() - new Date(fecha).getTime()) / 60_000));
+  if (min < 1) return 'hace un momento';
   if (min < 60) return `hace ${min} min`;
   const h = Math.round(min / 60);
   if (h < 24) return `hace ${h} h`;

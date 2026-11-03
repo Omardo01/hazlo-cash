@@ -14,7 +14,7 @@ export interface MiCodigo {
 // Dominio de los links públicos. En web, el mismo de donde se abrió la app
 // (hazlocash.com, un preview de Vercel o localhost): así el link siempre abre
 // una página que existe. En el teléfono, el de la config o hazlocash.com.
-function baseApp(): string {
+export function baseApp(): string {
   if (Platform.OS === 'web' && typeof window !== 'undefined') return window.location.origin;
   return (process.env.EXPO_PUBLIC_APP_URL ?? 'https://hazlocash.com').replace(/\/$/, '');
 }

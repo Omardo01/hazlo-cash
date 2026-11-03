@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { invalidar } from '@/lib/datos/cache';
+import { K } from '@/lib/datos/consultas';
+import { sugerirNegocio } from '@/lib/services/sugerencias';
 import { buscarGiros, type Grupo } from '../categorias/catalogo';
 import { Buscador, IconoGrupo, TextoResaltado } from '../categorias/piezas';
 import { Icon } from '../icons';
@@ -11,7 +14,8 @@ import { CampoTexto, Palomita } from './RegistroNegocio';
 
 /**
  * Descubre → "Recomienda un negocio": el usuario propone un negocio que aún no
- * está en Hazlo Cash. Por ahora es solo gráfico: no se guarda en ningún lado.
+ * está en Hazlo Cash. Se guarda en `sugerencias_negocio` y le aparece al admin
+ * en la pestaña Sugerencias. Pide sesión: el invitado ve la puerta de cuenta.
  */
 
 export interface GiroElegido {
@@ -114,7 +118,7 @@ function ElegirGiro({ valor, onCambio, error }: { valor: GiroElegido | null; onC
   );
 }
 
-function Listo({ datos, onOtro, onVolver }: { datos: Datos; onOtro: () => void; onVolver: () => void }) {
+function Listo({ datos, recomendaciones, onOtro, onVolver }: { datos: Datos; recomendaciones: number; onOtro: () => void; onVolver: () => void }) {
   return (
     <Fade key="listo" desde={14} style={{ alignItems: 'center', paddingTop: 12 }}>
       <Palomita />
@@ -124,6 +128,12 @@ function Listo({ datos, onOtro, onVolver }: { datos: Datos; onOtro: () => void; 
       <Text style={{ fontFamily: F.reg, fontSize: 13, color: MUTED, marginTop: 6, textAlign: 'center', lineHeight: 19, paddingHorizontal: 8 }}>
         Vamos a invitar a <Text style={{ fontFamily: F.semi, color: FG }}>{datos.nombre.trim()}</Text> a Hazlo Cash. Cuando se sume, podrás ganar por recomendarlo.
       </Text>
+      {recomendaciones > 1 && (
+        <Fade delay={STAGGER} desde={8} style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: `${C.primary}14` }}>
+          <Icon name="user" size={14} color={C.primary} sw={2.2} />
+          <Text style={{ fontFamily: F.semi, fontSize: 12.5, color: C.primary }}>Ya son {recomendaciones} personas que lo recomiendan</Text>
+        </Fade>
+      )}
 
       <Fade delay={STAGGER * 2} desde={10} style={{ alignSelf: 'stretch', marginTop: 22, padding: 16, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.06)', gap: 12 }}>
         {datos.giro && (
@@ -154,6 +164,8 @@ export function VistaRecomendarNegocio({ giroInicial, onVolver }: { giroInicial?
   const [errores, setErrores] = useState<Errores>({});
   const [intento, setIntento] = useState(false);
   const [etapa, setEtapa] = useState<'form' | 'enviando' | 'listo'>('form');
+  const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
+  const [recomendaciones, setRecomendaciones] = useState(0);
 
   // Tras el primer intento, los errores se recalculan mientras se corrige.
   const set = <K extends keyof Datos>(k: K, v: Datos[K]) => {
@@ -162,29 +174,42 @@ export function VistaRecomendarNegocio({ giroInicial, onVolver }: { giroInicial?
     if (intento) setErrores(validar(nuevos));
   };
 
-  // Simulado: una pausa corta para que el envío se sienta, y listo.
-  useEffect(() => {
-    if (etapa !== 'enviando') return;
-    const t = setTimeout(() => setEtapa('listo'), 700);
-    return () => clearTimeout(t);
-  }, [etapa]);
-
-  const enviar = () => {
+  const enviar = async () => {
     setIntento(true);
     const e = validar(datos);
     setErrores(e);
-    if (Object.keys(e).length === 0) setEtapa('enviando');
+    if (Object.keys(e).length > 0 || !datos.giro) return;
+    setErrorEnvio(null);
+    setEtapa('enviando');
+    const res = await sugerirNegocio({
+      nombre: datos.nombre,
+      direccion: datos.direccion,
+      contacto: datos.contacto,
+      grupo: datos.giro.grupo.slug,
+      giro: datos.giro.giro,
+    });
+    if (!res.ok) {
+      setErrorEnvio(res.error ?? 'No pudimos enviarla. Revisa tu conexión e intenta otra vez.');
+      setEtapa('form');
+      return;
+    }
+    invalidar(K.adminSugerencias);
+    invalidar(K.misSugerencias);
+    setRecomendaciones(res.recomendaciones);
+    setEtapa('listo');
   };
 
   if (etapa === 'listo') {
     return (
       <Listo
         datos={datos}
+        recomendaciones={recomendaciones}
         onVolver={onVolver}
         onOtro={() => {
           setDatos({ ...vacio, giro: null });
           setErrores({});
           setIntento(false);
+          setErrorEnvio(null);
           setEtapa('form');
         }}
       />
@@ -242,9 +267,11 @@ export function VistaRecomendarNegocio({ giroInicial, onVolver }: { giroInicial?
           style={{ marginTop: 6, height: 52, borderRadius: R.md, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', opacity: enviando ? 0.8 : 1 }}>
           {enviando ? <ActivityIndicator color="#fff" /> : <Text style={{ fontFamily: F.semi, fontSize: 15, color: '#fff' }}>Enviar recomendación</Text>}
         </PressableScale>
-        <Text style={{ fontFamily: F.reg, fontSize: 10.5, color: MUTED, textAlign: 'center', marginTop: 10 }}>
-          Vista previa · por ahora la recomendación no se guarda.
-        </Text>
+        {errorEnvio && (
+          <Fade key={errorEnvio} desde={6}>
+            <Text style={{ fontFamily: F.base, fontSize: 12, color: C.accent, textAlign: 'center', marginTop: 10, lineHeight: 17 }}>{errorEnvio}</Text>
+          </Fade>
+        )}
       </Fade>
     </Fade>
   );

@@ -71,7 +71,11 @@ export function ExplorarInvitado({
       </View>
 
       <View style={{ flex: 1 }}>
-        <DiscoverScreen invitado onPromoBloqueada={(negocio) => setMotivo({ k: 'promo', negocio })} />
+        <DiscoverScreen
+          invitado
+          onPromoBloqueada={(negocio) => setMotivo({ k: 'promo', negocio })}
+          onSugerirBloqueado={() => setMotivo({ k: 'sugerir' })}
+        />
       </View>
 
       <TabBar

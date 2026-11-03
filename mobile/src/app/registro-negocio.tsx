@@ -1,18 +1,17 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { MarcoMovil } from '@/hazlo/categorias/MarcoMovil';
-import { SoloInterno } from '@/hazlo/interno/SoloInterno';
 import { RegistroNegocioScreen } from '@/hazlo/screens/RegistroNegocio';
 
-// /registro-negocio — la misma alta de negocio de la puerta de entrada, suelta
-// para probarla. En una build de producción del teléfono redirige a / (ver
-// SoloInterno). En escritorio web se ve dentro de un teléfono, como /categorias.
+// /registro-negocio — alta pública de un negocio. Es la página del link de
+// invitación que el admin manda por WhatsApp (?s=<id de la sugerencia>), que
+// llega con el formulario lleno. En escritorio web se ve dentro de un
+// teléfono, como /categorias.
 export default function RegistroNegocioRoute() {
+  const { s } = useLocalSearchParams<{ s?: string }>();
   return (
-    <SoloInterno>
-      <MarcoMovil>
-        <RegistroNegocioScreen onListo={() => router.replace('/')} />
-      </MarcoMovil>
-    </SoloInterno>
+    <MarcoMovil>
+      <RegistroNegocioScreen sugerencia={typeof s === 'string' && s ? s : undefined} onListo={() => router.replace('/')} />
+    </MarcoMovil>
   );
 }

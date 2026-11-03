@@ -58,6 +58,57 @@ export interface SolicitudRecargaAdmin extends SolicitudRecarga {
   negocio: string; // nombre del negocio
 }
 
+// Negocio que un usuario recomienda sumar a Hazlo Cash (Descubre → "Recomienda un negocio").
+export type EstadoSugerencia = 'nueva' | 'contactada' | 'sumada' | 'descartada';
+
+export interface NuevaSugerencia {
+  nombre: string;
+  direccion: string;
+  contacto: string; // opcional: '' si no lo dieron
+  grupo: string; // slug del grupo del catálogo
+  giro: string;
+}
+
+// Una recomendación del usuario en sesión, con el estado del negocio.
+export interface MiSugerencia {
+  id: string;
+  nombre: string;
+  grupo: string;
+  giro: string;
+  estado: EstadoSugerencia;
+  created_at: string;
+  resuelta_en: string | null;
+  lugar: number; // 1 = fue el primero en recomendarlo
+  total: number; // cuántas personas lo han recomendado
+}
+
+// Lo que el link de invitación (/registro-negocio?s=…) precarga en el registro.
+export interface PrecargaRegistro {
+  nombre: string;
+  direccion: string;
+  contacto: string | null;
+  grupo: string;
+  giro: string;
+  recomendaciones: number;
+  ya_registrado: boolean;
+}
+
+// Un negocio sugerido con todas las personas que lo recomendaron (admin).
+export interface NegocioSugerido {
+  clave: string; // grupo + nombre normalizado: junta las recomendaciones
+  id: string; // de cualquiera de sus filas; basta para moverlo de estado
+  nombre: string; // como lo escribió la primera persona
+  direccion: string;
+  contacto: string | null; // el primer teléfono que alguien dio (10 dígitos)
+  grupo: string;
+  giro: string;
+  estado: EstadoSugerencia;
+  resuelta_en: string | null;
+  primera: string; // primera recomendación
+  ultima: string; // la más reciente
+  recomendadores: string[]; // nombres, en orden de llegada
+}
+
 export interface ReferralCode {
   id: string;
   codigo: string;
