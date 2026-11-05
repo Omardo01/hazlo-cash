@@ -1,8 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 
 import { useAtras } from '@/lib/atras';
 import { getMiPerfil, logout } from '@/lib/services/auth';
@@ -45,6 +47,21 @@ function CuentaAdmin() {
           </View>
         </View>
       </View>
+
+      <PressableScale
+        onPress={() => router.push('/mapa')}
+        accessibilityRole="button"
+        accessibilityLabel="Abrir el mapa de la ciudad"
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginBottom: 10, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
+        <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: `${C.primary}15`, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="map-outline" size={18} color={C.primary} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>Mapa</Text>
+          <Text numberOfLines={1} style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED, marginTop: 1 }}>Villahermosa por sectores, colonias y giros</Text>
+        </View>
+        <Icon name="chevR" size={16} color={MUTED} />
+      </PressableScale>
 
       <PressableScale
         onPress={() => logout()}

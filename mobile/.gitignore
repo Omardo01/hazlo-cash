@@ -41,3 +41,6 @@ example
 # generated native folders
 /ios
 /android
+
+# Datos crudos de OpenStreetMap que baja scripts/generar-mapa.ts
+scripts/.mapa-osm/
