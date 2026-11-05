@@ -1,5 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { invalidar } from '@/lib/datos/cache';
@@ -13,10 +14,14 @@ import { C, F, FG, MUTED, R } from '../theme';
 import { CampoTexto, Palomita } from './RegistroNegocio';
 
 /**
- * Descubre → "Recomienda un negocio": el usuario propone un negocio que aún no
- * está en Hazlo Cash. Se guarda en `sugerencias_negocio` y le aparece al admin
- * en la pestaña Sugerencias. Pide sesión: el invitado ve la puerta de cuenta.
+ * "Invita a tus negocios favoritos": el usuario propone un negocio que aún no
+ * está en Hazlo Cash. Se abre desde el Inicio y desde un giro sin negocios en
+ * Descubre. Se guarda en `sugerencias_negocio` y le aparece al admin en la
+ * pestaña Sugeridos. Pide sesión: el invitado ve la puerta de cuenta.
  */
+
+/** La leyenda de la invitación: la misma en el botón del Inicio y en el formulario. */
+export const LEYENDA_INVITAR = 'Tus negocios favoritos merecen estar en Hazlo Cash';
 
 export interface GiroElegido {
   grupo: Grupo;
@@ -123,10 +128,10 @@ function Listo({ datos, recomendaciones, onOtro, onVolver }: { datos: Datos; rec
     <Fade key="listo" desde={14} style={{ alignItems: 'center', paddingTop: 12 }}>
       <Palomita />
       <Text style={{ fontFamily: F.bold, fontSize: 22, color: FG, letterSpacing: -0.4, marginTop: 18, textAlign: 'center' }}>
-        ¡Gracias por recomendarlo!
+        ¡Gracias por invitarlo!
       </Text>
       <Text style={{ fontFamily: F.reg, fontSize: 13, color: MUTED, marginTop: 6, textAlign: 'center', lineHeight: 19, paddingHorizontal: 8 }}>
-        Vamos a invitar a <Text style={{ fontFamily: F.semi, color: FG }}>{datos.nombre.trim()}</Text> a Hazlo Cash. Cuando se sume, podrás ganar por recomendarlo.
+        Vamos a invitar a <Text style={{ fontFamily: F.semi, color: FG }}>{datos.nombre.trim()}</Text> a Hazlo Cash. Si es aceptado, recibirás una recompensa.
       </Text>
       {recomendaciones > 1 && (
         <Fade delay={STAGGER} desde={8} style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: `${C.primary}14` }}>
@@ -151,7 +156,7 @@ function Listo({ datos, recomendaciones, onOtro, onVolver }: { datos: Datos; rec
           <Text style={{ fontFamily: F.semi, fontSize: 15, color: '#fff' }}>Listo</Text>
         </PressableScale>
         <PressableScale onPress={onOtro} style={{ height: 46, borderRadius: R.md, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: F.semi, fontSize: 13.5, color: C.primary }}>Recomendar otro</Text>
+          <Text style={{ fontFamily: F.semi, fontSize: 13.5, color: C.primary }}>Invitar a otro</Text>
         </PressableScale>
       </Fade>
     </Fade>
@@ -223,11 +228,11 @@ export function VistaRecomendarNegocio({ giroInicial, onVolver }: { giroInicial?
       <Fade delay={STAGGER} desde={14} style={{ borderRadius: R.lg, overflow: 'hidden', padding: 20, marginBottom: 20 }}>
         <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
         <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-          <Icon name="send" size={20} color="#fff" />
+          <Ionicons name="storefront-outline" size={21} color="#fff" />
         </View>
-        <Text style={{ fontFamily: F.bold, fontSize: 22, color: '#fff', letterSpacing: -0.4 }}>Recomienda un negocio</Text>
-        <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: 'rgba(255,255,255,0.9)', marginTop: 4, lineHeight: 18 }}>
-          ¿Conoces uno bueno que aún no está? Cuéntanos y lo invitamos a Hazlo Cash.
+        <Text style={{ fontFamily: F.bold, fontSize: 21, lineHeight: 26, color: '#fff', letterSpacing: -0.4 }}>{LEYENDA_INVITAR}, INVÍTALOS</Text>
+        <Text style={{ fontFamily: F.base, fontSize: 13, color: 'rgba(255,255,255,0.95)', marginTop: 6, lineHeight: 18 }}>
+          Si es aceptado, recibirás una recompensa.
         </Text>
       </Fade>
 
@@ -265,7 +270,7 @@ export function VistaRecomendarNegocio({ giroInicial, onVolver }: { giroInicial?
           onPress={enviar}
           disabled={enviando}
           style={{ marginTop: 6, height: 52, borderRadius: R.md, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', opacity: enviando ? 0.8 : 1 }}>
-          {enviando ? <ActivityIndicator color="#fff" /> : <Text style={{ fontFamily: F.semi, fontSize: 15, color: '#fff' }}>Enviar recomendación</Text>}
+          {enviando ? <ActivityIndicator color="#fff" /> : <Text style={{ fontFamily: F.semi, fontSize: 15, color: '#fff' }}>Enviar invitación</Text>}
         </PressableScale>
         {errorEnvio && (
           <Fade key={errorEnvio} desde={6}>
@@ -274,5 +279,32 @@ export function VistaRecomendarNegocio({ giroInicial, onVolver }: { giroInicial?
         )}
       </Fade>
     </Fade>
+  );
+}
+
+/** El formulario como pantalla, abierto desde el botón del Inicio. */
+export function InvitarNegocioScreen({ onVolver }: { onVolver: () => void }) {
+  return (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 }}>
+      <Fade desde={8}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <PressableScale
+            onPress={onVolver}
+            accessibilityRole="button"
+            accessibilityLabel="Volver a Inicio"
+            hitSlop={8}
+            style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(13,13,13,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ transform: [{ rotate: '180deg' }] }}>
+              <Icon name="chevR" size={16} color={FG} sw={2.2} />
+            </View>
+          </PressableScale>
+          <Text style={{ fontFamily: F.semi, fontSize: 13, color: MUTED }}>Inicio</Text>
+        </View>
+      </Fade>
+      <VistaRecomendarNegocio onVolver={onVolver} />
+    </ScrollView>
   );
 }

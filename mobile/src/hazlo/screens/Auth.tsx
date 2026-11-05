@@ -5,6 +5,7 @@ import { useAtras } from '@/lib/atras';
 import { ExplorarInvitado } from '../ExplorarInvitado';
 import { Icon } from '../icons';
 import { Fade, PressableScale } from '../motion';
+import { PuertaCuenta } from '../PuertaCuenta';
 import { FG } from '../theme';
 import { LandingScreen } from './Landing';
 import { LoginScreen } from './Login';
@@ -24,6 +25,10 @@ export function AuthScreen() {
   // la pantalla anterior, no al landing.
   const [pasos, setPasos] = useState<Modo[]>(['landing']);
   const modo = pasos[pasos.length - 1];
+  // Con qué búsqueda se abre el catálogo: el negocio elegido en el landing.
+  const [busquedaInicial, setBusquedaInicial] = useState('');
+  // Hoja "Invita a un negocio": para invitar hay que registrarse o entrar.
+  const [invitando, setInvitando] = useState(false);
 
   const ir = (m: Modo) => setPasos((p) => (p.length < MAX_PASOS ? [...p, m] : [...p.slice(0, -1), m]));
   // Login ↔ registro se reemplazan entre sí: ir y venir no apila pasos.
@@ -37,14 +42,24 @@ export function AuthScreen() {
 
   const registrarse = () => (modo === 'login' ? cambiar('registro') : ir('registro'));
   const entrar = () => (modo === 'registro' ? cambiar('login') : ir('login'));
+  const explorar = (busqueda: string) => {
+    setBusquedaInicial(busqueda);
+    ir('explorar');
+  };
 
   return (
     <View style={{ flex: 1 }}>
       <Fade key={modo} style={{ flex: 1 }} desde={8}>
         {modo === 'landing' ? (
-          <LandingScreen onRecomendar={() => ir('registro')} onBuscar={() => ir('explorar')} onEntrar={() => ir('login')} />
+          <LandingScreen
+            onRecomendar={() => ir('registro')}
+            onBuscar={() => explorar('')}
+            onAbrirNegocio={(negocio) => explorar(negocio.nombre)}
+            onInvitar={() => setInvitando(true)}
+            onEntrar={() => ir('login')}
+          />
         ) : modo === 'explorar' ? (
-          <ExplorarInvitado onVolver={atras} onRegistrarse={registrarse} onEntrar={entrar} />
+          <ExplorarInvitado busquedaInicial={busquedaInicial} onVolver={atras} onRegistrarse={registrarse} onEntrar={entrar} />
         ) : (
           <View style={{ flex: 1 }}>
             <View style={{ height: 52, paddingHorizontal: 16, justifyContent: 'center' }}>
@@ -78,6 +93,7 @@ export function AuthScreen() {
           </View>
         )}
       </Fade>
+      {invitando && <PuertaCuenta motivo={{ k: 'invitar' }} onClose={() => setInvitando(false)} onRegistrarse={registrarse} onEntrar={entrar} />}
     </View>
   );
 }

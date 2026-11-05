@@ -14,24 +14,24 @@ export type MotivoCuenta =
   | { k: 'inicio' }
   | { k: 'recomendar' }
   | { k: 'sugerir' }
+  | { k: 'invitar' }
   | { k: 'actividad' }
-  | { k: 'perfil' }
-  | { k: 'promo'; negocio?: string };
+  | { k: 'perfil' };
 
 const TEXTOS: Record<MotivoCuenta['k'], { icono: IconName; titulo: string; texto: string }> = {
   inicio: { icono: 'home', titulo: 'Tu panel de recomendador', texto: 'Ve cuánto llevas ganado, tus códigos y quién usó tus recomendaciones.' },
   recomendar: { icono: 'send', titulo: 'Recomienda y gana', texto: 'Comparte un negocio que te guste y cobra cada vez que alguien llegue con tu código.' },
   sugerir: { icono: 'send', titulo: 'Recomienda un negocio nuevo', texto: 'Crea tu cuenta para mandárnoslo. Cuando se sume a Hazlo Cash, podrás ganar por recomendarlo.' },
+  invitar: { icono: 'home', titulo: 'Invita a un negocio', texto: 'Crea tu cuenta o entra para invitarlo. Si es aceptado, recibirás una recompensa.' },
   actividad: { icono: 'activity', titulo: 'Tus ganancias', texto: 'Aquí verás cada comisión que entra y podrás retirar tu dinero.' },
   perfil: { icono: 'user', titulo: 'Tu perfil', texto: 'Crea tu cuenta para tener tu código personal y tu QR.' },
-  promo: { icono: 'gift', titulo: 'Promociones exclusivas', texto: 'Las promos de los negocios son solo para quien tiene cuenta en Hazlo Cash.' },
 };
 
-const BENEFICIOS = ['Es gratis y toma un minuto', 'Desbloquea todas las promociones', 'Gana dinero por recomendar'];
+const BENEFICIOS = ['Es gratis y toma un minuto', 'Tu código y tu QR para compartir', 'Gana dinero por recomendar'];
 
 /**
  * Hoja llamativa que aparece cuando alguien sin cuenta toca algo que requiere
- * entrar: pestañas del menú, el botón + o una promoción bloqueada. Lleva a
+ * entrar: pestañas del menú, el botón + o invitar a un negocio. Lleva a
  * registrarse o a entrar. Se monta al abrir y anima su salida antes de
  * desmontarse (mismo patrón que `Sheet`).
  */
@@ -49,7 +49,6 @@ export function PuertaCuenta({
   const progreso = useState(() => new Animated.Value(0))[0];
   const cerrando = useRef(false);
   const t = TEXTOS[motivo.k];
-  const titulo = motivo.k === 'promo' && motivo.negocio ? `La promo de ${motivo.negocio} te espera` : t.titulo;
 
   useEffect(() => {
     Animated.timing(progreso, { toValue: 1, duration: DUR.slow, easing: EASE.out, useNativeDriver: true }).start();
@@ -100,7 +99,7 @@ export function PuertaCuenta({
               <Icon name={t.icono} size={22} color="#fff" sw={2.2} />
             </View>
           </View>
-          <Text style={{ fontFamily: F.bold, fontSize: 21, lineHeight: 26, color: '#fff', letterSpacing: -0.4 }}>{titulo}</Text>
+          <Text style={{ fontFamily: F.bold, fontSize: 21, lineHeight: 26, color: '#fff', letterSpacing: -0.4 }}>{t.titulo}</Text>
           <Text style={{ fontFamily: F.reg, fontSize: 13, lineHeight: 19, color: 'rgba(255,255,255,0.72)', marginTop: 6 }}>{t.texto}</Text>
         </View>
       </Fade>

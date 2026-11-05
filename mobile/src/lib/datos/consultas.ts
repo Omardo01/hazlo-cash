@@ -82,6 +82,11 @@ export const useMisSugerencias = (conSesion: boolean) => useConsulta(conSesion ?
 export const useRetiros = () => useConsulta(K.retiros, getRetiros);
 export const useTotalRetirado = () => useConsulta(K.totalRetirado, totalRetirado);
 export const useNegocios = () => useConsulta(K.negocios, getNegociosActivos, LENTO);
+
+/** Catálogo sin cuenta. `activo` en false no consulta: el landing lo pide al tocar la caja. */
+export const useCatalogoPublico = (activo: boolean) =>
+  useConsulta<NegocioCatalogo[]>(activo ? K.negociosPublicos : null, getNegociosPublicos, LENTO);
+
 // Catálogo de Descubre. Sin sesión (landing → "Quiero buscar") llega sin el
 // texto de las promociones; `invitado` no cambia mientras la pantalla vive.
 export const useCatalogo = (invitado: boolean) =>

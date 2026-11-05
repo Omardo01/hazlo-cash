@@ -12,6 +12,8 @@ import { Fade, PressableScale, STAGGER } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
 import { useTonoInicio } from '../tonoInicio';
 import { FondoTono, VisorTonos } from '../VisorTonos';
+import { LEYENDA_INVITAR } from './RecomendarNegocio';
+import { TusRecomendaciones } from './TusRecomendaciones';
 import type { ScreenProps } from './types';
 
 // Inicio del recomendador, estilo "fintech oscuro": bloque de color arriba con
@@ -112,7 +114,7 @@ function Resumen({ icon, label, valor, color, delay }: { icon: IconName; label: 
 // Comisiones y retiros mezclados en una sola línea de tiempo.
 type Movimiento = { id: string; titulo: string; sub: string; monto: number; entra: boolean; fecha: string; icon: IconName };
 
-export function HomeScreen({ go, openSheet, onComoFunciona }: ScreenProps) {
+export function HomeScreen({ go, openSheet, onComoFunciona, onInvitarNegocio }: ScreenProps) {
   // Comparte la caché con el Inicio clásico y con Actividad: cambiar entre
   // ellos no vuelve a consultar nada mientras los datos sigan frescos.
   const { datos: perfil } = usePerfil();
@@ -245,9 +247,29 @@ export function HomeScreen({ go, openSheet, onComoFunciona }: ScreenProps) {
           </PressableScale>
         </Fade>
 
+        {/* Invitar a un negocio que aún no está */}
+        {onInvitarNegocio && (
+          <Fade delay={STAGGER * 8} desde={14}>
+            <PressableScale
+              onPress={onInvitarNegocio}
+              accessibilityRole="button"
+              accessibilityLabel={`${LEYENDA_INVITAR}, invítalos`}
+              style={{ marginHorizontal: 12, marginTop: 10, borderRadius: R.lg, padding: 16, backgroundColor: `${C.primary}14`, borderWidth: 1, borderColor: `${C.primary}40`, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="storefront-outline" size={22} color={C.accent} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ fontFamily: F.semi, fontSize: 14, lineHeight: 19, color: FG }}>{LEYENDA_INVITAR}</Text>
+                <Text style={{ fontFamily: F.bold, fontSize: 13, color: C.accent, letterSpacing: 0.8, marginTop: 4 }}>INVÍTALOS</Text>
+              </View>
+              <Icon name="chevR" size={18} color={C.accent} />
+            </PressableScale>
+          </Fade>
+        )}
+
         {/* Historial */}
         <View style={{ paddingHorizontal: 20, marginTop: 26 }}>
-          <Fade delay={STAGGER * 8}>
+          <Fade delay={STAGGER * 9}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
               <Text style={{ fontFamily: F.semi, fontSize: 17, color: FG, letterSpacing: -0.2 }}>Movimientos</Text>
               <PressableScale onPress={() => go('balance')} hitSlop={8}>
@@ -263,7 +285,7 @@ export function HomeScreen({ go, openSheet, onComoFunciona }: ScreenProps) {
           )}
 
           {!cargando && movimientos.length === 0 && (
-            <Fade delay={STAGGER * 9} desde={12}>
+            <Fade delay={STAGGER * 10} desde={12}>
               <View style={{ borderRadius: R.md, padding: 20, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
                 <Text style={{ fontFamily: F.semi, fontSize: 14.5, color: FG }}>Todavía no hay movimientos</Text>
                 <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: MUTED, marginTop: 5, lineHeight: 18 }}>
@@ -274,7 +296,7 @@ export function HomeScreen({ go, openSheet, onComoFunciona }: ScreenProps) {
           )}
 
           {movimientos.map((m, i) => (
-            <Fade key={m.id} delay={STAGGER * 9 + i * STAGGER} desde={12}>
+            <Fade key={m.id} delay={STAGGER * 10 + i * STAGGER} desde={12}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11 }}>
                 <View style={{ width: 44, height: 44, borderRadius: 999, backgroundColor: m.entra ? 'rgba(0,168,150,0.12)' : `${C.primary}15`, alignItems: 'center', justifyContent: 'center' }}>
                   <Icon name={m.icon} size={18} color={m.entra ? '#00A896' : C.primary} />
@@ -292,6 +314,11 @@ export function HomeScreen({ go, openSheet, onComoFunciona }: ScreenProps) {
               </View>
             </Fade>
           ))}
+        </View>
+
+        {/* En qué van los negocios que invitó (no aparece si no hay ninguno). */}
+        <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+          <TusRecomendaciones conSesion />
         </View>
       </ScrollView>
 

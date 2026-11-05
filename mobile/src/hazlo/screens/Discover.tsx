@@ -15,7 +15,6 @@ import { Fade, PressableScale, STAGGER } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
 import { FoodTile, hueColors, SectionHeader } from '../ui';
 import { VistaRecomendarNegocio, type GiroElegido } from './RecomendarNegocio';
-import { TusRecomendaciones } from './TusRecomendaciones';
 
 // Hue estable por negocio para que los tiles se vean variados sin foto real.
 function hueDeId(id: string): number {
@@ -31,8 +30,6 @@ function plural(n: number, uno: string, varios: string): string {
 // Valor de "giro" que abre la lista completa del grupo (ningún giro se llama así).
 const TODOS = '__todos__';
 
-// Sin cuenta, la promo se ve como candado: tocarla invita a registrarse.
-type AlBloqueo = (negocio?: string) => void;
 // Modo elegir (pantalla Recomienda): tocar un negocio genera su QR.
 type AlElegir = (negocio: Business) => void;
 
@@ -49,25 +46,7 @@ function InsigniaQr({ size = 40 }: { size?: number }) {
   );
 }
 
-function PromoBloqueada({ n, onPress }: { n: Business; onPress: AlBloqueo }) {
-  return (
-    <PressableScale
-      onPress={() => onPress(n.nombre)}
-      accessibilityRole="button"
-      accessibilityLabel={`${n.nombre} tiene promoción. Regístrate para verla`}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, alignSelf: 'flex-start', paddingVertical: 4, paddingLeft: 6, paddingRight: 10, borderRadius: 999, backgroundColor: `${C.primary}14` }}>
-      <View style={{ width: 16, height: 16, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
-        <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-        <View>
-          <Icon name="lock" size={9} color="#fff" sw={2.6} />
-        </View>
-      </View>
-      <Text numberOfLines={1} style={{ fontFamily: F.semi, fontSize: 11, color: C.primary }}>Tiene promo · Regístrate para verla</Text>
-    </PressableScale>
-  );
-}
-
-function FilaNegocio({ n, delay, onPromoBloqueada, onElegir }: { n: Business; delay: number; onPromoBloqueada?: AlBloqueo; onElegir?: AlElegir }) {
+function FilaNegocio({ n, delay, onElegir }: { n: Business; delay: number; onElegir?: AlElegir }) {
   const fila = { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' } as const;
   if (onElegir) {
     return (
@@ -81,12 +60,12 @@ function FilaNegocio({ n, delay, onPromoBloqueada, onElegir }: { n: Business; de
   }
   return (
     <Fade delay={delay} desde={12} style={fila}>
-      <ContenidoFila n={n} onPromoBloqueada={onPromoBloqueada} />
+      <ContenidoFila n={n} />
     </Fade>
   );
 }
 
-function ContenidoFila({ n, onPromoBloqueada }: { n: Business; onPromoBloqueada?: AlBloqueo }) {
+function ContenidoFila({ n }: { n: Business }) {
   return (
     <>
       <View style={{ width: 72, height: 72 }}>
@@ -103,39 +82,8 @@ function ContenidoFila({ n, onPromoBloqueada }: { n: Business; onPromoBloqueada?
             </View>
           </View>
         )}
-        {n.promoOculta && onPromoBloqueada && <PromoBloqueada n={n} onPress={onPromoBloqueada} />}
       </View>
     </>
-  );
-}
-
-// Tarjeta de promoción del carrusel. Sin cuenta, el texto de la promo se
-// cambia por un candado.
-function TarjetaPromo({ n, onPromoBloqueada, onElegir }: { n: Business; onPromoBloqueada?: AlBloqueo; onElegir?: AlElegir }) {
-  if (onElegir) {
-    return (
-      <PressableScale onPress={() => onElegir(n)} accessibilityRole="button" accessibilityLabel={`Generar QR para recomendar ${n.nombre}`}>
-        <FoodTile name={n.nombre} type={n.oferta ?? n.categoria} hue={hueDeId(n.id)} radius={R.md} height={180} />
-        <View style={{ position: 'absolute', top: 12, right: 12 }}>
-          <InsigniaQr size={36} />
-        </View>
-      </PressableScale>
-    );
-  }
-  if (!n.promoOculta || !onPromoBloqueada) {
-    return <FoodTile name={n.nombre} type={n.oferta ?? n.categoria} hue={hueDeId(n.id)} radius={R.md} height={180} />;
-  }
-  return (
-    <PressableScale onPress={() => onPromoBloqueada(n.nombre)} accessibilityRole="button" accessibilityLabel={`Promoción de ${n.nombre}. Regístrate para verla`}>
-      <FoodTile name={n.nombre} type={n.categoria} hue={hueDeId(n.id)} radius={R.md} height={180} />
-      <View style={{ position: 'absolute', top: 12, left: 12, maxWidth: 176, flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.45)' }}>
-        <Icon name="lock" size={12} color="#fff" sw={2.4} />
-        <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.semi, fontSize: 11, color: '#fff' }}>Promo exclusiva</Text>
-      </View>
-      <View style={{ position: 'absolute', top: 52, left: 12, right: 12 }}>
-        <Text style={{ fontFamily: F.semi, fontSize: 12, lineHeight: 16, color: 'rgba(255,255,255,0.92)' }}>Regístrate para verla</Text>
-      </View>
-    </PressableScale>
   );
 }
 
@@ -255,29 +203,6 @@ function SinNegocios({ grupo, que, onRecomendar }: { grupo: Grupo; que: string; 
   );
 }
 
-// Entrada al formulario "Recomienda un negocio" en la vista principal.
-function TarjetaRecomendar({ onPress }: { onPress: () => void }) {
-  return (
-    <Fade delay={STAGGER * 2} desde={10} style={{ marginBottom: 22 }}>
-      <PressableScale
-        onPress={onPress}
-        accessibilityRole="button"
-        accessibilityLabel="Recomienda un negocio que aún no está en Hazlo Cash"
-        style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: R.md, overflow: 'hidden' }}>
-        <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-        <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="send" size={19} color="#fff" />
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ fontFamily: F.semi, fontSize: 15, color: '#fff' }}>Recomienda un negocio</Text>
-          <Text style={{ fontFamily: F.reg, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>¿Conoces uno que aún no está? Cuéntanos</Text>
-        </View>
-        <Icon name="chevR" size={17} color="rgba(255,255,255,0.85)" />
-      </PressableScale>
-    </Fade>
-  );
-}
-
 // Un giro como botón grande: con negocios se pinta del color del grupo; sin
 // ellos queda claro y dice que aún no hay.
 function BotonGiro({ grupo, giro, negocios, delay, onPress }: { grupo: Grupo; giro: string; negocios: number; delay: number; onPress: () => void }) {
@@ -391,7 +316,6 @@ function VistaGiro({
   negocios,
   cargando,
   onVolver,
-  onPromoBloqueada,
   onElegir,
   onRecomendar,
 }: {
@@ -400,7 +324,6 @@ function VistaGiro({
   negocios: Business[];
   cargando: boolean;
   onVolver: () => void;
-  onPromoBloqueada?: AlBloqueo;
   onElegir?: AlElegir;
   onRecomendar?: () => void;
 }) {
@@ -422,7 +345,7 @@ function VistaGiro({
       ) : (
         <View style={{ gap: 12 }}>
           {negocios.map((n, i) => (
-            <FilaNegocio key={n.id} n={n} delay={(2 + Math.min(i, 6)) * STAGGER} onPromoBloqueada={onPromoBloqueada} onElegir={onElegir} />
+            <FilaNegocio key={n.id} n={n} delay={(2 + Math.min(i, 6)) * STAGGER} onElegir={onElegir} />
           ))}
         </View>
       )}
@@ -435,13 +358,11 @@ function Resultados({
   busqueda,
   negocios,
   onAbrir,
-  onPromoBloqueada,
   onElegir,
 }: {
   busqueda: string;
   negocios: Business[];
   onAbrir: (g: Grupo, giro?: string) => void;
-  onPromoBloqueada?: AlBloqueo;
   onElegir?: AlElegir;
 }) {
   const q = normalizar(busqueda.trim());
@@ -466,7 +387,7 @@ function Resultados({
           <SectionHeader title="Negocios" />
           <View style={{ gap: 12, marginBottom: 22 }}>
             {deNegocios.map((n, i) => (
-              <FilaNegocio key={n.id} n={n} delay={Math.min(i, 6) * STAGGER} onPromoBloqueada={onPromoBloqueada} onElegir={onElegir} />
+              <FilaNegocio key={n.id} n={n} delay={Math.min(i, 6) * STAGGER} onElegir={onElegir} />
             ))}
           </View>
         </>
@@ -500,20 +421,18 @@ function Resultados({
 
 // Descubre: el catálogo de categorías del Excel (12 grupos) con los negocios
 // que hay en cada una y en cada giro. `invitado`: se entró sin cuenta desde el
-// landing; las promociones se ven con candado y tocarlas llama
-// `onPromoBloqueada`, y "Recomienda un negocio" (pide sesión para guardarse)
-// llama `onSugerirBloqueado`. Con `onElegir` (pantalla Recomienda) cada negocio se
+// landing; invitar a un negocio (pide sesión para guardarse) llama `onSugerirBloqueado`. Con `onElegir` (pantalla Recomienda) cada negocio se
 // puede tocar para generar su QR; `titulo` y `encabezado` cambian lo de arriba.
 export function DiscoverScreen({
   invitado = false,
-  onPromoBloqueada,
+  busquedaInicial = '',
   onSugerirBloqueado,
   onElegir,
   titulo = 'Descubre',
   encabezado,
 }: {
   invitado?: boolean;
-  onPromoBloqueada?: AlBloqueo;
+  busquedaInicial?: string;
   onSugerirBloqueado?: () => void;
   onElegir?: AlElegir;
   titulo?: string;
@@ -522,12 +441,11 @@ export function DiscoverScreen({
   const [grupo, setGrupo] = useState<Grupo | null>(null);
   // Giro abierto dentro del grupo (o TODOS para la lista completa del grupo).
   const [giro, setGiro] = useState<string | null>(null);
-  const [busqueda, setBusqueda] = useState('');
-  // Formulario "Recomienda un negocio" abierto, quizá con el giro ya puesto.
+  const [busqueda, setBusqueda] = useState(busquedaInicial);
+  // Formulario para invitar a un negocio abierto, quizá con el giro ya puesto.
   const [recomendando, setRecomendando] = useState<{ giro?: GiroElegido } | null>(null);
   // El catálogo de negocios cambia poco: se revalida cada 5 minutos.
   const { datos: negocios = [], cargando, error } = useCatalogo(invitado);
-  const alBloqueo = invitado ? onPromoBloqueada : undefined;
 
   const porGrupo = new Map<string, Business[]>();
   const porGiro = new Map<string, Business[]>();
@@ -536,7 +454,6 @@ export function DiscoverScreen({
     porGrupo.set(slug, [...(porGrupo.get(slug) ?? []), n]);
     for (const g of girosDeNegocio(n)) porGiro.set(g, [...(porGiro.get(g) ?? []), n]);
   }
-  const conPromo = negocios.filter((n) => n.oferta || n.promoOculta);
 
   const abrir = (g: Grupo, conGiro?: string) => {
     setBusqueda('');
@@ -578,7 +495,7 @@ export function DiscoverScreen({
           negocios={giro === TODOS ? porGrupo.get(grupo.slug) ?? [] : porGiro.get(giro) ?? []}
           cargando={cargando}
           onVolver={volver}
-          onPromoBloqueada={alBloqueo}
+         
           onElegir={onElegir}
           onRecomendar={puedeRecomendar ? () => recomendar(giro === TODOS ? undefined : { grupo, giro }) : undefined}
         />
@@ -603,26 +520,9 @@ export function DiscoverScreen({
           </Fade>
 
           {busqueda.trim() ? (
-            <Resultados busqueda={busqueda} negocios={negocios} onAbrir={abrir} onPromoBloqueada={alBloqueo} onElegir={onElegir} />
+            <Resultados busqueda={busqueda} negocios={negocios} onAbrir={abrir} onElegir={onElegir} />
           ) : (
             <>
-              {puedeRecomendar && <TarjetaRecomendar onPress={() => recomendar()} />}
-              {puedeRecomendar && <TusRecomendaciones conSesion={!invitado} />}
-
-              {/* Promociones reales de los negocios que ya están. */}
-              {conPromo.length > 0 && (
-                <>
-                  <SectionHeader title="Con promoción" />
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 4 }} style={{ marginBottom: 22 }}>
-                    {conPromo.map((n, i) => (
-                      <Fade key={n.id} delay={(2 + i) * STAGGER} desde={10} style={{ width: 200 }}>
-                        <TarjetaPromo n={n} onPromoBloqueada={alBloqueo} onElegir={onElegir} />
-                      </Fade>
-                    ))}
-                  </ScrollView>
-                </>
-              )}
-
               <SectionHeader title="Categorías" />
               {!cargando && error && (
                 <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: MUTED, marginBottom: 12 }}>

@@ -41,7 +41,7 @@ const PROPUESTAS: Propuesta[] = [
     audiencia: 'Cliente / Embajador',
     prioridad: 'Alta',
     porque: 'Hoy tocar un negocio en Descubre no abre nada. Es el paso que convierte curiosidad en orden: beneficio, horario, cómo llegar y reseñas verificadas.',
-    donde: 'Al tocar un negocio en Descubre o en "Con promoción".',
+    donde: 'Al tocar un negocio en Descubre.',
     Maqueta: MaquetaFichaNegocio,
   },
   {

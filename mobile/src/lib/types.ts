@@ -22,11 +22,8 @@ export interface Business {
   giros?: string[]; // giros del catálogo (vacío en negocios dados de alta antes)
 }
 
-// Negocio tal como lo ve el catálogo. Sin sesión, `oferta` llega vacía y
-// `promoOculta` dice si hay una promoción esperando a que se registre.
-export interface NegocioCatalogo extends Business {
-  promoOculta?: boolean;
-}
+// Negocio tal como lo ve el catálogo. Sin sesión, `oferta` llega vacía.
+export type NegocioCatalogo = Business;
 
 // Cómo el negocio paga al recomendador: monto fijo en pesos por venta,
 // o un porcentaje del monto de la venta.

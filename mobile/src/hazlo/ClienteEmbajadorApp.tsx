@@ -14,6 +14,7 @@ import { BalanceScreen } from './screens/Balance';
 import { DiscoverScreen } from './screens/Discover';
 import { HomeScreen } from './screens/Home';
 import { ProfileScreen } from './screens/Profile';
+import { InvitarNegocioScreen } from './screens/RecomendarNegocio';
 import { ShareScreen } from './screens/Share';
 import type { SheetName, Tab } from './screens/types';
 
@@ -33,6 +34,8 @@ export function ClienteEmbajadorApp() {
   const [retiros, setRetiros] = useState<'historial' | 'cuentas' | null>(null);
   // Animación de 30 s "Así funciona Hazlo Cash".
   const [explicador, setExplicador] = useState(false);
+  // Formulario para invitar a un negocio, abierto desde el Inicio.
+  const [invitando, setInvitando] = useState(false);
 
   const go = (t: Tab) => setTab(t);
   const openSheet = (s: SheetName) => setSheet(s);
@@ -45,8 +48,10 @@ export function ClienteEmbajadorApp() {
   useAtras(tab !== 'home', () => setTab('home'));
   useAtras(retiros !== null, () => setRetiros(null));
   useAtras(explicador, () => setExplicador(false));
+  useAtras(invitando, () => setInvitando(false));
 
   const screen = () => {
+    if (invitando) return <InvitarNegocioScreen onVolver={() => setInvitando(false)} />;
     switch (tab) {
       case 'discover':
         return <DiscoverScreen />;
@@ -57,7 +62,7 @@ export function ClienteEmbajadorApp() {
       case 'profile':
         return <ProfileScreen go={go} openSheet={openSheet} onAbrirCuentas={() => setRetiros('cuentas')} />;
       default:
-        return <HomeScreen go={go} openSheet={openSheet} onComoFunciona={() => setExplicador(true)} />;
+        return <HomeScreen go={go} openSheet={openSheet} onComoFunciona={() => setExplicador(true)} onInvitarNegocio={() => setInvitando(true)} />;
     }
   };
 
@@ -68,7 +73,15 @@ export function ClienteEmbajadorApp() {
         <View style={{ flex: 1 }}>{screen()}</View>
       </SafeAreaView>
 
-      <TabBar tabs={TABS} active={tab} onSelect={setTab} onPlus={() => setSheet('action')} />
+      <TabBar
+        tabs={TABS}
+        active={tab}
+        onSelect={(t) => {
+          setInvitando(false);
+          setTab(t);
+        }}
+        onPlus={() => setSheet('action')}
+      />
 
       {retiros && <Retiros visible vistaInicial={retiros} onClose={() => setRetiros(null)} />}
 

@@ -18,16 +18,11 @@ export async function getNegociosActivos(): Promise<Business[]> {
 }
 
 // Catálogo para quien entra sin cuenta: los negocios sin el texto de su
-// promoción (se ve hasta registrarse), solo si tienen una. Así la promo ni
-// siquiera viaja al teléfono del invitado.
+// promoción, que ni siquiera viaja al teléfono del invitado.
 export async function getNegociosPublicos(): Promise<NegocioCatalogo[]> {
-  const [lista, conPromo] = await Promise.all([
-    supabase.from('businesses').select('id, nombre, categoria, descripcion, direccion, activo').eq('activo', true).order('nombre'),
-    supabase.from('businesses').select('id').eq('activo', true).not('oferta', 'is', null),
-  ]);
-  if (lista.error) throw new Error(`Error al cargar negocios: ${lista.error.message}`);
-  const ids = new Set((conPromo.data ?? []).map((n) => n.id));
-  return (lista.data ?? []).map((n) => ({ ...n, oferta: null, promoOculta: ids.has(n.id) }));
+  const { data, error } = await supabase.from('businesses').select('id, nombre, categoria, descripcion, direccion, activo, giros').eq('activo', true).order('nombre');
+  if (error) throw new Error(`Error al cargar negocios: ${error.message}`);
+  return (data ?? []).map((n) => ({ ...n, oferta: null }));
 }
 
 // Todos los negocios (incl. inactivos) — vista admin. RLS negocio_all_admin.

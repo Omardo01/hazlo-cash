@@ -6,4 +6,6 @@ export type ScreenProps = {
   openSheet: (s: SheetName) => void;
   /** Abre la animación "Así funciona Hazlo Cash" (botón flotante del Inicio). */
   onComoFunciona?: () => void;
+  /** Abre el formulario para invitar a un negocio (botón del Inicio). */
+  onInvitarNegocio?: () => void;
 };

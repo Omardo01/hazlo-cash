@@ -25,15 +25,17 @@ const MOTIVO_DE_TAB: Partial<Record<Tab, MotivoCuenta>> = {
 };
 
 /**
- * Landing → "Quiero buscar": la app sin cuenta. Se ve el menú completo, pero
- * solo Descubre (el catálogo) está abierto; lo demás —y las promociones—
- * abre la hoja que invita a registrarse o entrar.
+ * Landing → catálogo: la app sin cuenta. Se ve el menú completo, pero solo
+ * Descubre está abierto; lo demás abre la hoja que invita a registrarse o entrar.
  */
 export function ExplorarInvitado({
+  busquedaInicial,
   onVolver,
   onRegistrarse,
   onEntrar,
 }: {
+  /** Llega de elegir un negocio en el buscador del landing. */
+  busquedaInicial?: string;
   onVolver: () => void;
   onRegistrarse: () => void;
   onEntrar: () => void;
@@ -73,7 +75,7 @@ export function ExplorarInvitado({
       <View style={{ flex: 1 }}>
         <DiscoverScreen
           invitado
-          onPromoBloqueada={(negocio) => setMotivo({ k: 'promo', negocio })}
+          busquedaInicial={busquedaInicial}
           onSugerirBloqueado={() => setMotivo({ k: 'sugerir' })}
         />
       </View>
