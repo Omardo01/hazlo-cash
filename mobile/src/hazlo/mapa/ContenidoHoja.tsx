@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { HazloMark } from '../HazloMark';
 import { Icon } from '../icons';
 import { grupoPorSlug } from '../categorias/catalogo';
 import { IconoGrupo } from '../categorias/piezas';
@@ -30,15 +31,10 @@ function PillNivel({ zona }: { zona: Zona }) {
   );
 }
 
-function Cifras({ negocios, recomendadores, ventas }: { negocios: number; recomendadores: number; ventas: number }) {
-  const datos: [string, number][] = [
-    ['Negocios', negocios],
-    ['Recomendadores', recomendadores],
-    ['Ventas del mes', ventas],
-  ];
+function Cifras({ valores }: { valores: [string, number][] }) {
   return (
     <View style={{ flexDirection: 'row', gap: 8 }}>
-      {datos.map(([etiqueta, valor], i) => (
+      {valores.map(([etiqueta, valor], i) => (
         <Fade key={etiqueta} delay={i * STAGGER} desde={6} style={{ flex: 1 }}>
           <View style={{ backgroundColor: '#fff', borderRadius: R.md, paddingVertical: 10, paddingHorizontal: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(13,13,13,0.07)' }}>
             <Text style={{ fontFamily: F.bold, fontSize: 18, color: FG, letterSpacing: -0.3 }}>{numero(valor)}</Text>
@@ -50,9 +46,43 @@ function Cifras({ negocios, recomendadores, ventas }: { negocios: number; recome
   );
 }
 
+const cifrasDe = (negocios: number, recomendadores: number, ventas: number): [string, number][] => [
+  ['Negocios', negocios],
+  ['Recomendadores', recomendadores],
+  ['Ventas del mes', ventas],
+];
+
 /** Lo que siempre se ve de la hoja: de qué se está hablando. */
-export function EncabezadoHoja({ zona, datos, filtro, alCerrar }: { zona: Zona | null; datos: DatosMapa; filtro: Filtro; alCerrar: () => void }) {
+export function EncabezadoHoja({
+  negocio,
+  zona,
+  datos,
+  filtro,
+  alCerrar,
+}: {
+  negocio: NegocioMapa | null;
+  zona: Zona | null;
+  datos: DatosMapa;
+  filtro: Filtro;
+  alCerrar: () => void;
+}) {
   const giro = nombreFiltro(filtro);
+  if (negocio) {
+    return (
+      <Fade key={negocio.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingBottom: 12 }}>
+        <PressableScale onPress={alCerrar} hitSlop={8} accessibilityRole="button" accessibilityLabel="Cerrar la información del negocio" style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(13,13,13,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="x" size={15} color={FG} />
+        </PressableScale>
+        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: negocio.color, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name={negocio.icono} size={20} color="#fff" />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text numberOfLines={1} style={{ fontFamily: F.bold, fontSize: 17, color: FG, letterSpacing: -0.3 }}>{negocio.nombre}</Text>
+          <Text numberOfLines={1} style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED }}>{negocio.giro}</Text>
+        </View>
+      </Fade>
+    );
+  }
   if (!zona) {
     return (
       <Fade key="ciudad" style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
@@ -125,7 +155,6 @@ function FilaNegocio({ negocio, activo, indice, alTocar }: { negocio: NegocioMap
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text numberOfLines={1} style={{ fontFamily: F.semi, fontSize: 13.5, color: FG }}>{negocio.nombre}</Text>
           <Text numberOfLines={1} style={{ fontFamily: F.reg, fontSize: 11, color: MUTED, marginTop: 1 }}>{negocio.giro} · {negocio.coloniaNombre}</Text>
-          <Text numberOfLines={1} style={{ fontFamily: F.base, fontSize: 11, color: C.accent, marginTop: 2 }}>{negocio.oferta}</Text>
         </View>
       </PressableScale>
     </Fade>
@@ -196,6 +225,65 @@ function AyudaZona({ zona }: { zona: Zona }) {
   );
 }
 
+function FilaDato({ etiqueta, valor, primera, alTocar }: { etiqueta: string; valor: string; primera?: boolean; alTocar?: () => void }) {
+  const contenido = (
+    <>
+      <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED }}>{etiqueta}</Text>
+      <Text numberOfLines={1} style={{ flex: 1, fontFamily: F.semi, fontSize: 13, color: FG, textAlign: 'right' }}>{valor}</Text>
+      {alTocar && <Icon name="chevR" size={14} color={MUTED} />}
+    </>
+  );
+  const estilo = { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 14, borderTopWidth: primera ? 0 : StyleSheet.hairlineWidth, borderTopColor: 'rgba(13,13,13,0.08)' } as const;
+  if (!alTocar) return <View style={estilo}>{contenido}</View>;
+  return (
+    <PressableScale onPress={alTocar} accessibilityRole="button" accessibilityLabel={`Ver ${etiqueta.toLowerCase()} ${valor}`} style={estilo}>
+      {contenido}
+    </PressableScale>
+  );
+}
+
+/** Lo que sale al tocar un negocio en el mapa o en una lista. */
+function FichaNegocio({
+  negocio,
+  datos,
+  relleno,
+  alElegirZona,
+}: {
+  negocio: NegocioMapa;
+  datos: DatosMapa;
+  relleno: number;
+  alElegirZona: (z: Zona) => void;
+}) {
+  const grupo = grupoPorSlug(negocio.grupo);
+  const colonia = datos.colonias.find((c) => c.id === negocio.coloniaId);
+  const sector = colonia ? datos.sectores.find((z) => z.id === colonia.sectorId) : undefined;
+  return (
+    <ScrollView key={negocio.id} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: relleno }}>
+      <Fade desde={6} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <HazloMark size={13} />
+          <Text style={{ fontFamily: F.semi, fontSize: 12, color: C.accent }}>Está en Hazlo Cash</Text>
+        </View>
+        <PillEjemplo />
+      </Fade>
+      <Cifras
+        valores={[
+          ['Recomendadores', negocio.recomendadores],
+          ['Ventas del mes', negocio.ventasMes],
+        ]}
+      />
+      <Fade delay={2 * STAGGER} desde={8}>
+        <View style={{ marginTop: 10, borderRadius: R.md, backgroundColor: '#fff', overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(13,13,13,0.07)' }}>
+          <FilaDato primera etiqueta="Categoría" valor={grupo?.nombre ?? 'Servicios varios'} />
+          <FilaDato etiqueta="Giro" valor={negocio.giro} />
+          {colonia && <FilaDato etiqueta="Colonia" valor={colonia.nombre} alTocar={() => alElegirZona(colonia)} />}
+          {sector && <FilaDato etiqueta="Sector" valor={sector.nombre} alTocar={() => alElegirZona(sector)} />}
+        </View>
+      </Fade>
+    </ScrollView>
+  );
+}
+
 /** Detalle de una zona. */
 function DetalleZona({
   zona,
@@ -221,7 +309,7 @@ function DetalleZona({
   const lista = [...zona.lista].sort((a, b) => Number(b.id === pinActivo) - Number(a.id === pinActivo));
   return (
     <ScrollView key={zona.id} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: relleno }}>
-      <Cifras negocios={zona.negocios} recomendadores={zona.recomendadores} ventas={zona.ventasMes} />
+      <Cifras valores={cifrasDe(zona.negocios, zona.recomendadores, zona.ventasMes)} />
       <AyudaZona zona={zona} />
 
       <PorGiro lista={zona.lista} filtro={filtro} alCambiarFiltro={alCambiarFiltro} />
@@ -282,8 +370,9 @@ function DetalleZona({
   );
 }
 
-/** Cuerpo de la hoja: toda la ciudad, o la zona elegida. */
+/** Cuerpo de la hoja: toda la ciudad, la zona elegida o un negocio. */
 export function CuerpoHoja({
+  negocio,
   zona,
   base,
   datos,
@@ -295,6 +384,7 @@ export function CuerpoHoja({
   alElegirNegocio,
   alCambiarFiltro,
 }: {
+  negocio: NegocioMapa | null;
   zona: Zona | null;
   base: BaseMapa;
   datos: DatosMapa;
@@ -307,6 +397,7 @@ export function CuerpoHoja({
   alElegirNegocio: (n: NegocioMapa) => void;
   alCambiarFiltro: (f: Filtro) => void;
 }) {
+  if (negocio) return <FichaNegocio negocio={negocio} datos={datos} relleno={relleno} alElegirZona={alElegirZona} />;
   if (zona) {
     return (
       <DetalleZona
@@ -335,7 +426,7 @@ export function CuerpoHoja({
       contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: relleno }}
       ListHeaderComponent={
         <>
-          <Cifras negocios={datos.totales.negocios} recomendadores={datos.totales.recomendadores} ventas={datos.totales.ventasMes} />
+          <Cifras valores={cifrasDe(datos.totales.negocios, datos.totales.recomendadores, datos.totales.ventasMes)} />
           {/* Con un giro elegido se sigue viendo todo su grupo, para saltar a otro giro. */}
           {filas.length > 0 && <PorGiro lista={filtro.grupo ? base.negocios : datos.negocios} filtro={filtro} alCambiarFiltro={alCambiarFiltro} />}
           {filas.length > 0 && <Titulo texto={modo === 'sectores' ? 'Sectores' : 'Colonias'} />}

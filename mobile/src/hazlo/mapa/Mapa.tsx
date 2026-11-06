@@ -253,6 +253,9 @@ function MapaListo({ geo }: { geo: Geometria }) {
   const [snap, setSnap] = useState<Snap>('pico');
   const [busqueda, setBusqueda] = useState('');
 
+  // Si el filtro de giro lo esconde, su ficha se cierra con él.
+  const negocioActivo = useMemo(() => datos.negocios.find((n) => n.id === pinActivo) ?? null, [datos.negocios, pinActivo]);
+
   const zona = useMemo(() => {
     if (!seleccion) return null;
     return (seleccion.tipo === 'sector' ? datos.sectores : datos.colonias).find((z) => z.id === seleccion.id) ?? null;
@@ -314,21 +317,21 @@ function MapaListo({ geo }: { geo: Geometria }) {
       Keyboard.dismiss();
       setBusqueda('');
       setPinActivo(negocio.id);
+      // La zona abierta se queda solo si el negocio es de ahí.
       const colonia = base.colonias.find((c) => c.id === negocio.coloniaId);
-      if (colonia) {
-        const dueña = modo === 'sectores' ? base.sectores.find((s) => s.id === colonia.sectorId) : colonia;
-        if (dueña && dueña.id !== seleccion?.id) {
-          setSeleccion(dueña);
-          setGrosor(2.2 / Math.max(1, camara.s.get()));
-        }
-      }
+      setSeleccion((z) => (z && (z.id === colonia?.id || z.id === colonia?.sectorId) ? z : null));
       setSnap('medio');
       const abajo = tam.h - alturas.medio;
       const s = deMapa ? camara.s.get() : Math.max(camara.s.get(), 1.8);
       camara.volarA(negocio.x, negocio.y, s, arriba, abajo, !reduce);
     },
-    [base, modo, seleccion, camara, tam.h, alturas.medio, arriba, reduce],
+    [base, camara, tam.h, alturas.medio, arriba, reduce],
   );
+
+  const cerrarNegocio = useCallback(() => {
+    setPinActivo(null);
+    if (!seleccion) setSnap('pico');
+  }, [seleccion]);
 
   const cerrar = useCallback(() => {
     setSeleccion(null);
@@ -338,6 +341,7 @@ function MapaListo({ geo }: { geo: Geometria }) {
   }, [encuadrar, base.caja, tam.h, alturas.pico]);
 
   useAtras(seleccion !== null, cerrar);
+  useAtras(pinActivo !== null, cerrarNegocio);
 
   const alTocarMapa = useCallback(
     (x: number, y: number, escala: number) => {
@@ -347,8 +351,10 @@ function MapaListo({ geo }: { geo: Geometria }) {
         setBusqueda('');
         return;
       }
-      if (verNegocios && (escala >= 0.95 || filtro.grupo)) {
-        const radio = 16 / escala;
+      // Los pines empiezan a verse desde 0.88: desde ahí también se pueden tocar.
+      if (verNegocios && (escala >= 0.88 || filtro.grupo)) {
+        // Medida de un dedo, no del dibujo: de lejos los pines son pequeños.
+        const radio = 24 / escala;
         let mejor: NegocioMapa | null = null;
         let mejorD = radio;
         for (const n of datos.negocios) {
@@ -365,15 +371,17 @@ function MapaListo({ geo }: { geo: Geometria }) {
       }
       const tocada = (modo === 'sectores' ? base.sectores : base.colonias).find((z) => contiene(z, x, y));
       if (tocada) elegirZona(tocada);
+      else if (pinActivo) cerrarNegocio();
       else if (seleccion) cerrar();
     },
-    [busqueda, verNegocios, filtro.grupo, datos.negocios, base, modo, seleccion, elegirNegocio, elegirZona, cerrar],
+    [busqueda, verNegocios, filtro.grupo, datos.negocios, base, modo, seleccion, pinActivo, elegirNegocio, elegirZona, cerrar, cerrarNegocio],
   );
 
   const cambiarModo = useCallback(
     (m: Modo) => {
       if (m === modo) return;
       setModo(m);
+      setPinActivo(null);
       // Una zona de un reparto no existe en el otro.
       if (seleccion) cerrar();
     },
@@ -450,8 +458,9 @@ function MapaListo({ geo }: { geo: Geometria }) {
               </View>
             </View>
           }
-          encabezado={<EncabezadoHoja zona={zona} datos={datos} filtro={filtro} alCerrar={cerrar} />}>
+          encabezado={<EncabezadoHoja negocio={negocioActivo} zona={zona} datos={datos} filtro={filtro} alCerrar={negocioActivo ? cerrarNegocio : cerrar} />}>
           <CuerpoHoja
+            negocio={negocioActivo}
             zona={zona}
             base={base}
             datos={datos}
@@ -470,7 +479,7 @@ function MapaListo({ geo }: { geo: Geometria }) {
       <View style={[S.pasaToques, { position: 'absolute', left: 12, right: 12, top: insets.top + 8 }]}>
         <Fade desde={8}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <PressableScale onPress={() => (seleccion ? cerrar() : volverAtras())} accessibilityRole="button" accessibilityLabel={seleccion ? 'Volver a toda la ciudad' : 'Volver'} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', boxShadow: SOMBRA }}>
+            <PressableScale onPress={() => (negocioActivo ? cerrarNegocio() : seleccion ? cerrar() : volverAtras())} accessibilityRole="button" accessibilityLabel={negocioActivo ? 'Cerrar la información del negocio' : seleccion ? 'Volver a toda la ciudad' : 'Volver'} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', boxShadow: SOMBRA }}>
               <View style={{ transform: [{ rotate: '180deg' }] }}>
                 <Icon name="chevR" size={18} color={FG} />
               </View>

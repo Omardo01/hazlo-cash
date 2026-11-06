@@ -12,6 +12,8 @@ const TAPADO_ABAJO = 400;
 const HOLGURA = 40;
 
 const ENTRADA = { duration: DUR.slow, easing: Easing.out(Easing.cubic) };
+// Por debajo de esto, soltar no es un lanzamiento: el mapa se queda donde está.
+const VELOCIDAD_MINIMA = 150;
 
 function limitarEje(t: number, escalado: number, vista: number, inicio: number): number {
   'worklet';
@@ -28,6 +30,8 @@ export interface Camara {
   s: SharedValue<number>;
   /** Avisar el tamaño del contenedor. */
   medir: (ancho: number, alto: number) => void;
+  /** Web: dónde empieza el contenedor. El foco del pellizco llega en coordenadas de la página. */
+  medirOrigen: (x: number, y: number) => void;
   /** Centra (x, y) del lienzo en la franja visible entre `arriba` y `abajo`. */
   volarA: (x: number, y: number, escala: number, arriba: number, abajo: number, animar?: boolean) => void;
   /** Acerca o aleja manteniendo fijo el punto de pantalla (fx, fy). */
@@ -38,6 +42,7 @@ export interface Camara {
   alzar: () => void;
   mover: (dx: number, dy: number) => void;
   soltar: (vx: number, vy: number) => void;
+  empezarPellizco: (fx: number, fy: number) => void;
   pellizcar: (factor: number, fx: number, fy: number) => void;
   acercarEnWorklet: (factor: number, fx: number, fy: number) => void;
 }
@@ -49,6 +54,13 @@ export function useCamara(anchoMapa: number, altoMapa: number): Camara {
   const s = useSharedValue(0.6);
   const ancho = useSharedValue(390);
   const alto = useSharedValue(800);
+  const origenX = useSharedValue(0);
+  const origenY = useSharedValue(0);
+  // Mientras haya dos dedos manda el pellizco, y hasta soltar todos el arrastre
+  // no toca nada: aplicar los dos a la vez es lo que hacía brincar el mapa.
+  const pellizcando = useSharedValue(false);
+  const focoX = useSharedValue(0);
+  const focoY = useSharedValue(0);
 
   const escalaMin = () => {
     'worklet';
@@ -80,6 +92,10 @@ export function useCamara(anchoMapa: number, altoMapa: number): Camara {
     medir: (a, h) => {
       ancho.set(a);
       alto.set(h);
+    },
+    medirOrigen: (x, y) => {
+      origenX.set(x);
+      origenY.set(y);
     },
     volarA: (x, y, escala, arriba, abajo, animar = true) => {
       const destinoS = Math.min(ESCALA_MAX, Math.max(escalaMin(), escala));
@@ -117,26 +133,49 @@ export function useCamara(anchoMapa: number, altoMapa: number): Camara {
     },
     alzar: () => {
       'worklet';
+      pellizcando.set(false);
       cancelAnimation(tx);
       cancelAnimation(ty);
+      cancelAnimation(s);
     },
     mover: (dx, dy) => {
       'worklet';
+      if (pellizcando.get()) return;
       const escala = s.get();
       tx.set(limX(tx.get() + dx, escala));
       ty.set(limY(ty.get() + dy, escala));
     },
     soltar: (vx, vy) => {
       'worklet';
+      if (pellizcando.get() || Math.hypot(vx, vy) < VELOCIDAD_MINIMA) return;
       const escala = s.get();
       const rangoX: [number, number] = [limX(-1e6, escala), limX(1e6, escala)];
       const rangoY: [number, number] = [limY(-1e6, escala), limY(1e6, escala)];
       tx.set(withDecay({ velocity: vx, clamp: rangoX, deceleration: 0.994 }));
       ty.set(withDecay({ velocity: vy, clamp: rangoY, deceleration: 0.994 }));
     },
+    empezarPellizco: (fx, fy) => {
+      'worklet';
+      pellizcando.set(true);
+      cancelAnimation(tx);
+      cancelAnimation(ty);
+      cancelAnimation(s);
+      focoX.set(fx - origenX.get());
+      focoY.set(fy - origenY.get());
+    },
     pellizcar: (factor, fx, fy) => {
       'worklet';
-      aplicarZoom(factor, fx, fy);
+      // El punto que estaba bajo los dedos sigue bajo los dedos, aunque se muevan.
+      const x = fx - origenX.get();
+      const y = fy - origenY.get();
+      const antes = s.get();
+      const despues = Math.min(ESCALA_MAX, Math.max(escalaMin(), antes * factor));
+      const k = despues / antes;
+      s.set(despues);
+      tx.set(limX(x - k * (focoX.get() - tx.get()), despues));
+      ty.set(limY(y - k * (focoY.get() - ty.get()), despues));
+      focoX.set(x);
+      focoY.set(y);
     },
     acercarEnWorklet: (factor, fx, fy) => {
       'worklet';

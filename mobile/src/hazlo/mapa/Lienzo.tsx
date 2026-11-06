@@ -134,6 +134,7 @@ function Flotante({
   desde,
   hasta,
   crecer,
+  arriba,
   children,
 }: {
   camara: Camara;
@@ -145,6 +146,8 @@ function Flotante({
   hasta?: number;
   /** Crece con el acercamiento: de `[escala, tamaño]` a `[escala, tamaño]`. */
   crecer?: [number, number, number, number];
+  /** Encima de los demás: el negocio elegido no queda tapado. */
+  arriba?: boolean;
   children: React.ReactNode;
 }) {
   const estilo = useAnimatedStyle(() => {
@@ -161,7 +164,7 @@ function Flotante({
     };
   });
   return (
-    <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: 0, height: 0, pointerEvents: 'none' }, estilo]}>
+    <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: 0, height: 0, pointerEvents: 'none', zIndex: arriba ? 5 : 0 }, estilo]}>
       {children}
     </Animated.View>
   );
@@ -315,9 +318,13 @@ export function Lienzo({
       .onEnd((e) => {
         camara.soltar(e.velocityX, e.velocityY);
       });
-    const pellizco = Gesture.Pinch().onChange((e) => {
-      camara.pellizcar(e.scaleChange, e.focalX, e.focalY);
-    });
+    const pellizco = Gesture.Pinch()
+      .onStart((e) => {
+        camara.empezarPellizco(e.focalX, e.focalY);
+      })
+      .onChange((e) => {
+        camara.pellizcar(e.scaleChange, e.focalX, e.focalY);
+      });
     const doble = Gesture.Tap()
       .numberOfTaps(2)
       .maxDistance(12)
@@ -349,6 +356,28 @@ export function Lienzo({
     return () => nodo.removeEventListener('wheel', alGirar);
   }, [camara]);
 
+  // iPhone: sin esto, Safari también acerca la página entera con dos dedos o con
+  // doble toque, y el mapa parece moverse solo. Solo mientras el mapa está abierto.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const raiz = document.documentElement;
+    const antes = raiz.style.touchAction;
+    raiz.style.touchAction = 'pan-x pan-y';
+    const impedir = (e: Event) => e.preventDefault();
+    const dosDedos = (e: TouchEvent) => {
+      if (e.touches.length > 1) e.preventDefault();
+    };
+    document.addEventListener('gesturestart', impedir, { passive: false });
+    document.addEventListener('gesturechange', impedir, { passive: false });
+    document.addEventListener('touchmove', dosDedos, { passive: false });
+    return () => {
+      raiz.style.touchAction = antes;
+      document.removeEventListener('gesturestart', impedir);
+      document.removeEventListener('gesturechange', impedir);
+      document.removeEventListener('touchmove', dosDedos);
+    };
+  }, []);
+
   const zonas = modo === 'sectores' ? datos.sectores : datos.colonias;
   const enZona = useMemo(() => (zona ? new Set(zona.lista.map((n) => n.id)) : null), [zona]);
   const visibles = useMemo(() => new Set(datos.negocios.map((n) => n.id)), [datos.negocios]);
@@ -364,7 +393,13 @@ export function Lienzo({
     <GestureDetector gesture={gesto}>
       <View
         ref={contenedor}
-        onLayout={(e) => alMedir(e.nativeEvent.layout.width, e.nativeEvent.layout.height)}
+        onLayout={(e) => {
+          alMedir(e.nativeEvent.layout.width, e.nativeEvent.layout.height);
+          if (Platform.OS === 'web' && contenedor.current) {
+            const caja = (contenedor.current as unknown as HTMLElement).getBoundingClientRect();
+            camara.medirOrigen(caja.left, caja.top);
+          }
+        }}
         style={{ flex: 1, overflow: 'hidden', backgroundColor: TIERRA }}>
         <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: geo.ANCHO_MAPA, height: geo.ALTO_MAPA, transformOrigin: 'left top' }, capa]}>
           <CapaBase geo={geo} />
@@ -393,8 +428,15 @@ export function Lienzo({
           {verNegocios &&
             (negociosCerca || filtrando) &&
             base.negocios.map((n) => (
-              <Flotante key={n.id} camara={camara} x={n.x} y={n.y} desde={desdeNegocios} crecer={[ESCALA_NEGOCIOS, filtrando ? 0.62 : 0.42, 1.9, 1]}>
-                <Pin negocio={n} activo={n.id === pinActivo} estado={!visibles.has(n.id) ? 'oculto' : enZona && !enZona.has(n.id) ? 'apagado' : 'normal'} />
+              <Flotante
+                key={n.id}
+                camara={camara}
+                x={n.x}
+                y={n.y}
+                desde={n.id === pinActivo ? 0.3 : desdeNegocios}
+                arriba={n.id === pinActivo}
+                crecer={n.id === pinActivo ? undefined : [ESCALA_NEGOCIOS, filtrando ? 0.62 : 0.42, 1.9, 1]}>
+                <Pin negocio={n} activo={n.id === pinActivo} estado={!visibles.has(n.id) ? 'oculto' : n.id !== pinActivo && enZona && !enZona.has(n.id) ? 'apagado' : 'normal'} />
               </Flotante>
             ))}
         </View>

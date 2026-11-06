@@ -24,7 +24,6 @@ export interface NegocioMapa {
   grupo: string;
   /** Giro tal como viene en el catálogo. */
   giro: string;
-  oferta: string;
   icono: IconoGrupo;
   color: string;
   x: number;
@@ -114,30 +113,30 @@ const PESO: Record<string, number> = {
 
 // Los giros se escriben igual que en el catálogo: así el filtro funciona igual
 // cuando los negocios sean de verdad.
-const PLANTILLAS: { grupo: string; giro: string; prefijo: string; oferta: string }[] = [
-  { grupo: 'alimentos', giro: 'Taquerías de pastor y sirloin', prefijo: 'Tacos', oferta: 'Un refresco gratis' },
-  { grupo: 'belleza', giro: 'Estética', prefijo: 'Estética', oferta: '15% en tu primer corte' },
-  { grupo: 'automotriz', giro: 'Taller mecánico', prefijo: 'Taller', oferta: 'Revisión sin costo' },
-  { grupo: 'oficios', giro: 'Plomero', prefijo: 'Plomería', oferta: 'Visita sin costo' },
-  { grupo: 'alimentos', giro: 'Cafetería', prefijo: 'Café', oferta: 'Un pan con tu café' },
-  { grupo: 'salud', giro: 'Dentista', prefijo: 'Consultorio', oferta: 'Limpieza con 20%' },
-  { grupo: 'servicios', giro: 'Lavandería', prefijo: 'Lavandería', oferta: '1 kilo de regalo' },
-  { grupo: 'alimentos', giro: 'Cocina económica', prefijo: 'Cocina', oferta: 'Agua del día gratis' },
-  { grupo: 'oficios', giro: 'Electricista', prefijo: 'Electricidad', oferta: 'Diagnóstico gratis' },
-  { grupo: 'deportes', giro: 'Gym', prefijo: 'Gym', oferta: 'Una semana gratis' },
-  { grupo: 'belleza', giro: 'Barbería', prefijo: 'Barbería', oferta: 'Arreglo de barba gratis' },
-  { grupo: 'alimentos', giro: 'Panadería', prefijo: 'Panadería', oferta: 'Una concha de regalo' },
-  { grupo: 'fiestas', giro: 'Salón para fiestas', prefijo: 'Salón', oferta: 'Una hora extra' },
-  { grupo: 'automotriz', giro: 'Venta de llantas', prefijo: 'Llantera', oferta: 'Rotación gratis' },
-  { grupo: 'ensenanza', giro: 'Escuela de inglés', prefijo: 'Inglés', oferta: 'Primera clase gratis' },
-  { grupo: 'salud', giro: 'Medicina general', prefijo: 'Clínica', oferta: 'Toma de presión gratis' },
-  { grupo: 'servicios', giro: 'Ferreterías', prefijo: 'Ferretería', oferta: '5% en tu compra' },
-  { grupo: 'profesionales', giro: 'Contador público', prefijo: 'Despacho', oferta: 'Primera asesoría gratis' },
-  { grupo: 'oficios', giro: 'Cerrajero', prefijo: 'Cerrajería', oferta: 'Copia de llave gratis' },
-  { grupo: 'fiestas', giro: 'Florería', prefijo: 'Florería', oferta: 'Tarjeta de regalo' },
-  { grupo: 'inmuebles', giro: 'Venta y renta', prefijo: 'Inmobiliaria', oferta: 'Avalúo sin costo' },
-  { grupo: 'automotriz', giro: 'Lavado de autos', prefijo: 'Autolavado', oferta: 'Aspirado gratis' },
-  { grupo: 'vehiculos', giro: 'Venta y renta', prefijo: 'Autos', oferta: 'Revisión de compra gratis' },
+const PLANTILLAS: { grupo: string; giro: string; prefijo: string }[] = [
+  { grupo: 'alimentos', giro: 'Taquerías de pastor y sirloin', prefijo: 'Tacos' },
+  { grupo: 'belleza', giro: 'Estética', prefijo: 'Estética' },
+  { grupo: 'automotriz', giro: 'Taller mecánico', prefijo: 'Taller' },
+  { grupo: 'oficios', giro: 'Plomero', prefijo: 'Plomería' },
+  { grupo: 'alimentos', giro: 'Cafetería', prefijo: 'Café' },
+  { grupo: 'salud', giro: 'Dentista', prefijo: 'Consultorio' },
+  { grupo: 'servicios', giro: 'Lavandería', prefijo: 'Lavandería' },
+  { grupo: 'alimentos', giro: 'Cocina económica', prefijo: 'Cocina' },
+  { grupo: 'oficios', giro: 'Electricista', prefijo: 'Electricidad' },
+  { grupo: 'deportes', giro: 'Gym', prefijo: 'Gym' },
+  { grupo: 'belleza', giro: 'Barbería', prefijo: 'Barbería' },
+  { grupo: 'alimentos', giro: 'Panadería', prefijo: 'Panadería' },
+  { grupo: 'fiestas', giro: 'Salón para fiestas', prefijo: 'Salón' },
+  { grupo: 'automotriz', giro: 'Venta de llantas', prefijo: 'Llantera' },
+  { grupo: 'ensenanza', giro: 'Escuela de inglés', prefijo: 'Inglés' },
+  { grupo: 'salud', giro: 'Medicina general', prefijo: 'Clínica' },
+  { grupo: 'servicios', giro: 'Ferreterías', prefijo: 'Ferretería' },
+  { grupo: 'profesionales', giro: 'Contador público', prefijo: 'Despacho' },
+  { grupo: 'oficios', giro: 'Cerrajero', prefijo: 'Cerrajería' },
+  { grupo: 'fiestas', giro: 'Florería', prefijo: 'Florería' },
+  { grupo: 'inmuebles', giro: 'Venta y renta', prefijo: 'Inmobiliaria' },
+  { grupo: 'automotriz', giro: 'Lavado de autos', prefijo: 'Autolavado' },
+  { grupo: 'vehiculos', giro: 'Venta y renta', prefijo: 'Autos' },
 ];
 
 const SUFIJOS = ['El Güero', 'Don Beto', 'La Esquina', 'Doña Chela', 'El Compadre', 'La Ceiba', 'San Juan', 'Los Primos', 'El Malecón', 'Doña Mary', 'La Tabasqueña', 'El Jobo', 'Santa Elena', 'La Pigua'];
@@ -198,7 +197,6 @@ export function armarBase(geo: Geometria): BaseMapa {
         nombre: `${p.prefijo} ${SUFIJOS[n % SUFIJOS.length]}`,
         grupo: p.grupo,
         giro: p.giro,
-        oferta: p.oferta,
         icono: grupo?.icono ?? 'storefront-outline',
         color: hueColors(grupo?.hue ?? 26)[1],
         x: c.x + (r() - 0.5) * 22,
