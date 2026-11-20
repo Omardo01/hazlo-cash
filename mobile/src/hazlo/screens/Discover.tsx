@@ -14,6 +14,7 @@ import { Icon } from '../icons';
 import { Fade, PressableScale, STAGGER } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
 import { FoodTile, hueColors, SectionHeader } from '../ui';
+import { FichaNegocio } from '../negocio/FichaNegocio';
 import { VistaRecomendarNegocio, type GiroElegido } from './RecomendarNegocio';
 
 // Hue estable por negocio para que los tiles se vean variados sin foto real.
@@ -46,7 +47,7 @@ function InsigniaQr({ size = 40 }: { size?: number }) {
   );
 }
 
-function FilaNegocio({ n, delay, onElegir }: { n: Business; delay: number; onElegir?: AlElegir }) {
+function FilaNegocio({ n, delay, onElegir, onAbrir }: { n: Business; delay: number; onElegir?: AlElegir; onAbrir?: AlElegir }) {
   const fila = { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' } as const;
   if (onElegir) {
     return (
@@ -54,6 +55,16 @@ function FilaNegocio({ n, delay, onElegir }: { n: Business; delay: number; onEle
         <PressableScale onPress={() => onElegir(n)} accessibilityRole="button" accessibilityLabel={`Generar QR para recomendar ${n.nombre}`} style={fila}>
           <ContenidoFila n={n} />
           <InsigniaQr />
+        </PressableScale>
+      </Fade>
+    );
+  }
+  if (onAbrir) {
+    return (
+      <Fade delay={delay} desde={12}>
+        <PressableScale onPress={() => onAbrir(n)} accessibilityRole="button" accessibilityLabel={`Ver ${n.nombre}: su menú y cómo recomendarlo`} style={fila}>
+          <ContenidoFila n={n} />
+          <Icon name="chevR" size={16} color={MUTED} />
         </PressableScale>
       </Fade>
     );
@@ -73,7 +84,7 @@ function ContenidoFila({ n }: { n: Business }) {
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>{n.nombre}</Text>
-        <Text style={{ fontFamily: F.reg, fontSize: 11, color: MUTED, marginTop: 1 }}>{n.categoria}</Text>
+        <Text numberOfLines={1} style={{ fontFamily: F.reg, fontSize: 11, color: MUTED, marginTop: 1 }}>{girosDeNegocio(n)[0] ?? grupoDeCategoria(n.categoria).nombre}</Text>
         {n.oferta && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
             <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 16, height: 16, borderRadius: 999 }} />
@@ -317,6 +328,7 @@ function VistaGiro({
   cargando,
   onVolver,
   onElegir,
+  onAbrir,
   onRecomendar,
 }: {
   grupo: Grupo;
@@ -325,6 +337,7 @@ function VistaGiro({
   cargando: boolean;
   onVolver: () => void;
   onElegir?: AlElegir;
+  onAbrir?: AlElegir;
   onRecomendar?: () => void;
 }) {
   const todos = giro === TODOS;
@@ -345,7 +358,7 @@ function VistaGiro({
       ) : (
         <View style={{ gap: 12 }}>
           {negocios.map((n, i) => (
-            <FilaNegocio key={n.id} n={n} delay={(2 + Math.min(i, 6)) * STAGGER} onElegir={onElegir} />
+            <FilaNegocio key={n.id} n={n} delay={(2 + Math.min(i, 6)) * STAGGER} onElegir={onElegir} onAbrir={onAbrir} />
           ))}
         </View>
       )}
@@ -359,11 +372,13 @@ function Resultados({
   negocios,
   onAbrir,
   onElegir,
+  onAbrirNegocio,
 }: {
   busqueda: string;
   negocios: Business[];
   onAbrir: (g: Grupo, giro?: string) => void;
   onElegir?: AlElegir;
+  onAbrirNegocio?: AlElegir;
 }) {
   const q = normalizar(busqueda.trim());
   const deNegocios = negocios.filter((n) => [n.nombre, n.categoria, n.oferta ?? ''].some((campo) => normalizar(campo).includes(q)));
@@ -387,7 +402,7 @@ function Resultados({
           <SectionHeader title="Negocios" />
           <View style={{ gap: 12, marginBottom: 22 }}>
             {deNegocios.map((n, i) => (
-              <FilaNegocio key={n.id} n={n} delay={Math.min(i, 6) * STAGGER} onElegir={onElegir} />
+              <FilaNegocio key={n.id} n={n} delay={Math.min(i, 6) * STAGGER} onElegir={onElegir} onAbrir={onAbrirNegocio} />
             ))}
           </View>
         </>
@@ -430,10 +445,16 @@ export function DiscoverScreen({
   onElegir,
   titulo = 'Descubre',
   encabezado,
+  onRecomendarNegocio,
+  onRecomendarBloqueado,
 }: {
   invitado?: boolean;
   busquedaInicial?: string;
   onSugerirBloqueado?: () => void;
+  /** Botón «Recomendar» de la ficha: lleva al QR de ese negocio. */
+  onRecomendarNegocio?: AlElegir;
+  /** Sin cuenta, «Recomendar» abre la puerta de cuenta. */
+  onRecomendarBloqueado?: () => void;
   onElegir?: AlElegir;
   titulo?: string;
   encabezado?: ReactNode;
@@ -444,6 +465,9 @@ export function DiscoverScreen({
   const [busqueda, setBusqueda] = useState(busquedaInicial);
   // Formulario para invitar a un negocio abierto, quizá con el giro ya puesto.
   const [recomendando, setRecomendando] = useState<{ giro?: GiroElegido } | null>(null);
+  // Negocio abierto: su ficha con menú. En Recomienda (onElegir) tocar uno genera el QR directo.
+  const [abierto, setAbierto] = useState<Business | null>(null);
+  const abrirNegocio = onElegir ? undefined : setAbierto;
   // El catálogo de negocios cambia poco: se revalida cada 5 minutos.
   const { datos: negocios = [], cargando, error } = useCatalogo(invitado);
 
@@ -471,6 +495,7 @@ export function DiscoverScreen({
   useAtras(!!grupo && !!giro, () => setGiro(null));
   // Cerrar el formulario regresa a donde se abrió (categorías o el giro).
   useAtras(!!recomendando, () => setRecomendando(null));
+  useAtras(!!abierto, () => setAbierto(null));
 
   // En la pantalla Recomienda (elegir para QR) no se ofrece el formulario.
   const puedeRecomendar = !onElegir;
@@ -479,7 +504,7 @@ export function DiscoverScreen({
 
   return (
     <ScrollView
-      key={recomendando ? 'recomendar' : `${grupo?.slug ?? 'categorias'}-${giro ?? ''}`}
+      key={recomendando ? 'recomendar' : abierto ? `negocio-${abierto.id}` : `${grupo?.slug ?? 'categorias'}-${giro ?? ''}`}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 }}>
@@ -487,6 +512,15 @@ export function DiscoverScreen({
         <>
           <Volver etiqueta={grupo && giro ? (giro === TODOS ? grupo.nombre : giro) : titulo} onPress={() => setRecomendando(null)} />
           <VistaRecomendarNegocio giroInicial={recomendando.giro} onVolver={() => setRecomendando(null)} />
+        </>
+      ) : abierto ? (
+        <>
+          <Volver etiqueta={grupo && giro ? (giro === TODOS ? grupo.nombre : giro) : busqueda.trim() ? 'Resultados' : titulo} onPress={() => setAbierto(null)} />
+          <FichaNegocio
+            negocio={abierto}
+            invitado={invitado}
+            onRecomendar={() => (invitado ? onRecomendarBloqueado?.() : onRecomendarNegocio?.(abierto))}
+          />
         </>
       ) : grupo && giro ? (
         <VistaGiro
@@ -497,6 +531,7 @@ export function DiscoverScreen({
           onVolver={volver}
          
           onElegir={onElegir}
+          onAbrir={abrirNegocio}
           onRecomendar={puedeRecomendar ? () => recomendar(giro === TODOS ? undefined : { grupo, giro }) : undefined}
         />
       ) : grupo ? (
@@ -520,7 +555,7 @@ export function DiscoverScreen({
           </Fade>
 
           {busqueda.trim() ? (
-            <Resultados busqueda={busqueda} negocios={negocios} onAbrir={abrir} onElegir={onElegir} />
+            <Resultados busqueda={busqueda} negocios={negocios} onAbrir={abrir} onElegir={onElegir} onAbrirNegocio={abrirNegocio} />
           ) : (
             <>
               <SectionHeader title="Categorías" />

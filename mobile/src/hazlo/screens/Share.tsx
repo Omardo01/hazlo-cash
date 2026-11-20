@@ -30,7 +30,11 @@ const steps: { t: string; d: string; icon: IconName }[] = [
 // dispararía los efectos que dependen de él una y otra vez.
 const SIN_NEGOCIOS: Business[] = [];
 
-export function ShareScreen() {
+/**
+ * `negocioInicial`: se llegó desde «Recomendar» en la ficha de un negocio; en
+ * cuanto carga el catálogo se genera su QR sin pasar por la lista.
+ */
+export function ShareScreen({ negocioInicial = null, onNegocioInicialUsado }: { negocioInicial?: string | null; onNegocioInicialUsado?: () => void } = {}) {
   const [sel, setSel] = useState<string | null>(null);
   const [codigo, setCodigo] = useState<MiCodigo | null>(null);
   const [generando, setGenerando] = useState(false);
@@ -73,6 +77,15 @@ export function ShareScreen() {
       setSel(negocios.find((n) => n.nombre === mio.negocio)?.id ?? null);
     }
   }, [negocios, mio, genKey]);
+
+  useEffect(() => {
+    if (!negocioInicial || cargandoNegocios) return;
+    const negocio = negocios.find((n) => n.id === negocioInicial);
+    onNegocioInicialUsado?.();
+    if (negocio) elegir(negocio);
+    // Solo al llegar con un negocio: elegir cambia en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [negocioInicial, cargandoNegocios, negocios]);
 
   const alTerminarCodigo = useCallback(() => setFase(1), []);
   useEffect(() => {

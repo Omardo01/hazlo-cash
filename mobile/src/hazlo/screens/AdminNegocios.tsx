@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,12 +16,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { invalidar, mutar } from '@/lib/datos/cache';
 import { K, useAdminNegocios, useAdminRecargas } from '@/lib/datos/consultas';
 import { getUsuariosAdmin, type UsuarioAdmin } from '@/lib/services/admin';
-import { asignarDuenoNegocio, recargarCreditos, setComisionNegocio, setNegocioActivo } from '@/lib/services/businesses';
+import { asignarDuenoNegocio, recargarCreditos, setComisionNegocio, setNegocioActivo, setUbicacionNegocio } from '@/lib/services/businesses';
 import { resolverRecarga } from '@/lib/services/recargas';
 import type { BusinessAdmin, ComisionTipo, SolicitudRecargaAdmin } from '@/lib/types';
 import { AdminAltaNegocio } from '../AdminAltaNegocio';
 import { EditarNegocio } from '../EditarNegocio';
 import { HazloMark } from '../HazloMark';
+import { MiniMapa } from '../mapa/MiniMapa';
+import { ModalUbicacion } from '../mapa/SelectorUbicacion';
 import { Icon, IconName } from '../icons';
 import { BG, C, F, FG, MUTED, R } from '../theme';
 import { ListaSkeleton } from '../Skeleton';
@@ -62,6 +65,18 @@ function GestionNegocio({
   const [asignando, setAsignando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [ubicando, setUbicando] = useState(false);
+  const ubicacion = negocio.lat != null && negocio.lng != null ? { lat: negocio.lat, lng: negocio.lng } : null;
+
+  const guardarUbicacion = async (lat: number, lng: number): Promise<string | null> => {
+    const r = await setUbicacionNegocio(negocio.id, { lat, lng });
+    if (!r.ok) return 'No se pudo guardar la ubicación. Inténtalo otra vez.';
+    invalidar(K.mapaNegocios);
+    onUpdated({ ...negocio, lat, lng });
+    setAviso('Ubicación actualizada.');
+    setUbicando(false);
+    return null;
+  };
 
   // Candidatos a dueño = usuarios con rol 'negocio'.
   useEffect(() => {
@@ -137,6 +152,28 @@ function GestionNegocio({
                 <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED }}>{negocio.categoria}</Text>
               </View>
             </View>
+
+            {/* Dónde está */}
+            <Fade desde={8} style={{ marginBottom: 20 }}>
+              <Text style={{ fontFamily: F.semi, fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Ubicación en el mapa</Text>
+              {ubicacion ? (
+                <MiniMapa ubicacion={ubicacion} onPress={() => setUbicando(true)} />
+              ) : (
+                <PressableScale
+                  onPress={() => setUbicando(true)}
+                  accessibilityRole="button"
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: R.md, borderWidth: 1, borderStyle: 'dashed', borderColor: `${C.accent}66`, backgroundColor: `${C.accent}0A` }}>
+                  <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(13,13,13,0.06)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="location-outline" size={17} color={FG} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>Aún no está en el mapa</Text>
+                    <Text style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED, marginTop: 1 }}>Toca para marcar dónde está</Text>
+                  </View>
+                  <Icon name="chevR" size={15} color={MUTED} />
+                </PressableScale>
+              )}
+            </Fade>
 
             {/* Saldo de créditos */}
             <View style={{ position: 'relative', overflow: 'hidden', borderRadius: R.lg, padding: 20, marginBottom: 20 }}>
@@ -247,6 +284,13 @@ function GestionNegocio({
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+      <ModalUbicacion
+        visible={ubicando}
+        titulo={negocio.nombre}
+        inicial={ubicacion}
+        alCerrar={() => setUbicando(false)}
+        alElegir={(u) => guardarUbicacion(u.lat, u.lng)}
+      />
     </Modal>
   );
 }

@@ -5,7 +5,7 @@ import { grupoPorSlug, type IconoGrupo } from '../categorias/catalogo';
 import { Fade, PressableScale, STAGGER } from '../motion';
 import { C, F, FG, MUTED } from '../theme';
 import { hueColors } from '../ui';
-import { SIN_FILTRO, contarGiros, contarGrupos, type Filtro, type NegocioMapa } from './datosEjemplo';
+import { SIN_FILTRO, contarGiros, contarGrupos, type Filtro, type NegocioMapa } from './datos';
 
 const SOMBRA = '0 1px 6px rgba(13,13,13,0.13)';
 

@@ -1,16 +1,16 @@
 import { MarcoMovil } from '@/hazlo/categorias/MarcoMovil';
-import { InternoOAdmin } from '@/hazlo/interno/SoloInterno';
+import { SoloAdmin } from '@/hazlo/interno/SoloInterno';
 import { Mapa } from '@/hazlo/mapa/Mapa';
 
-// /mapa — Villahermosa por sectores y colonias. Las calles y las colonias son
-// reales; los sectores y las cifras son de ejemplo, por eso solo entran el equipo
-// y los admin (botón en su pestaña Cuenta).
+// /mapa — Villahermosa con los negocios activos donde de verdad están, y los
+// sectores si el admin los armó. Son datos reales de operación: solo entran los
+// admin (botón en su pestaña Cuenta), también en web.
 export default function MapaRoute() {
   return (
-    <InternoOAdmin>
+    <SoloAdmin>
       <MarcoMovil>
         <Mapa />
       </MarcoMovil>
-    </InternoOAdmin>
+    </SoloAdmin>
   );
 }

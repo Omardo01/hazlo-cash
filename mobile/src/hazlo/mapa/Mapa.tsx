@@ -3,28 +3,37 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Keyboard, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Keyboard, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAtras } from '@/lib/atras';
+import { invalidar } from '@/lib/datos/cache';
+import { K, useMapaNegocios, useSectores } from '@/lib/datos/consultas';
+import { guardarSectores, type NegocioEnMapa, type Sector } from '@/lib/services/mapa';
+import { getNegocioAdmin, setUbicacionNegocio } from '@/lib/services/businesses';
+import type { BusinessAdmin, Ubicacion } from '@/lib/types';
+import { abrirAjustes, hayUbicacion, leerMiUbicacion, mensajeSinUbicacion } from '@/lib/ubicacion';
 
 import { Buscador, TextoResaltado } from '../categorias/piezas';
 import { GRUPOS, buscarGiros, normalizar } from '../categorias/catalogo';
 import { Icon } from '../icons';
+import { EditarNegocio } from '../EditarNegocio';
 import { DUR, EASE, Fade, PressableScale, STAGGER, useReduceMotion } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
 import { useCamara } from './camara';
-import { CuerpoHoja, EncabezadoHoja } from './ContenidoHoja';
+import { CuerpoHoja, EncabezadoHoja, type AccionesNegocio } from './ContenidoHoja';
 import { FiltroGiros } from './FiltroGiros';
-import { SIN_FILTRO, aplicarFiltro, armarBase, contiene, type BaseMapa, type Caja, type DatosMapa, type Filtro, type NegocioMapa, type ZonaBase } from './datosEjemplo';
+import { SIN_FILTRO, aLienzo, aplicarFiltro, armarBase, cercanos, contiene, type BaseMapa, type Caja, type DatosMapa, type Filtro, type NegocioMapa, type ZonaBase } from './datos';
+import { CuerpoEditor, EncabezadoEditor, alternarColonia, coloresDe, type Borrador } from './EditorSectores';
 import { Hoja, type Alturas, type Snap } from './Hoja';
+import { ModalUbicacion } from './SelectorUbicacion';
 import { Lienzo, type Modo } from './Lienzo';
 import { NIVELES, TIERRA } from './paleta';
 import type { Geometria } from './tipos';
 
 /**
- * /mapa — la ciudad y cómo se reparte. Se puede ver por sectores o por colonias
- * porque todavía no se decide cuál será la unidad de Hazlo Cash.
+ * /mapa — la ciudad con los negocios activos donde de verdad están. Agrupar
+ * colonias en sectores es opcional: sin sectores se ve por colonias, tal cual.
  *
  * La geometría pesa, así que llega en su propio paquete: nadie la descarga hasta
  * que abre esta pantalla.
@@ -32,6 +41,8 @@ import type { Geometria } from './tipos';
 export function Mapa() {
   const [geo, setGeo] = useState<Geometria | null>(null);
   const [fallo, setFallo] = useState(false);
+  const negocios = useMapaNegocios();
+  const sectores = useSectores();
 
   const cargar = useCallback(() => {
     setFallo(false);
@@ -39,8 +50,17 @@ export function Mapa() {
   }, []);
   useEffect(cargar, [cargar]);
 
-  if (!geo) return <Cargando fallo={fallo} reintentar={cargar} />;
-  return <MapaListo geo={geo} />;
+  const reintentar = () => {
+    cargar();
+    if (negocios.error) negocios.refrescar();
+    if (sectores.error) sectores.refrescar();
+  };
+
+  if (!geo || !negocios.datos || !sectores.datos) {
+    const error = fallo || (!negocios.datos && negocios.error !== null) || (!sectores.datos && sectores.error !== null);
+    return <Cargando fallo={error} reintentar={reintentar} />;
+  }
+  return <MapaListo geo={geo} negocios={negocios.datos} sectores={sectores.datos} refrescarNegocios={negocios.refrescar} refrescarSectores={sectores.refrescar} />;
 }
 
 function Cargando({ fallo, reintentar }: { fallo: boolean; reintentar: () => void }) {
@@ -63,6 +83,12 @@ function Cargando({ fallo, reintentar }: { fallo: boolean; reintentar: () => voi
     </View>
   );
 }
+
+// «Cerca de ti»: cuántos se listan y hasta dónde entra un negocio en el encuadre.
+const CERCANOS = 5;
+const RADIO_ENCUADRE = 2500;
+// ~1.3 km de lado: con un solo punto el encuadre no se pega a la cuadra.
+const LADO_MINIMO = 60;
 
 const SOMBRA = '0 2px 10px rgba(13,13,13,0.13)';
 // «box-none» solo funciona en web dentro de StyleSheet.create.
@@ -139,11 +165,45 @@ function FilasFiltro({ visible, children }: { visible: boolean; children: React.
 }
 
 // ── Controles que viajan sobre la hoja ────────────────────────────────────────
-function BotonMapa({ icono, etiqueta, alTocar }: { icono: React.ComponentProps<typeof Ionicons>['name']; etiqueta: string; alTocar: () => void }) {
+function BotonMapa({
+  icono,
+  etiqueta,
+  alTocar,
+  ocupado,
+  color = FG,
+}: {
+  icono: React.ComponentProps<typeof Ionicons>['name'];
+  etiqueta: string;
+  alTocar: () => void;
+  ocupado?: boolean;
+  color?: string;
+}) {
   return (
-    <PressableScale onPress={alTocar} accessibilityRole="button" accessibilityLabel={etiqueta} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', boxShadow: SOMBRA }}>
-      <Ionicons name={icono} size={19} color={FG} />
+    <PressableScale onPress={alTocar} disabled={ocupado} accessibilityRole="button" accessibilityLabel={etiqueta} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', boxShadow: SOMBRA }}>
+      {ocupado ? <ActivityIndicator size="small" color={FG} /> : <Ionicons name={icono} size={19} color={color} />}
     </PressableScale>
+  );
+}
+
+// Avisos cortos sobre el mapa (permiso de ubicación, fuera de la ciudad).
+function AvisoMapa({ texto, icono, alAjustes, alCerrar }: { texto: string; icono: React.ComponentProps<typeof Ionicons>['name']; alAjustes: (() => void) | null; alCerrar: () => void }) {
+  return (
+    <Fade desde={8} style={{ flex: 1, marginRight: 10, alignSelf: 'flex-end' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 12, borderRadius: R.md, backgroundColor: '#fff', boxShadow: SOMBRA }}>
+        <Ionicons name={icono} size={16} color={C.accent} style={{ marginTop: 1 }} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ fontFamily: F.base, fontSize: 12, lineHeight: 17, color: FG }}>{texto}</Text>
+          {alAjustes && (
+            <PressableScale onPress={alAjustes} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginTop: 6 }}>
+              <Text style={{ fontFamily: F.semi, fontSize: 12.5, color: FG, textDecorationLine: 'underline' }}>Abrir Ajustes</Text>
+            </PressableScale>
+          )}
+        </View>
+        <PressableScale onPress={alCerrar} hitSlop={8} accessibilityRole="button" accessibilityLabel="Cerrar aviso">
+          <Ionicons name="close" size={16} color={MUTED} />
+        </PressableScale>
+      </View>
+    </Fade>
   );
 }
 
@@ -235,16 +295,40 @@ function escalaParaCaja(caja: Caja, ancho: number, alto: number): number {
   return Math.min(ancho / (caja.x1 - caja.x0 + orilla), alto / (caja.y1 - caja.y0 + orilla));
 }
 
-function MapaListo({ geo }: { geo: Geometria }) {
-  const base: BaseMapa = useMemo(() => armarBase(geo), [geo]);
+function MapaListo({
+  geo,
+  negocios,
+  sectores,
+  refrescarNegocios,
+  refrescarSectores,
+}: {
+  geo: Geometria;
+  negocios: NegocioEnMapa[];
+  sectores: Sector[];
+  refrescarNegocios: () => Promise<void>;
+  refrescarSectores: () => Promise<void>;
+}) {
+  const base: BaseMapa = useMemo(() => armarBase(geo, negocios, sectores), [geo, negocios, sectores]);
+  const haySectores = base.sectores.length > 0;
   const [filtro, setFiltro] = useState<Filtro>(SIN_FILTRO);
   const datos: DatosMapa = useMemo(() => aplicarFiltro(base, filtro), [base, filtro]);
   const insets = useSafeAreaInsets();
   const reduce = useReduceMotion();
-  const camara = useCamara(geo.ANCHO_MAPA, geo.ALTO_MAPA);
+  const camara = useCamara(geo.ANCHO_MAPA, geo.ALTO_MAPA, 6);
 
   const [tam, setTam] = useState({ w: 0, h: 0 });
-  const [modo, setModo] = useState<Modo>('sectores');
+  const [modo, setModo] = useState<Modo>(haySectores ? 'sectores' : 'colonias');
+  // Sin sectores no hay nada que ver en ese modo.
+  if (!haySectores && modo === 'sectores') setModo('colonias');
+  const [borrador, setBorrador] = useState<Borrador | null>(null);
+  const [guardandoSectores, setGuardandoSectores] = useState(false);
+  const [errorSectores, setErrorSectores] = useState<string | null>(null);
+  const editando = borrador !== null;
+  const colores = useMemo(() => (borrador ? coloresDe(borrador) : null), [borrador]);
+  // Marcar por primera vez (sin `inicial`) o mover el pin de uno que ya está.
+  const [porUbicar, setPorUbicar] = useState<{ id: string; nombre: string; inicial: Ubicacion | null } | null>(null);
+  const [fichaEditando, setFichaEditando] = useState<BusinessAdmin | null>(null);
+  const [abriendoEdicion, setAbriendoEdicion] = useState(false);
   const [verNegocios, setVerNegocios] = useState(true);
   // Se guarda la forma; sus cifras se leen de `datos` para que sigan al filtro.
   const [seleccion, setSeleccion] = useState<ZonaBase | null>(null);
@@ -279,6 +363,61 @@ function MapaListo({ geo }: { geo: Geometria }) {
     },
     [tam.w, arriba, camara, reduce],
   );
+
+  // «Dónde estoy»: el punto azul y los negocios a la vuelta. Al abrir el mapa
+  // se pide solo; si no hay permiso, se queda la ciudad completa sin avisos.
+  const [yo, setYo] = useState<{ x: number; y: number } | null>(null);
+  const [ubicandome, setUbicandome] = useState(false);
+  const [avisoYo, setAvisoYo] = useState<{ texto: string; ajustes: boolean; icono?: React.ComponentProps<typeof Ionicons>['name'] } | null>(null);
+  const cerca = useMemo(() => (yo ? cercanos(geo, datos.negocios, yo, CERCANOS) : []), [geo, datos.negocios, yo]);
+  // Si mientras llegaba la ubicación ya abrieron algo, no se les mueve el mapa.
+  const ocupado = useRef(false);
+  useEffect(() => {
+    ocupado.current = seleccion !== null || pinActivo !== null || busqueda !== '' || borrador !== null;
+  }, [seleccion, pinActivo, busqueda, borrador]);
+
+  const ubicarme = useCallback(
+    async (alAbrir: boolean) => {
+      setAvisoYo(null);
+      setUbicandome(true);
+      const r = await leerMiUbicacion();
+      setUbicandome(false);
+      if (!r.ok) {
+        if (!alAbrir) setAvisoYo({ texto: mensajeSinUbicacion(r.motivo), ajustes: r.motivo === 'bloqueado' });
+        return;
+      }
+      const p = aLienzo(geo, r.lat, r.lng);
+      if (p.x < 0 || p.y < 0 || p.x > geo.ANCHO_MAPA || p.y > geo.ALTO_MAPA) {
+        setYo(null);
+        setAvisoYo({ texto: 'Estás fuera de Villahermosa: este mapa solo cubre la ciudad.', ajustes: false });
+        return;
+      }
+      setYo(p);
+      if (alAbrir && ocupado.current) return;
+      setSeleccion(null);
+      setPinActivo(null);
+      setSnap('medio');
+      // Encuadre: tú y los 3 negocios más cercanos que estén a una distancia caminable o en coche corto.
+      const vecinos = cercanos(geo, datos.negocios, p, 3).filter((c) => c.metros <= RADIO_ENCUADRE);
+      let caja: Caja = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
+      for (const { negocio: n } of vecinos) caja = { x0: Math.min(caja.x0, n.x), y0: Math.min(caja.y0, n.y), x1: Math.max(caja.x1, n.x), y1: Math.max(caja.y1, n.y) };
+      const cx = (caja.x0 + caja.x1) / 2;
+      const cy = (caja.y0 + caja.y1) / 2;
+      const mw = Math.max(caja.x1 - caja.x0, LADO_MINIMO) / 2;
+      const mh = Math.max(caja.y1 - caja.y0, LADO_MINIMO) / 2;
+      encuadrar({ x0: cx - mw, y0: cy - mh, x1: cx + mw, y1: cy + mh }, tam.h - alturas.medio, true);
+    },
+    [geo, datos.negocios, encuadrar, tam.h, alturas.medio],
+  );
+
+  const pidioAlAbrir = useRef(false);
+  useEffect(() => {
+    if (tam.h === 0 || pidioAlAbrir.current || !hayUbicacion) return;
+    pidioAlAbrir.current = true;
+    // Deja terminar el acercamiento de entrada antes de volar a ti.
+    const t = setTimeout(() => ubicarme(true), 450);
+    return () => clearTimeout(t);
+  }, [tam.h, ubicarme]);
 
   // Al abrir: la ciudad completa, con un acercamiento corto de entrada.
   const yaEncuadro = useRef(false);
@@ -351,6 +490,17 @@ function MapaListo({ geo }: { geo: Geometria }) {
         setBusqueda('');
         return;
       }
+      if (borrador) {
+        const colonia = base.colonias.find((z) => contiene(z, x, y));
+        if (!colonia) return;
+        if (!borrador.activo) {
+          setErrorSectores('Primero elige o crea un sector.');
+          return;
+        }
+        setErrorSectores(null);
+        setBorrador(alternarColonia(borrador, colonia.id));
+        return;
+      }
       // Los pines empiezan a verse desde 0.88: desde ahí también se pueden tocar.
       if (verNegocios && (escala >= 0.88 || filtro.grupo)) {
         // Medida de un dedo, no del dibujo: de lejos los pines son pequeños.
@@ -374,7 +524,7 @@ function MapaListo({ geo }: { geo: Geometria }) {
       else if (pinActivo) cerrarNegocio();
       else if (seleccion) cerrar();
     },
-    [busqueda, verNegocios, filtro.grupo, datos.negocios, base, modo, seleccion, pinActivo, elegirNegocio, elegirZona, cerrar, cerrarNegocio],
+    [busqueda, borrador, verNegocios, filtro.grupo, datos.negocios, base, modo, seleccion, pinActivo, elegirNegocio, elegirZona, cerrar, cerrarNegocio],
   );
 
   const cambiarModo = useCallback(
@@ -398,13 +548,123 @@ function MapaListo({ geo }: { geo: Geometria }) {
       setBusqueda('');
       setFiltro(f);
     };
+    if (borrador) {
+      // Organizando: buscar una colonia solo lleva el mapa hasta ella.
+      const irA = (z: ZonaBase) => () => {
+        Keyboard.dismiss();
+        setBusqueda('');
+        encuadrar(z.caja, tam.h - alturas[snap], true);
+      };
+      for (const z of base.colonias) if (coincide(z.nombre)) salida.push({ clave: `c-${z.id}`, titulo: z.nombre, detalle: z.detalle, icono: 'location-outline', alElegir: irA(z) });
+      return salida.slice(0, 8);
+    }
     for (const z of base.sectores) if (coincide(z.nombre)) salida.push({ clave: `s-${z.id}`, titulo: z.nombre, detalle: `Sector · ${z.detalle}`, icono: 'layers-outline', alElegir: () => elegirZona(z) });
     for (const z of base.colonias) if (coincide(z.nombre)) salida.push({ clave: `c-${z.id}`, titulo: z.nombre, detalle: z.detalle, icono: 'location-outline', alElegir: () => elegirZona(z) });
     for (const g of GRUPOS) if (coincide(g.nombre)) salida.push({ clave: `g-${g.slug}`, titulo: g.nombre, detalle: 'Categoría · ver en el mapa', icono: g.icono, alElegir: filtrarPor({ grupo: g.slug, giro: null }) });
     for (const r of buscarGiros(busqueda).slice(0, 4)) salida.push({ clave: `r-${r.grupo.slug}-${r.giro}`, titulo: r.giro, detalle: `Giro · ${r.grupo.nombre}`, icono: r.grupo.icono, alElegir: filtrarPor({ grupo: r.grupo.slug, giro: r.giro }) });
-    for (const n of base.negocios) if (coincide(n.nombre)) salida.push({ clave: `n-${n.id}`, titulo: n.nombre, detalle: `${n.giro} · ${n.coloniaNombre}`, icono: 'storefront-outline', alElegir: () => elegirNegocio(n, false) });
+    for (const n of base.negocios) if (coincide(n.nombre)) salida.push({ clave: `n-${n.id}`, titulo: n.nombre, detalle: n.coloniaNombre ? `${n.giro} · ${n.coloniaNombre}` : n.giro, icono: 'storefront-outline', alElegir: () => elegirNegocio(n, false) });
     return salida.slice(0, 8);
-  }, [busqueda, base, elegirZona, elegirNegocio]);
+    // encuadrar, alturas y snap solo importan al tocar un resultado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busqueda, base, borrador, elegirZona, elegirNegocio]);
+
+  // ── Sectores ──
+  const empezarEdicion = useCallback(() => {
+    Keyboard.dismiss();
+    setBusqueda('');
+    setSeleccion(null);
+    setPinActivo(null);
+    setErrorSectores(null);
+    const actuales = sectores.map((s) => ({ clave: s.id, nombre: s.nombre, colonias: s.colonias.filter((id) => base.colonias.some((c) => c.id === id)) }));
+    setBorrador({ sectores: actuales, activo: actuales[0]?.clave ?? null });
+    setSnap('medio');
+    encuadrar(base.caja, tam.h - alturas.medio, true);
+  }, [sectores, base, encuadrar, tam.h, alturas.medio]);
+
+  const cancelarEdicion = useCallback(() => {
+    setBorrador(null);
+    setErrorSectores(null);
+    setSnap('pico');
+  }, []);
+  useAtras(editando, cancelarEdicion);
+
+  const usarPropuesta = useCallback(() => {
+    const propuesta = geo.SECTORES.map((s) => ({ clave: `propuesta-${s.id}`, nombre: s.nombre, colonias: geo.COLONIAS.filter((c) => c.sector === s.id).map((c) => c.id) }));
+    setBorrador({ sectores: propuesta, activo: propuesta[0]?.clave ?? null });
+  }, [geo]);
+
+  const guardarEdicion = useCallback(async () => {
+    if (!borrador) return;
+    setErrorSectores(null);
+    setGuardandoSectores(true);
+    const lista = borrador.sectores
+      .map((s, i) => ({ nombre: s.nombre.trim() || `Sector ${i + 1}`, colonias: s.colonias }))
+      .filter((s) => s.colonias.length > 0);
+    const r = await guardarSectores(lista);
+    if (!r.ok) {
+      setGuardandoSectores(false);
+      setErrorSectores(r.error);
+      return;
+    }
+    await refrescarSectores();
+    setGuardandoSectores(false);
+    setBorrador(null);
+    setModo(lista.length > 0 ? 'sectores' : 'colonias');
+    setSnap('pico');
+  }, [borrador, refrescarSectores]);
+
+  const nombreColonia = useCallback((id: string) => base.colonias.find((c) => c.id === id)?.nombre ?? id, [base.colonias]);
+
+  // ── Negocios sin ubicación ──
+  // Al marcar uno, en cuanto llega del servidor se abre su ficha en el mapa.
+  const recienUbicado = useRef<string | null>(null);
+  const ubicar = useCallback(
+    async (lat: number, lng: number): Promise<string | null> => {
+      if (!porUbicar) return null;
+      const r = await setUbicacionNegocio(porUbicar.id, { lat, lng });
+      if (!r.ok) return 'No se pudo guardar la ubicación. Inténtalo otra vez.';
+      recienUbicado.current = porUbicar.id;
+      invalidar(K.adminNegocios);
+      await refrescarNegocios();
+      setPorUbicar(null);
+      return null;
+    },
+    [porUbicar, refrescarNegocios],
+  );
+  useAtras(porUbicar !== null, () => setPorUbicar(null));
+
+  // ── Ficha del negocio: mover su pin o editarla sin salir del mapa ──
+  const acciones: AccionesNegocio = useMemo(
+    () => ({
+      abriendoEdicion,
+      alMoverPin: (n) => setPorUbicar({ id: n.id, nombre: n.nombre, inicial: { lat: n.lat, lng: n.lng } }),
+      alEditar: async (n) => {
+        setAbriendoEdicion(true);
+        try {
+          const completo = await getNegocioAdmin(n.id);
+          if (completo) setFichaEditando(completo);
+          else setAvisoYo({ texto: 'Ese negocio ya no existe.', ajustes: false, icono: 'alert-circle-outline' });
+        } catch {
+          setAvisoYo({ texto: 'No pudimos abrir la ficha. Revisa tu conexión e inténtalo otra vez.', ajustes: false, icono: 'alert-circle-outline' });
+        } finally {
+          setAbriendoEdicion(false);
+        }
+      },
+    }),
+    [abriendoEdicion],
+  );
+  useAtras(fichaEditando !== null, () => setFichaEditando(null));
+
+  useEffect(() => {
+    const id = recienUbicado.current;
+    if (!id) return;
+    const n = base.negocios.find((x) => x.id === id);
+    if (!n) return;
+    recienUbicado.current = null;
+    // Espera a que la ventana del selector termine de bajar.
+    const t = setTimeout(() => elegirNegocio(n, false), 320);
+    return () => clearTimeout(t);
+  }, [base.negocios, elegirNegocio]);
 
   // La hoja que sube o baja a mano se lleva consigo la mitad de su recorrido: lo
   // que estabas viendo sigue centrado en el espacio que queda.
@@ -431,6 +691,8 @@ function MapaListo({ geo }: { geo: Geometria }) {
           grosorSeleccion={grosor}
           verNegocios={verNegocios}
           pinActivo={pinActivo}
+          edicion={colores}
+          yo={yo}
           alMedir={alMedir}
           alTocar={alTocarMapa}
         />
@@ -450,15 +712,41 @@ function MapaListo({ geo }: { geo: Geometria }) {
           alCambiar={moverHoja}
           encima={
             <View style={[S.pasaToques, { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }]}>
-              <Leyenda visible={snap === 'pico'} />
+              {avisoYo ? (
+                <AvisoMapa texto={avisoYo.texto} icono={avisoYo.icono ?? 'locate-outline'} alAjustes={avisoYo.ajustes ? abrirAjustes : null} alCerrar={() => setAvisoYo(null)} />
+              ) : (
+                <Leyenda visible={snap === 'pico' && !editando} />
+              )}
               <View style={{ gap: 8 }}>
+                {hayUbicacion && <BotonMapa icono={yo ? 'locate' : 'locate-outline'} color={yo ? '#1A73E8' : FG} etiqueta="Ir a mi ubicación" ocupado={ubicandome} alTocar={() => ubicarme(false)} />}
                 <BotonMapa icono="add" etiqueta="Acercar" alTocar={() => { const c = centroZoom(); camara.acercar(1.6, c.x, c.y, !reduce); }} />
                 <BotonMapa icono="remove" etiqueta="Alejar" alTocar={() => { const c = centroZoom(); camara.acercar(1 / 1.6, c.x, c.y, !reduce); }} />
                 <BotonMapa icono="scan-outline" etiqueta="Ver toda la ciudad" alTocar={() => encuadrar(seleccion ? seleccion.caja : base.caja, tam.h - alturas[snap], true)} />
               </View>
             </View>
           }
-          encabezado={<EncabezadoHoja negocio={negocioActivo} zona={zona} datos={datos} filtro={filtro} alCerrar={negocioActivo ? cerrarNegocio : cerrar} />}>
+          encabezado={
+            borrador ? (
+              <EncabezadoEditor guardando={guardandoSectores} alCancelar={cancelarEdicion} alGuardar={guardarEdicion} />
+            ) : (
+              <EncabezadoHoja negocio={negocioActivo} zona={zona} datos={datos} filtro={filtro} haySectores={haySectores} alOrganizar={empezarEdicion} alCerrar={negocioActivo ? cerrarNegocio : cerrar} />
+            )
+          }>
+          {borrador ? (
+            <CuerpoEditor
+              borrador={borrador}
+              totalColonias={base.colonias.length}
+              nombreColonia={nombreColonia}
+              sectoresPropuesta={geo.SECTORES.length}
+              error={errorSectores}
+              relleno={altoHoja - alturas[snap] + insets.bottom + 24}
+              alCambiar={(b) => {
+                setErrorSectores(null);
+                setBorrador(b);
+              }}
+              alUsarPropuesta={usarPropuesta}
+            />
+          ) : (
           <CuerpoHoja
             negocio={negocioActivo}
             zona={zona}
@@ -469,9 +757,13 @@ function MapaListo({ geo }: { geo: Geometria }) {
             alCambiarFiltro={setFiltro}
             relleno={altoHoja - alturas[snap] + insets.bottom + 24}
             pinActivo={pinActivo}
+            cerca={cerca}
             alElegirZona={elegirZona}
             alElegirNegocio={(n) => elegirNegocio(n, false)}
+            alUbicar={(n) => setPorUbicar({ id: n.id, nombre: n.nombre, inicial: null })}
+            acciones={acciones}
           />
+          )}
         </Hoja>
       )}
 
@@ -479,21 +771,26 @@ function MapaListo({ geo }: { geo: Geometria }) {
       <View style={[S.pasaToques, { position: 'absolute', left: 12, right: 12, top: insets.top + 8 }]}>
         <Fade desde={8}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <PressableScale onPress={() => (negocioActivo ? cerrarNegocio() : seleccion ? cerrar() : volverAtras())} accessibilityRole="button" accessibilityLabel={negocioActivo ? 'Cerrar la información del negocio' : seleccion ? 'Volver a toda la ciudad' : 'Volver'} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', boxShadow: SOMBRA }}>
+            <PressableScale onPress={() => (editando ? cancelarEdicion() : negocioActivo ? cerrarNegocio() : seleccion ? cerrar() : volverAtras())} accessibilityRole="button" accessibilityLabel={editando ? 'Salir sin guardar los sectores' : negocioActivo ? 'Cerrar la información del negocio' : seleccion ? 'Volver a toda la ciudad' : 'Volver'} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', boxShadow: SOMBRA }}>
               <View style={{ transform: [{ rotate: '180deg' }] }}>
                 <Icon name="chevR" size={18} color={FG} />
               </View>
             </PressableScale>
             <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: R.md, boxShadow: SOMBRA }}>
-              <Buscador valor={busqueda} onCambio={setBusqueda} placeholder="Busca tu colonia o un negocio" />
+              <Buscador valor={busqueda} onCambio={setBusqueda} placeholder={editando ? 'Busca una colonia' : 'Busca tu colonia o un negocio'} />
             </View>
           </View>
         </Fade>
-        <FilasFiltro visible={snap !== 'alto'}>
+        <FilasFiltro visible={snap !== 'alto' && !editando}>
           {/* Cada uno en su Fade: entre los dos, el mapa sigue recibiendo los toques. */}
-          <Fade delay={STAGGER} desde={8} style={{ alignSelf: 'flex-start', marginTop: 8 }}>
-            <SelectorModo modo={modo} alCambiar={cambiarModo} />
-          </Fade>
+          {haySectores ? (
+            <Fade delay={STAGGER} desde={8} style={{ alignSelf: 'flex-start', marginTop: 8 }}>
+              <SelectorModo modo={modo} alCambiar={cambiarModo} />
+            </Fade>
+          ) : (
+            // Mismo alto que el selector: los filtros no brincan al crear el primer sector.
+            <View style={{ height: 44 }} />
+          )}
           <Fade delay={STAGGER} desde={8} style={{ position: 'absolute', right: 0, top: 8 }}>
             <InterruptorNegocios activo={verNegocios} alCambiar={() => setVerNegocios((v) => !v)} />
           </Fade>
@@ -505,6 +802,24 @@ function MapaListo({ geo }: { geo: Geometria }) {
           <ResultadosBusqueda busqueda={busqueda} resultados={resultados} />
         </View>
       </View>
+
+      <ModalUbicacion
+        visible={porUbicar !== null}
+        titulo={porUbicar?.nombre ?? 'el negocio'}
+        inicial={porUbicar?.inicial ?? null}
+        alCerrar={() => setPorUbicar(null)}
+        alElegir={(u) => ubicar(u.lat, u.lng)}
+      />
+      <EditarNegocio
+        negocio={fichaEditando}
+        visible={fichaEditando !== null}
+        onClose={() => setFichaEditando(null)}
+        onGuardado={() => {
+          // Nombre, giro o ubicación pudieron cambiar: el mapa y el panel se vuelven a leer.
+          invalidar(K.adminNegocios);
+          refrescarNegocios();
+        }}
+      />
     </View>
   );
 }

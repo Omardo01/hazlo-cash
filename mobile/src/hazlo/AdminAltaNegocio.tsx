@@ -11,8 +11,9 @@ import {
 } from 'react-native';
 
 import { crearNegocio } from '@/lib/services/businesses';
-import type { ComisionTipo } from '@/lib/types';
+import type { ComisionTipo, Ubicacion } from '@/lib/types';
 import { Icon } from './icons';
+import { CampoUbicacion } from './mapa/SelectorUbicacion';
 import { BG, C, F, FG, MUTED, R } from './theme';
 import { PressableScale } from './motion';
 
@@ -68,6 +69,7 @@ export function AdminAltaNegocio({ visible, onClose }: { visible: boolean; onClo
   const [direccion, setDireccion] = useState('');
   const [oferta, setOferta] = useState('');
   const [descripcion, setDescripcion] = useState('');
+  const [ubicacion, setUbicacion] = useState<Ubicacion | null>(null);
   const [comisionTipo, setComisionTipo] = useState<ComisionTipo>('fijo');
   const [comisionValor, setComisionValor] = useState('10');
   const [loading, setLoading] = useState(false);
@@ -80,6 +82,7 @@ export function AdminAltaNegocio({ visible, onClose }: { visible: boolean; onClo
     setDireccion('');
     setOferta('');
     setDescripcion('');
+    setUbicacion(null);
     setComisionTipo('fijo');
     setComisionValor('10');
     setError(null);
@@ -99,7 +102,7 @@ export function AdminAltaNegocio({ visible, onClose }: { visible: boolean; onClo
     if (comisionTipo === 'porcentaje' && valor > 100) return setError('El porcentaje no puede ser mayor a 100.');
     setError(null);
     setLoading(true);
-    const r = await crearNegocio({ nombre, categoria, direccion, oferta, descripcion, comision_tipo: comisionTipo, comision_valor: valor });
+    const r = await crearNegocio({ nombre, categoria, direccion, oferta, descripcion, comision_tipo: comisionTipo, comision_valor: valor, ubicacion });
     setLoading(false);
     if (r.ok) setExito(nombre.trim());
     else setError(r.error ?? 'No se pudo dar de alta el negocio.');
@@ -157,6 +160,7 @@ export function AdminAltaNegocio({ visible, onClose }: { visible: boolean; onClo
               </View>
 
               <Campo label="Dirección / Ciudad" value={direccion} onChangeText={setDireccion} placeholder="Villahermosa, Tabasco" />
+              <CampoUbicacion valor={ubicacion} alCambiar={setUbicacion} titulo={nombre} />
               <Campo label="Oferta Hazlo Cash" value={oferta} onChangeText={setOferta} placeholder="Ej. Refresco gratis con tu primer pedido" />
               <Campo label="Descripción" value={descripcion} onChangeText={setDescripcion} placeholder="Breve descripción del negocio…" multiline />
 

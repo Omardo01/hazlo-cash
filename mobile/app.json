@@ -51,7 +51,15 @@
       "expo-image",
       "expo-sharing",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Hazlo Cash usa tu ubicación para enseñarte dónde estás en el mapa y para marcar dónde está tu negocio.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

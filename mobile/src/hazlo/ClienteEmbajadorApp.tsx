@@ -36,6 +36,8 @@ export function ClienteEmbajadorApp() {
   const [explicador, setExplicador] = useState(false);
   // Formulario para invitar a un negocio, abierto desde el Inicio.
   const [invitando, setInvitando] = useState(false);
+  // «Recomendar» en la ficha de un negocio: Recomienda abre directo su QR.
+  const [porRecomendar, setPorRecomendar] = useState<string | null>(null);
 
   const go = (t: Tab) => setTab(t);
   const openSheet = (s: SheetName) => setSheet(s);
@@ -54,11 +56,18 @@ export function ClienteEmbajadorApp() {
     if (invitando) return <InvitarNegocioScreen onVolver={() => setInvitando(false)} />;
     switch (tab) {
       case 'discover':
-        return <DiscoverScreen />;
+        return (
+          <DiscoverScreen
+            onRecomendarNegocio={(n) => {
+              setPorRecomendar(n.id);
+              setTab('share');
+            }}
+          />
+        );
       case 'balance':
         return <BalanceScreen go={go} openSheet={openSheet} onAbrirRetiros={() => setRetiros('historial')} />;
       case 'share':
-        return <ShareScreen />;
+        return <ShareScreen negocioInicial={porRecomendar} onNegocioInicialUsado={() => setPorRecomendar(null)} />;
       case 'profile':
         return <ProfileScreen go={go} openSheet={openSheet} onAbrirCuentas={() => setRetiros('cuentas')} />;
       default:

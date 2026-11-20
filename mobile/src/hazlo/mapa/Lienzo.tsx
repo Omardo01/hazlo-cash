@@ -6,10 +6,10 @@ import Animated, { Extrapolation, interpolate, useAnimatedReaction, useAnimatedS
 import Svg, { G, Path } from 'react-native-svg';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { DUR, EASE, Fade, useReduceMotion } from '../motion';
+import { DUR, EASE, Fade, bucle, useReduceMotion } from '../motion';
 import { C, F, FG } from '../theme';
 import type { Camara } from './camara';
-import type { BaseMapa, DatosMapa, NegocioMapa, Zona, ZonaBase } from './datosEjemplo';
+import type { BaseMapa, DatosMapa, NegocioMapa, Zona, ZonaBase } from './datos';
 import { AGUA, AGUA_TEXTO, CALLE, CALLE_BORDE, NIVELES, TIERRA, TRONCAL, TRONCAL_BORDE, VERDE } from './paleta';
 import type { Geometria } from './tipos';
 
@@ -20,10 +20,30 @@ const ESCALA_NEGOCIOS = 0.95;
 export type Modo = 'sectores' | 'colonias';
 
 // ── Capas fijas: calles, agua y verde. No se repintan nunca. ──────────────────
-const CapaBase = memo(function CapaBase({ geo }: { geo: Geometria }) {
+/**
+ * `grosor` adelgaza calles y avenidas cuando el selector de ubicación acerca
+ * mucho: el lienzo escala todo parejo y a 12× una avenida mediría 35 px. Los
+ * ríos no cambian: su ancho es el de verdad.
+ */
+/** Un recorte del lienzo pintado en `ancho`×`alto` px: el mapa fijo de una vista previa. */
+export interface Recorte {
+  x0: number;
+  y0: number;
+  w: number;
+  h: number;
+  ancho: number;
+  alto: number;
+}
+
+export const CapaBase = memo(function CapaBase({ geo, grosor = 1, recorte }: { geo: Geometria; grosor?: number; recorte?: Recorte }) {
   const { CAPAS: c, ANCHO_MAPA: w, ALTO_MAPA: h } = geo;
+  const g = grosor;
   return (
-    <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={StyleSheet.absoluteFill}>
+    <Svg
+      width={recorte?.ancho ?? w}
+      height={recorte?.alto ?? h}
+      viewBox={recorte ? `${recorte.x0} ${recorte.y0} ${recorte.w} ${recorte.h}` : `0 0 ${w} ${h}`}
+      style={StyleSheet.absoluteFill}>
       <Path d={c.verde} fill={VERDE} />
       <G fill="none" stroke={AGUA} strokeLinecap="round" strokeLinejoin="round">
         <Path d={c.rioFino} strokeWidth={1.1} />
@@ -32,13 +52,13 @@ const CapaBase = memo(function CapaBase({ geo }: { geo: Geometria }) {
       </G>
       <Path d={c.agua} fill={AGUA} fillRule="evenodd" />
       <G fill="none" strokeLinecap="round" strokeLinejoin="round">
-        <Path d={c.primaria} stroke={CALLE_BORDE} strokeWidth={2.9} />
-        <Path d={c.troncal} stroke={TRONCAL_BORDE} strokeWidth={3.4} />
-        <Path d={c.local} stroke={CALLE} strokeWidth={0.55} />
-        <Path d={c.terciaria} stroke={CALLE} strokeWidth={1} />
-        <Path d={c.secundaria} stroke={CALLE} strokeWidth={1.4} />
-        <Path d={c.primaria} stroke={CALLE} strokeWidth={2.1} />
-        <Path d={c.troncal} stroke={TRONCAL} strokeWidth={2.6} />
+        <Path d={c.primaria} stroke={CALLE_BORDE} strokeWidth={2.9 * g} />
+        <Path d={c.troncal} stroke={TRONCAL_BORDE} strokeWidth={3.4 * g} />
+        <Path d={c.local} stroke={CALLE} strokeWidth={0.55 * Math.max(g, 0.6)} />
+        <Path d={c.terciaria} stroke={CALLE} strokeWidth={1 * g} />
+        <Path d={c.secundaria} stroke={CALLE} strokeWidth={1.4 * g} />
+        <Path d={c.primaria} stroke={CALLE} strokeWidth={2.1 * g} />
+        <Path d={c.troncal} stroke={TRONCAL} strokeWidth={2.6 * g} />
       </G>
     </Svg>
   );
@@ -87,6 +107,28 @@ function ZonasCruzadas({ clave, zonas, ancho, alto, finas }: { clave: string; zo
   );
 }
 
+// Mientras se organizan los sectores: cada colonia con el color de su sector.
+const CapaEdicion = memo(function CapaEdicion({ colonias, colores, ancho, alto }: { colonias: ZonaBase[]; colores: Map<string, string>; ancho: number; alto: number }) {
+  return (
+    <Svg width={ancho} height={alto} viewBox={`0 0 ${ancho} ${alto}`} style={StyleSheet.absoluteFill}>
+      {colonias.map((c) => {
+        const color = colores.get(c.id);
+        return (
+          <Path
+            key={c.id}
+            d={c.d}
+            fill={color ? `${color}5C` : 'rgba(255,255,255,0.3)'}
+            fillRule="evenodd"
+            stroke={color ?? 'rgba(13,13,13,0.3)'}
+            strokeWidth={color ? 0.8 : 0.5}
+            strokeLinejoin="round"
+          />
+        );
+      })}
+    </Svg>
+  );
+});
+
 // La zona elegida vive en su propio SVG, del tamaño de la zona: entra y sale con
 // opacidad nativa sin repintar la ciudad entera.
 function ZonaResaltada({ zona, grosor }: { zona: ZonaBase | null; grosor: number }) {
@@ -127,7 +169,7 @@ function ZonaResaltada({ zona, grosor }: { zona: ZonaBase | null; grosor: number
 }
 
 // ── Lo que flota sobre el mapa: conserva su tamaño aunque el mapa se acerque. ──
-function Flotante({
+export function Flotante({
   camara,
   x,
   y,
@@ -172,7 +214,7 @@ function Flotante({
 
 const CAJA_TEXTO = 180;
 
-function Rotulo({ texto, peso, tam, color, cursiva }: { texto: string; peso: string; tam: number; color: string; cursiva?: boolean }) {
+export function Rotulo({ texto, peso, tam, color, cursiva }: { texto: string; peso: string; tam: number; color: string; cursiva?: boolean }) {
   return (
     <View style={{ position: 'absolute', left: -CAJA_TEXTO / 2, top: -tam, width: CAJA_TEXTO, height: tam * 2, alignItems: 'center', justifyContent: 'center' }}>
       <Text
@@ -195,7 +237,7 @@ function Rotulo({ texto, peso, tam, color, cursiva }: { texto: string; peso: str
 
 // Un rótulo aparece a la escala en que ya no choca con los que tienen prioridad:
 // conforme te acercas, la ciudad va diciendo más nombres sin encimarse.
-function escalasSinChoque<T extends { x: number; y: number; nombre: string }>(items: T[], tam: number, piso: number): Map<T, number> {
+export function escalasSinChoque<T extends { x: number; y: number; nombre: string }>(items: T[], tam: number, piso: number): Map<T, number> {
   const puestos: { x: number; y: number; w: number; desde: number }[] = [];
   const salida = new Map<T, number>();
   const alto = tam + 4;
@@ -252,57 +294,32 @@ function Pin({ negocio, activo, estado }: { negocio: NegocioMapa; activo: boolea
   );
 }
 
-export function Lienzo({
-  geo,
-  base,
-  datos,
+/**
+ * Lo que tienen todos los mapas: arrastrar, pellizcar, doble toque, rueda del
+ * ratón y el candado contra el zoom de Safari. `capa` se mueve con la cámara;
+ * `encima` son los rótulos que conservan su tamaño.
+ */
+export function SuperficieMapa({
   camara,
-  modo,
-  claveFiltro,
-  seleccion,
-  zona,
-  grosorSeleccion,
-  verNegocios,
-  pinActivo,
+  ancho,
+  alto,
   alMedir,
   alTocar,
+  capa,
+  encima,
 }: {
-  geo: Geometria;
-  base: BaseMapa;
-  datos: DatosMapa;
   camara: Camara;
-  modo: Modo;
-  /** Vacía cuando no hay filtro de giro. */
-  claveFiltro: string;
-  /** La forma de la zona elegida: no cambia al filtrar. */
-  seleccion: ZonaBase | null;
-  /** La misma zona con sus cifras, ya filtradas. */
-  zona: Zona | null;
-  grosorSeleccion: number;
-  verNegocios: boolean;
-  pinActivo: string | null;
+  ancho: number;
+  alto: number;
   alMedir: (ancho: number, alto: number) => void;
   /** Coordenadas del lienzo y escala en el momento del toque. */
   alTocar: (x: number, y: number, escala: number) => void;
+  capa: React.ReactNode;
+  encima?: React.ReactNode;
 }) {
   const { tx, ty, s } = camara;
-  const [cerca, setCerca] = useState(false);
-  const [negociosCerca, setNegociosCerca] = useState(false);
 
-  useAnimatedReaction(
-    () => s.get() >= ESCALA_CERCA,
-    (ahora, antes) => {
-      if (ahora !== antes) scheduleOnRN(setCerca, ahora);
-    },
-  );
-  useAnimatedReaction(
-    () => s.get() >= ESCALA_NEGOCIOS * 0.9,
-    (ahora, antes) => {
-      if (ahora !== antes) scheduleOnRN(setNegociosCerca, ahora);
-    },
-  );
-
-  const capa = useAnimatedStyle(() => ({
+  const estiloCapa = useAnimatedStyle(() => ({
     transform: [{ translateX: tx.get() }, { translateY: ty.get() }, { scale: s.get() }],
   }));
 
@@ -378,17 +395,6 @@ export function Lienzo({
     };
   }, []);
 
-  const zonas = modo === 'sectores' ? datos.sectores : datos.colonias;
-  const enZona = useMemo(() => (zona ? new Set(zona.lista.map((n) => n.id)) : null), [zona]);
-  const visibles = useMemo(() => new Set(datos.negocios.map((n) => n.id)), [datos.negocios]);
-  // Con un giro elegido importa dónde están: los negocios se ven desde lejos.
-  const filtrando = claveFiltro !== '';
-  const desdeNegocios = filtrando ? 0.3 : ESCALA_NEGOCIOS;
-
-  // Las colonias con más área dicen su nombre primero.
-  const escalaColonia = useMemo(() => escalasSinChoque(base.colonias, 10, 0.78), [base.colonias]);
-  const escalaSector = useMemo(() => escalasSinChoque(base.sectores, 12, 0.45), [base.sectores]);
-
   return (
     <GestureDetector gesture={gesto}>
       <View
@@ -401,13 +407,138 @@ export function Lienzo({
           }
         }}
         style={{ flex: 1, overflow: 'hidden', backgroundColor: TIERRA }}>
-        <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: geo.ANCHO_MAPA, height: geo.ALTO_MAPA, transformOrigin: 'left top' }, capa]}>
-          <CapaBase geo={geo} />
-          <ZonasCruzadas clave={`${modo}|${claveFiltro}`} zonas={zonas} ancho={geo.ANCHO_MAPA} alto={geo.ALTO_MAPA} finas={modo === 'colonias'} />
-          <ZonaResaltada zona={seleccion} grosor={grosorSeleccion} />
-        </Animated.View>
+        <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: ancho, height: alto, transformOrigin: 'left top' }, estiloCapa]}>{capa}</Animated.View>
+        <View style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}>{encima}</View>
+      </View>
+    </GestureDetector>
+  );
+}
 
-        <View style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}>
+// ── «Estás aquí»: punto azul con un halo que late despacio. ────────────────────
+const AZUL_YO = '#1A73E8';
+
+function PuntoYo() {
+  const reduce = useReduceMotion();
+  const [p] = useState(() => new RNAnimated.Value(0));
+  useEffect(() => {
+    if (reduce) {
+      p.setValue(0.5);
+      return;
+    }
+    const a = bucle(RNAnimated.timing(p, { toValue: 1, duration: 1800, easing: EASE.out, useNativeDriver: true }));
+    a.start();
+    return () => a.stop();
+  }, [p, reduce]);
+  return (
+    <View style={{ position: 'absolute', left: -9, top: -9, width: 18, height: 18, pointerEvents: 'none' }}>
+      <RNAnimated.View
+        style={{
+          position: 'absolute',
+          left: -9,
+          top: -9,
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: AZUL_YO,
+          opacity: p.interpolate({ inputRange: [0, 1], outputRange: [0.32, 0] }),
+          transform: [{ scale: p.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.4] }) }],
+        }}
+      />
+      <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: AZUL_YO, borderWidth: 3, borderColor: '#fff', boxShadow: '0 1px 4px rgba(13,13,13,0.3)' }} />
+    </View>
+  );
+}
+
+export function Lienzo({
+  geo,
+  base,
+  datos,
+  camara,
+  modo,
+  claveFiltro,
+  seleccion,
+  zona,
+  grosorSeleccion,
+  verNegocios,
+  pinActivo,
+  edicion,
+  yo,
+  alMedir,
+  alTocar,
+}: {
+  geo: Geometria;
+  base: BaseMapa;
+  datos: DatosMapa;
+  camara: Camara;
+  modo: Modo;
+  /** Vacía cuando no hay filtro de giro. */
+  claveFiltro: string;
+  /** La forma de la zona elegida: no cambia al filtrar. */
+  seleccion: ZonaBase | null;
+  /** La misma zona con sus cifras, ya filtradas. */
+  zona: Zona | null;
+  grosorSeleccion: number;
+  verNegocios: boolean;
+  pinActivo: string | null;
+  /** Organizando sectores: el color de cada colonia que ya tiene sector. */
+  edicion: Map<string, string> | null;
+  /** Dónde está el teléfono, si dio permiso y pidió verlo. */
+  yo: { x: number; y: number } | null;
+  alMedir: (ancho: number, alto: number) => void;
+  /** Coordenadas del lienzo y escala en el momento del toque. */
+  alTocar: (x: number, y: number, escala: number) => void;
+}) {
+  const { s } = camara;
+  const [cerca, setCerca] = useState(false);
+  const [negociosCerca, setNegociosCerca] = useState(false);
+
+  useAnimatedReaction(
+    () => s.get() >= ESCALA_CERCA,
+    (ahora, antes) => {
+      if (ahora !== antes) scheduleOnRN(setCerca, ahora);
+    },
+  );
+  useAnimatedReaction(
+    () => s.get() >= ESCALA_NEGOCIOS * 0.9,
+    (ahora, antes) => {
+      if (ahora !== antes) scheduleOnRN(setNegociosCerca, ahora);
+    },
+  );
+
+  const zonas = modo === 'sectores' ? datos.sectores : datos.colonias;
+  const enZona = useMemo(() => (zona ? new Set(zona.lista.map((n) => n.id)) : null), [zona]);
+  const visibles = useMemo(() => new Set(datos.negocios.map((n) => n.id)), [datos.negocios]);
+  // Con un giro elegido importa dónde están: los negocios se ven desde lejos.
+  const filtrando = claveFiltro !== '';
+  const desdeNegocios = filtrando ? 0.3 : ESCALA_NEGOCIOS;
+
+  // Las colonias con más área dicen su nombre primero.
+  const escalaColonia = useMemo(() => escalasSinChoque(base.colonias, 10, 0.78), [base.colonias]);
+  const escalaSector = useMemo(() => escalasSinChoque(base.sectores, 12, 0.45), [base.sectores]);
+
+  const editando = edicion !== null;
+  return (
+    <SuperficieMapa
+      camara={camara}
+      ancho={geo.ANCHO_MAPA}
+      alto={geo.ALTO_MAPA}
+      alMedir={alMedir}
+      alTocar={alTocar}
+      capa={
+        <>
+          <CapaBase geo={geo} />
+          {editando ? (
+            <Fade key="edicion" style={StyleSheet.absoluteFill}>
+              <CapaEdicion colonias={base.colonias} colores={edicion} ancho={geo.ANCHO_MAPA} alto={geo.ALTO_MAPA} />
+            </Fade>
+          ) : (
+            <ZonasCruzadas clave={`${modo}|${claveFiltro}`} zonas={zonas} ancho={geo.ANCHO_MAPA} alto={geo.ALTO_MAPA} finas={modo === 'colonias'} />
+          )}
+          <ZonaResaltada zona={editando ? null : seleccion} grosor={grosorSeleccion} />
+        </>
+      }
+      encima={
+        <>
           {geo.ETIQUETAS_AGUA.map((e) => (
             <Flotante key={e.nombre} camara={camara} x={e.x} y={e.y} desde={0.82}>
               <Rotulo texto={e.nombre} peso={F.reg} tam={9.5} color={AGUA_TEXTO} cursiva />
@@ -415,17 +546,19 @@ export function Lienzo({
           ))}
           {cerca &&
             base.colonias.map((z) => (
-              <Flotante key={z.id} camara={camara} x={z.x} y={z.y} desde={Math.max(escalaColonia.get(z) ?? 1, modo === 'sectores' ? 1.15 : 0.78)}>
+              <Flotante key={z.id} camara={camara} x={z.x} y={z.y} desde={Math.max(escalaColonia.get(z) ?? 1, modo === 'sectores' && !editando ? 1.15 : 0.78)}>
                 <Rotulo texto={z.nombre} peso={F.base} tam={10} color="rgba(13,13,13,0.72)" />
               </Flotante>
             ))}
           {modo === 'sectores' &&
+            !editando &&
             base.sectores.map((z) => (
               <Flotante key={z.id} camara={camara} x={z.x} y={z.y} desde={escalaSector.get(z) ?? 0.45} hasta={1.15}>
                 <Rotulo texto={z.nombre.replace(/^Ciudad /, 'Cd. ')} peso={F.semi} tam={12} color={FG} />
               </Flotante>
             ))}
           {verNegocios &&
+            !editando &&
             (negociosCerca || filtrando) &&
             base.negocios.map((n) => (
               <Flotante
@@ -439,8 +572,15 @@ export function Lienzo({
                 <Pin negocio={n} activo={n.id === pinActivo} estado={!visibles.has(n.id) ? 'oculto' : n.id !== pinActivo && enZona && !enZona.has(n.id) ? 'apagado' : 'normal'} />
               </Flotante>
             ))}
-        </View>
-      </View>
-    </GestureDetector>
+          {yo && (
+            <Flotante camara={camara} x={yo.x} y={yo.y} desde={0.01} arriba>
+              <Fade>
+                <PuntoYo />
+              </Fade>
+            </Flotante>
+          )}
+        </>
+      }
+    />
   );
 }

@@ -77,6 +77,7 @@ export function ExplorarInvitado({
           invitado
           busquedaInicial={busquedaInicial}
           onSugerirBloqueado={() => setMotivo({ k: 'sugerir' })}
+          onRecomendarBloqueado={() => setMotivo({ k: 'recomendar' })}
         />
       </View>
 

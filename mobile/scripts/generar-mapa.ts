@@ -857,6 +857,9 @@ import type { CapasMapa, ColoniaGeo, EtiquetaGeo, SectorGeo } from './tipos';
 export const ANCHO_MAPA = ${ANCHO};
 export const ALTO_MAPA = ${ALTO};
 
+/** Para pasar de lat/lng al lienzo: x = (lng - oeste) · kx, y = (norte - lat) · ky. */
+export const PROYECCION = ${JSON.stringify({ oeste: OESTE, norte: NORTE, kx: KX, ky: KY })};
+
 export const CAPAS: CapasMapa = ${JSON.stringify(capas)};
 
 export const ETIQUETAS_AGUA: EtiquetaGeo[] = ${JSON.stringify(etiquetasAgua)};

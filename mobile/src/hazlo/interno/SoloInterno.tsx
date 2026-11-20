@@ -25,7 +25,8 @@ export function InternoOAdmin({ children }: { children: React.ReactNode }) {
   return <SoloAdmin>{children}</SoloAdmin>;
 }
 
-function SoloAdmin({ children }: { children: React.ReactNode }) {
+/** Solo cuentas admin, en web y en el teléfono. */
+export function SoloAdmin({ children }: { children: React.ReactNode }) {
   const { datos: perfil, cargando } = usePerfil();
   if (cargando) return null;
   if (!perfil?.roles.includes('admin')) return <Redirect href="/" />;

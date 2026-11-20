@@ -10,9 +10,14 @@ import {
   View,
 } from 'react-native';
 
+import { invalidar } from '@/lib/datos/cache';
+import { K, useMenu } from '@/lib/datos/consultas';
 import { actualizarNegocio } from '@/lib/services/businesses';
-import type { BusinessAdmin } from '@/lib/types';
+import { guardarMenu } from '@/lib/services/menu';
+import type { BusinessAdmin, Ubicacion } from '@/lib/types';
 import { Icon } from './icons';
+import { CampoUbicacion } from './mapa/SelectorUbicacion';
+import { EditorMenu, aItems, aRenglones, firmaMenu, type RenglonMenu } from './negocio/EditorMenu';
 import { Fade, PressableScale, STAGGER } from './motion';
 import { BG, C, F, FG, MUTED, R } from './theme';
 
@@ -82,15 +87,39 @@ function Formulario({
   const [direccion, setDireccion] = useState(negocio.direccion ?? '');
   const [oferta, setOferta] = useState(negocio.oferta ?? '');
   const [descripcion, setDescripcion] = useState(negocio.descripcion ?? '');
+  const [ubicacion, setUbicacion] = useState<Ubicacion | null>(negocio.lat != null && negocio.lng != null ? { lat: negocio.lat, lng: negocio.lng } : null);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // El menú llega de la red; se copia una sola vez para editarlo aquí.
+  const menu = useMenu(negocio.id);
+  const [renglones, setRenglones] = useState<RenglonMenu[] | null>(null);
+  const [firmaInicial, setFirmaInicial] = useState('');
+  if (renglones === null && menu.datos) {
+    const r = aRenglones(menu.datos);
+    setRenglones(r);
+    setFirmaInicial(firmaMenu(r));
+  }
+
   const guardar = async () => {
     setError(null);
+    const listo = renglones ? aItems(renglones) : null;
+    if (listo && 'error' in listo) return setError(listo.error);
     setGuardando(true);
-    const r = await actualizarNegocio(negocio.id, { nombre, categoria, direccion, oferta, descripcion });
+    const r = await actualizarNegocio(negocio.id, { nombre, categoria, direccion, oferta, descripcion, ubicacion });
+    if (!r.ok) {
+      setGuardando(false);
+      return setError(r.error ?? 'No se pudo guardar.');
+    }
+    if (listo && renglones && firmaMenu(renglones) !== firmaInicial) {
+      const m = await guardarMenu(negocio.id, listo.items);
+      if (!m.ok) {
+        setGuardando(false);
+        return setError(m.error ?? 'La ficha se guardó, pero el menú no.');
+      }
+      invalidar(`${K.menu}:${negocio.id}`);
+    }
     setGuardando(false);
-    if (!r.ok) return setError(r.error ?? 'No se pudo guardar.');
 
     onGuardado({
       ...negocio,
@@ -99,6 +128,8 @@ function Formulario({
       direccion: direccion.trim() || null,
       oferta: oferta.trim() || null,
       descripcion: descripcion.trim() || null,
+      lat: ubicacion?.lat ?? null,
+      lng: ubicacion?.lng ?? null,
     });
     onClose();
   };
@@ -155,8 +186,19 @@ function Formulario({
 
           <Fade delay={STAGGER * 2} desde={10}>
             <Campo label="Dirección / Ciudad" value={direccion} onChangeText={setDireccion} placeholder="Villahermosa, Tabasco" />
+            <CampoUbicacion valor={ubicacion} alCambiar={setUbicacion} titulo={nombre} />
             <Campo label="Oferta Hazlo Cash" value={oferta} onChangeText={setOferta} placeholder="Ej. Refresco gratis con tu primer pedido" />
             <Campo label="Descripción" value={descripcion} onChangeText={setDescripcion} placeholder="Breve descripción del negocio…" multiline />
+          </Fade>
+
+          <Fade delay={STAGGER * 3} desde={10}>
+            {renglones ? (
+              <EditorMenu renglones={renglones} alCambiar={setRenglones} />
+            ) : (
+              <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED, marginBottom: 16 }}>
+                {menu.error ? 'No pudimos cargar el menú; los demás datos sí se pueden guardar.' : 'Cargando el menú…'}
+              </Text>
+            )}
           </Fade>
 
           {error && (

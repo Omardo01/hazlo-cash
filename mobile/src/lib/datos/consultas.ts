@@ -8,6 +8,8 @@ import {
   getResumenNegocio,
 } from '../services/businesses';
 import { getCodigosAdmin, getMetricasAdmin, getOrdenesAdmin, getUsuariosAdmin } from '../services/admin';
+import { getMapaNegocios, getSectores } from '../services/mapa';
+import { getMenu } from '../services/menu';
 import { getCodigoPublico, getEstadoCodigo, getMiCodigo, getMisRecomendaciones, getMisVisitasCliente, getStatsEmbajador, getVisitasNegocio } from '../services/referrals';
 import { getMisRecargas, getRecargasPendientesAdmin } from '../services/recargas';
 import { getMisSugerencias, getSugerenciasAdmin } from '../services/sugerencias';
@@ -52,6 +54,9 @@ export const K = {
   misSugerencias: 'mis-sugerencias',
   codigoPublico: 'codigo-publico',
   estadoCodigo: 'estado-codigo',
+  mapaNegocios: 'mapa-negocios',
+  sectores: 'sectores',
+  menu: 'menu',
 } as const;
 
 /**
@@ -107,3 +112,11 @@ export const useAdminUsuarios = () => useConsulta(K.adminUsuarios, getUsuariosAd
 export const useAdminRecargas = () => useConsulta(K.adminRecargas, getRecargasPendientesAdmin);
 export const useAdminSugerencias = () => useConsulta(K.adminSugerencias, getSugerenciasAdmin);
 export const useAdminCodigos = () => useConsulta(K.adminCodigos, getCodigosAdmin, LENTO);
+
+// ── Mapa ──────────────────────────────────────────────────────────────────────
+export const useMapaNegocios = () => useConsulta(K.mapaNegocios, getMapaNegocios);
+export const useSectores = () => useConsulta(K.sectores, getSectores, LENTO);
+
+// Menú de un negocio: una clave por negocio (`menu:<id>`).
+export const useMenu = (negocioId: string | null) =>
+  useConsulta(negocioId ? `${K.menu}:${negocioId}` : null, () => getMenu(negocioId ?? ''), LENTO);

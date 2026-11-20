@@ -1,8 +1,8 @@
 import { supabase } from '../supabase';
-import type { Business, BusinessAdmin, ComisionTipo, NegocioCatalogo } from '../types';
+import type { Business, BusinessAdmin, ComisionTipo, NegocioCatalogo, Ubicacion } from '../types';
 
 // Columnas extra que sólo ven admin y dueño (dueño + saldo + config de comisión).
-const COLS_ADMIN = 'id, nombre, categoria, descripcion, direccion, oferta, activo, owner_id, creditos, comision_tipo, comision_valor, giros, por_aprobar';
+const COLS_ADMIN = 'id, nombre, categoria, descripcion, direccion, oferta, activo, owner_id, creditos, comision_tipo, comision_valor, giros, por_aprobar, lat, lng';
 
 // Catálogo público de negocios activos (vista Cliente / Discover).
 // RLS permite la lectura anónima de negocios con activo = true.
@@ -34,6 +34,13 @@ export async function getNegociosAdmin(): Promise<BusinessAdmin[]> {
 
   if (error) throw new Error(`Error al cargar negocios: ${error.message}`);
   return (data ?? []) as BusinessAdmin[];
+}
+
+// Un negocio con sus columnas de admin, para editarlo desde otra pantalla (mapa).
+export async function getNegocioAdmin(id: string): Promise<BusinessAdmin | null> {
+  const { data, error } = await supabase.from('businesses').select(COLS_ADMIN).eq('id', id).maybeSingle();
+  if (error) throw new Error(`Error al cargar el negocio: ${error.message}`);
+  return (data as BusinessAdmin | null) ?? null;
 }
 
 // El negocio del usuario en sesión (vista dueño). RLS negocio_all_dueno.
@@ -71,6 +78,7 @@ export interface NuevoNegocio {
   oferta?: string;
   comision_tipo?: ComisionTipo;
   comision_valor?: number;
+  ubicacion?: Ubicacion | null;
 }
 
 // Alta de negocio (vista admin). RLS (negocio_all_admin) exige rol admin.
@@ -84,6 +92,8 @@ export async function crearNegocio(n: NuevoNegocio): Promise<{ ok: boolean; erro
     oferta: n.oferta?.trim() || null,
     comision_tipo: n.comision_tipo ?? 'fijo',
     comision_valor: n.comision_valor ?? 10,
+    lat: n.ubicacion?.lat ?? null,
+    lng: n.ubicacion?.lng ?? null,
     owner_id: null,
   });
 
@@ -210,6 +220,7 @@ export interface EdicionNegocio {
   direccion?: string;
   descripcion?: string;
   oferta?: string;
+  ubicacion?: Ubicacion | null;
 }
 
 // Edita la ficha del negocio. La usan el dueño (RLS negocio_all_dueno) y el
@@ -231,9 +242,21 @@ export async function actualizarNegocio(
       direccion: n.direccion?.trim() || null,
       descripcion: n.descripcion?.trim() || null,
       oferta: n.oferta?.trim() || null,
+      // undefined = no se toca; null = se quita del mapa.
+      ...(n.ubicacion !== undefined && { lat: n.ubicacion?.lat ?? null, lng: n.ubicacion?.lng ?? null }),
     })
     .eq('id', id);
 
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, error: null };
+}
+
+// Marca (o quita, con null) el negocio en el mapa. La usan el dueño y el admin.
+export async function setUbicacionNegocio(id: string, u: Ubicacion | null): Promise<{ ok: boolean; error: string | null }> {
+  const { error } = await supabase
+    .from('businesses')
+    .update({ lat: u?.lat ?? null, lng: u?.lng ?? null })
+    .eq('id', id);
   if (error) return { ok: false, error: error.message };
   return { ok: true, error: null };
 }

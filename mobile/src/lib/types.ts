@@ -20,6 +20,14 @@ export interface Business {
   oferta: string | null;
   activo: boolean;
   giros?: string[]; // giros del catálogo (vacío en negocios dados de alta antes)
+  lat?: number | null; // ubicación en el mapa: las dos o ninguna
+  lng?: number | null;
+}
+
+// Dónde está un negocio. Se marca en el mapa (SelectorUbicacion).
+export interface Ubicacion {
+  lat: number;
+  lng: number;
 }
 
 // Negocio tal como lo ve el catálogo. Sin sesión, `oferta` llega vacía.

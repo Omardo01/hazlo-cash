@@ -7,10 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { registrarNegocio } from '@/lib/services/auth';
 import { getPrecargaRegistro } from '@/lib/services/sugerencias';
-import type { PrecargaRegistro } from '@/lib/types';
+import type { PrecargaRegistro, Ubicacion } from '@/lib/types';
 import { grupoPorSlug } from '../categorias/catalogo';
 import { ETIQUETADO_VACIO, SelectorGiros, type Etiquetado } from '../categorias/SelectorGiros';
 import { Icon } from '../icons';
+import { CampoUbicacion } from '../mapa/SelectorUbicacion';
 import { irADocumentoLegal } from '../legal/PantallaLegal';
 import { DUR, EASE, Fade, PressableScale, STAGGER, useReduceMotion } from '../motion';
 import { BG, C, F, FG, MUTED, R } from '../theme';
@@ -35,6 +36,8 @@ interface DatosNegocio {
   etiquetado: Etiquetado;
   direccion: string;
   ciudad: string;
+  /** Opcional: el pin en el mapa. */
+  ubicacion: Ubicacion | null;
   responsable: string;
   telefono: string;
   correo: string;
@@ -51,6 +54,7 @@ const VACIO: DatosNegocio = {
   etiquetado: ETIQUETADO_VACIO,
   direccion: '',
   ciudad: '',
+  ubicacion: null,
   responsable: '',
   telefono: '',
   correo: '',
@@ -68,6 +72,7 @@ const SECCION: Record<Campo, number> = {
   etiquetado: 1,
   direccion: 2,
   ciudad: 2,
+  ubicacion: 2,
   responsable: 3,
   telefono: 3,
   oferta: 4,
@@ -260,13 +265,15 @@ function Formulario({
   errores,
   set,
   onEtiquetado,
+  onUbicacion,
   onRegistrar,
   invitacion,
 }: {
   datos: DatosNegocio;
   errores: Errores;
-  set: (campo: Exclude<Campo, 'etiquetado'>, valor: string) => void;
+  set: (campo: Exclude<Campo, 'etiquetado' | 'ubicacion'>, valor: string) => void;
   onEtiquetado: (v: Etiquetado) => void;
+  onUbicacion: (v: Ubicacion | null) => void;
   onRegistrar: (scrollA: (seccion: number) => void) => void;
   invitacion: PrecargaRegistro | null;
 }) {
@@ -365,6 +372,7 @@ function Formulario({
               autoCapitalize="words"
               error={errores.ciudad}
             />
+            <CampoUbicacion valor={datos.ubicacion} alCambiar={onUbicacion} titulo={datos.nombre} etiqueta="Pin en el mapa (opcional)" ayuda="Para que te encuentren cerca" />
           </Seccion>
 
           <Seccion n={3} titulo="Contacto" nota="No se muestra a los clientes: el contacto pasa por Hazlo Cash." refSeccion={refSeccion}>
@@ -553,6 +561,7 @@ function Resumen({
   const ubicacion: Fila[] = [
     { icono: 'location-outline', label: 'Dirección', valor: datos.direccion.trim() },
     { icono: 'business-outline', label: 'Ciudad', valor: datos.ciudad.trim() },
+    { icono: 'pin-outline', label: 'Mapa', valor: datos.ubicacion ? 'Marcado' : 'Sin marcar' },
   ];
   const contacto: Fila[] = [
     { icono: 'person-outline', label: 'Responsable', valor: datos.responsable.trim() },
@@ -722,6 +731,7 @@ export function RegistroNegocioScreen({
     setErrores((e) => (e[campo] ? { ...e, [campo]: undefined } : e));
   }, []);
   const onEtiquetado = useCallback((v: Etiquetado) => set('etiquetado', v), [set]);
+  const onUbicacion = useCallback((v: Ubicacion | null) => set('ubicacion', v), [set]);
 
   // Lo que los usuarios ya contaron llega a los campos; el resto lo llena el dueño.
   useEffect(() => {
@@ -793,6 +803,7 @@ export function RegistroNegocioScreen({
         direccion: datos.direccion,
         ciudad: datos.ciudad,
         oferta: datos.oferta,
+        ubicacion: datos.ubicacion,
       },
       responsable: datos.responsable,
       telefono: soloDigitos(datos.telefono),
@@ -818,7 +829,7 @@ export function RegistroNegocioScreen({
               <ActivityIndicator color={C.primary} />
             </View>
           ) : vista === 'formulario' ? (
-            <Formulario datos={datos} errores={errores} set={set} onEtiquetado={onEtiquetado} onRegistrar={registrar} invitacion={invitacion} />
+            <Formulario datos={datos} errores={errores} set={set} onEtiquetado={onEtiquetado} onUbicacion={onUbicacion} onRegistrar={registrar} invitacion={invitacion} />
           ) : (
             <Resumen datos={datos} enviando={enviando} error={errorEnvio} onEditar={() => irA('formulario')} onEnviar={enviar} />
           )}

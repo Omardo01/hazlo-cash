@@ -24,10 +24,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Reacciona a login / logout / refresh de token.
+    // undefined = aún no sabemos quién es; null = sin sesión.
+    let usuario: string | null | undefined;
     const { data: sub } = supabase.auth.onAuthStateChange((evento, nuevaSesion) => {
-      // Al cerrar sesión se tira la caché en memoria: la siguiente cuenta que
-      // entre no debe ver ni un saldo ni una orden de la anterior.
-      if (evento === 'SIGNED_OUT') limpiarTodo();
+      // Cada vez que cambia la cuenta (cerrar sesión, entrar después de ver la
+      // landing, cambiar de usuario) se tira la caché en memoria: nadie debe
+      // ver un saldo de la anterior, ni un perfil «sin sesión» que ya no es
+      // cierto (eso mandaba al admin fuera de /mapa al recién entrar).
+      const nuevo = nuevaSesion?.user.id ?? null;
+      if (evento === 'SIGNED_OUT' || (usuario !== undefined && nuevo !== usuario)) limpiarTodo();
+      usuario = nuevo;
       setSession(nuevaSesion);
     });
 

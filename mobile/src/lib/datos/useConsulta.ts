@@ -61,10 +61,13 @@ export function useConsulta<T>(
   // `invalidar` deja ts=0, así que una clave invalidada se revalida en cuanto
   // alguien la mira — sin borrar lo que ya se está mostrando.
   const invalidada = entrada?.ts === 0;
+  // Tras `limpiarTodo` (cambio de cuenta) la clave desaparece: quien siga
+  // mirándola vuelve a pedirla en vez de quedarse cargando para siempre.
+  const vacia = entrada === undefined;
 
   useEffect(() => {
     pedir(false);
-  }, [pedir, invalidada]);
+  }, [pedir, invalidada, vacia]);
 
   const refrescar = useCallback(async () => {
     if (clave) invalidar(clave);

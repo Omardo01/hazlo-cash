@@ -21,7 +21,7 @@
 // registro sigue: el admin lo puede ligar después.
 //
 // POST { negocio: { nombre, descripcion?, grupo, giros[], direccion, ciudad,
-//        oferta }, responsable, telefono, email, password, legal?, sugerencia? }
+//        oferta, ubicacion?: { lat, lng } }, responsable, telefono, email, password, legal?, sugerencia? }
 // → { ok: true } | { ok: false, codigo: 'datos' | 'ya_existe' | 'error', error }
 // Los errores esperados vuelven con 200 para que la app los lea en `data`.
 
@@ -68,6 +68,11 @@ export async function handler(req: Request): Promise<Response> {
   const direccion = texto(n, 'direccion', 160);
   const ciudad = texto(n, 'ciudad', 80);
   const oferta = texto(n, 'oferta', 60);
+  // El pin en el mapa es opcional; si llega fuera de México se ignora.
+  const u = (n.ubicacion ?? null) as Record<string, unknown> | null;
+  const lat = Number(u?.lat);
+  const lng = Number(u?.lng);
+  const ubicacion = u && Number.isFinite(lat) && Number.isFinite(lng) && lat >= 14 && lat <= 33 && lng >= -119 && lng <= -86 ? { lat, lng } : { lat: null, lng: null };
   const responsable = texto(body, 'responsable', 80);
   const telefono = texto(body, 'telefono', 20).replace(/\D/g, '');
   const email = texto(body, 'email', 120).toLowerCase();
@@ -134,6 +139,7 @@ export async function handler(req: Request): Promise<Response> {
     descripcion: descripcion || null,
     direccion: `${direccion}, ${ciudad}`,
     oferta,
+    ...ubicacion,
     activo: false,
     por_aprobar: true,
   }).select('id').single();

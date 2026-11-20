@@ -134,6 +134,7 @@ export interface DatosRegistroNegocio {
     direccion: string;
     ciudad: string;
     oferta: string;
+    ubicacion?: { lat: number; lng: number } | null;
   };
   responsable: string;
   telefono: string;

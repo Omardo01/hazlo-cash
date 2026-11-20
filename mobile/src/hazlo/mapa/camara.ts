@@ -48,7 +48,8 @@ export interface Camara {
 }
 
 /** La cámara del mapa: pantalla = (tx, ty) + s · lienzo. Solo mueve transform. */
-export function useCamara(anchoMapa: number, altoMapa: number): Camara {
+/** `escalaMax`: el selector de ubicación deja acercar más que el mapa general. */
+export function useCamara(anchoMapa: number, altoMapa: number, escalaMax = ESCALA_MAX): Camara {
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
   const s = useSharedValue(0.6);
@@ -64,7 +65,7 @@ export function useCamara(anchoMapa: number, altoMapa: number): Camara {
 
   const escalaMin = () => {
     'worklet';
-    return Math.min(ESCALA_MAX, ancho.get() / anchoMapa);
+    return Math.min(escalaMax, ancho.get() / anchoMapa);
   };
   const limX = (t: number, escala: number) => {
     'worklet';
@@ -77,7 +78,7 @@ export function useCamara(anchoMapa: number, altoMapa: number): Camara {
   const aplicarZoom = (factor: number, fx: number, fy: number) => {
     'worklet';
     const antes = s.get();
-    const despues = Math.min(ESCALA_MAX, Math.max(escalaMin(), antes * factor));
+    const despues = Math.min(escalaMax, Math.max(escalaMin(), antes * factor));
     const k = despues / antes;
     s.set(despues);
     tx.set(limX(fx - k * (fx - tx.get()), despues));
@@ -98,7 +99,7 @@ export function useCamara(anchoMapa: number, altoMapa: number): Camara {
       origenY.set(y);
     },
     volarA: (x, y, escala, arriba, abajo, animar = true) => {
-      const destinoS = Math.min(ESCALA_MAX, Math.max(escalaMin(), escala));
+      const destinoS = Math.min(escalaMax, Math.max(escalaMin(), escala));
       const destinoX = ancho.get() / 2 - x * destinoS;
       const destinoY = arriba + (abajo - arriba) / 2 - y * destinoS;
       cancelAnimation(tx);
@@ -120,7 +121,7 @@ export function useCamara(anchoMapa: number, altoMapa: number): Camara {
         return;
       }
       const antes = s.get();
-      const despues = Math.min(ESCALA_MAX, Math.max(escalaMin(), antes * factor));
+      const despues = Math.min(escalaMax, Math.max(escalaMin(), antes * factor));
       const k = despues / antes;
       tx.set(withTiming(limX(fx - k * (fx - tx.get()), despues), ENTRADA));
       ty.set(withTiming(limY(fy - k * (fy - ty.get()), despues), ENTRADA));
@@ -169,7 +170,7 @@ export function useCamara(anchoMapa: number, altoMapa: number): Camara {
       const x = fx - origenX.get();
       const y = fy - origenY.get();
       const antes = s.get();
-      const despues = Math.min(ESCALA_MAX, Math.max(escalaMin(), antes * factor));
+      const despues = Math.min(escalaMax, Math.max(escalaMin(), antes * factor));
       const k = despues / antes;
       s.set(despues);
       tx.set(limX(x - k * (focoX.get() - tx.get()), despues));
@@ -180,7 +181,7 @@ export function useCamara(anchoMapa: number, altoMapa: number): Camara {
     acercarEnWorklet: (factor, fx, fy) => {
       'worklet';
       const antes = s.get();
-      const despues = Math.min(ESCALA_MAX, Math.max(escalaMin(), antes * factor));
+      const despues = Math.min(escalaMax, Math.max(escalaMin(), antes * factor));
       const k = despues / antes;
       tx.set(withTiming(limX(fx - k * (fx - tx.get()), despues), ENTRADA));
       ty.set(withTiming(limY(fy - k * (fy - ty.get()), despues), ENTRADA));
