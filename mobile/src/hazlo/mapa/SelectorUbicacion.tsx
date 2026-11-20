@@ -460,6 +460,7 @@ export function CampoUbicacion({
   titulo,
   etiqueta = 'Ubicación en el mapa',
   ayuda = 'Así aparece en el mapa de Hazlo Cash.',
+  opcional = false,
 }: {
   valor: Ubicacion | null;
   alCambiar: (u: Ubicacion | null) => void;
@@ -467,13 +468,26 @@ export function CampoUbicacion({
   titulo: string;
   etiqueta?: string;
   ayuda?: string;
+  /**
+   * En formularios con CampoTexto (registro, invitar): misma etiqueta que sus
+   * campos y «Opcional» a la derecha. Sin esto, la etiqueta en mayúsculas de
+   * Editar ficha y el alta del admin.
+   */
+  opcional?: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [colonia, setColonia] = useState<string | null>(null);
   const nombre = titulo.trim() || 'tu negocio';
   return (
-    <View style={{ marginBottom: 16 }}>
-      <Text style={{ fontFamily: F.semi, fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 7 }}>{etiqueta}</Text>
+    <View style={{ marginBottom: opcional ? 14 : 16 }}>
+      {opcional ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
+          <Text style={{ fontFamily: F.base, fontSize: 12, color: FG }}>{etiqueta}</Text>
+          <Text style={{ fontFamily: F.reg, fontSize: 11, color: MUTED }}>Opcional</Text>
+        </View>
+      ) : (
+        <Text style={{ fontFamily: F.semi, fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 7 }}>{etiqueta}</Text>
+      )}
       {valor && (
         <View style={{ marginBottom: 8 }}>
           <MiniMapa ubicacion={valor} alto={130} onPress={() => setAbierto(true)} />

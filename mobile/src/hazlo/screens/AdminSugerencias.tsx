@@ -12,6 +12,7 @@ import { grupoPorSlug } from '../categorias/catalogo';
 import { IconoGrupo } from '../categorias/piezas';
 import { HazloMark } from '../HazloMark';
 import { Icon } from '../icons';
+import { MiniMapa } from '../mapa/MiniMapa';
 import { DUR, EASE, Fade, PressableScale, STAGGER, useReduceMotion } from '../motion';
 import { ListaSkeleton } from '../Skeleton';
 import { C, F, FG, MUTED, R } from '../theme';
@@ -126,6 +127,21 @@ function TarjetaSugerencia({ s, onMovida }: { s: NegocioSugerido; onMovida: (est
         </View>
 
         <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: FG, marginTop: 12, lineHeight: 18 }}>{s.direccion}</Text>
+
+        {/* El pin que marcó quien lo invitó: tocarlo abre cómo llegar. */}
+        {s.ubicacion && (
+          <View style={{ marginTop: 10 }}>
+            <MiniMapa
+              ubicacion={s.ubicacion}
+              alto={120}
+              accion="Cómo llegar"
+              onPress={() => {
+                const u = s.ubicacion;
+                if (u) Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${u.lat},${u.lng}`).catch(() => {});
+              }}
+            />
+          </View>
+        )}
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           {s.contacto ? (

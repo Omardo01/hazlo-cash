@@ -6,9 +6,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { invalidar } from '@/lib/datos/cache';
 import { K } from '@/lib/datos/consultas';
 import { sugerirNegocio } from '@/lib/services/sugerencias';
+import type { Ubicacion } from '@/lib/types';
 import { buscarGiros, type Grupo } from '../categorias/catalogo';
 import { Buscador, IconoGrupo, TextoResaltado } from '../categorias/piezas';
 import { Icon } from '../icons';
+import { CampoUbicacion } from '../mapa/SelectorUbicacion';
 import { Fade, PressableScale, STAGGER } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
 import { CampoTexto, Palomita } from './RegistroNegocio';
@@ -33,9 +35,11 @@ interface Datos {
   direccion: string;
   contacto: string;
   giro: GiroElegido | null;
+  /** Pin en el mapa: opcional, ayuda a ubicarlo y llega al registro del negocio. */
+  ubicacion: Ubicacion | null;
 }
 
-type Errores = Partial<Record<keyof Datos, string>>;
+type Errores = Partial<Record<Exclude<keyof Datos, 'ubicacion'>, string>>;
 
 const MAX_RESULTADOS = 6;
 
@@ -148,6 +152,12 @@ function Listo({ datos, recomendaciones, onOtro, onVolver }: { datos: Datos; rec
           </View>
         )}
         <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: MUTED }}>{datos.direccion.trim()}</Text>
+        {datos.ubicacion && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="location" size={14} color={C.accent} />
+            <Text style={{ fontFamily: F.base, fontSize: 12.5, color: FG }}>Marcado en el mapa</Text>
+          </View>
+        )}
         {!!datos.contacto.trim() && <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: MUTED }}>{datos.contacto.trim()}</Text>}
       </Fade>
 
@@ -164,7 +174,7 @@ function Listo({ datos, recomendaciones, onOtro, onVolver }: { datos: Datos; rec
 }
 
 export function VistaRecomendarNegocio({ giroInicial, onVolver }: { giroInicial?: GiroElegido; onVolver: () => void }) {
-  const vacio: Datos = { nombre: '', direccion: '', contacto: '', giro: giroInicial ?? null };
+  const vacio: Datos = { nombre: '', direccion: '', contacto: '', giro: giroInicial ?? null, ubicacion: null };
   const [datos, setDatos] = useState<Datos>(vacio);
   const [errores, setErrores] = useState<Errores>({});
   const [intento, setIntento] = useState(false);
@@ -192,6 +202,7 @@ export function VistaRecomendarNegocio({ giroInicial, onVolver }: { giroInicial?
       contacto: datos.contacto,
       grupo: datos.giro.grupo.slug,
       giro: datos.giro.giro,
+      ubicacion: datos.ubicacion,
     });
     if (!res.ok) {
       setErrorEnvio(res.error ?? 'No pudimos enviarla. Revisa tu conexión e intenta otra vez.');
@@ -252,6 +263,14 @@ export function VistaRecomendarNegocio({ giroInicial, onVolver }: { giroInicial?
           placeholder="Calle, colonia o una referencia"
           autoCapitalize="sentences"
           error={errores.direccion}
+        />
+        <CampoUbicacion
+          valor={datos.ubicacion}
+          alCambiar={(u) => set('ubicacion', u)}
+          titulo={datos.nombre.trim() || 'el negocio'}
+          etiqueta="Pin en el mapa"
+          ayuda="Así lo encontramos más rápido"
+          opcional
         />
         <CampoTexto
           label="Contacto"

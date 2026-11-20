@@ -72,6 +72,7 @@ export interface NuevaSugerencia {
   contacto: string; // opcional: '' si no lo dieron
   grupo: string; // slug del grupo del catálogo
   giro: string;
+  ubicacion: Ubicacion | null; // pin en el mapa, opcional
 }
 
 // Una recomendación del usuario en sesión, con el estado del negocio.
@@ -94,6 +95,9 @@ export interface PrecargaRegistro {
   contacto: string | null;
   grupo: string;
   giro: string;
+  /** El primer pin que alguien marcó al invitarlo. */
+  lat: number | null;
+  lng: number | null;
   recomendaciones: number;
   ya_registrado: boolean;
 }
@@ -109,6 +113,7 @@ export interface NegocioSugerido {
   giro: string;
   estado: EstadoSugerencia;
   resuelta_en: string | null;
+  ubicacion: Ubicacion | null; // el primer pin que alguien marcó
   primera: string; // primera recomendación
   ultima: string; // la más reciente
   recomendadores: string[]; // nombres, en orden de llegada

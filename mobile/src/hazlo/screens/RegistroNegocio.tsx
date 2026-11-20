@@ -372,7 +372,7 @@ function Formulario({
               autoCapitalize="words"
               error={errores.ciudad}
             />
-            <CampoUbicacion valor={datos.ubicacion} alCambiar={onUbicacion} titulo={datos.nombre} etiqueta="Pin en el mapa (opcional)" ayuda="Para que te encuentren cerca" />
+            <CampoUbicacion valor={datos.ubicacion} alCambiar={onUbicacion} titulo={datos.nombre} etiqueta="Pin en el mapa" ayuda="Para que te encuentren cerca" opcional />
           </Seccion>
 
           <Seccion n={3} titulo="Contacto" nota="No se muestra a los clientes: el contacto pasa por Hazlo Cash." refSeccion={refSeccion}>
@@ -747,6 +747,8 @@ export function RegistroNegocioScreen({
           nombre: p.nombre,
           direccion: p.direccion,
           telefono: p.contacto ? formatearTelefono(p.contacto) : d.telefono,
+          // El pin que marcó quien lo invitó; el dueño lo puede mover.
+          ubicacion: p.lat !== null && p.lng !== null ? { lat: p.lat, lng: p.lng } : d.ubicacion,
           etiquetado: grupo ? { grupo: grupo.slug, giros: grupo.giros.includes(p.giro) ? [p.giro] : [] } : d.etiquetado,
         }));
       }

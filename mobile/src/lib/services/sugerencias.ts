@@ -17,6 +17,8 @@ export async function sugerirNegocio(
     p_contacto: s.contacto,
     p_grupo: s.grupo,
     p_giro: s.giro,
+    p_lat: s.ubicacion?.lat ?? null,
+    p_lng: s.ubicacion?.lng ?? null,
   });
   if (!error) return { ok: true, recomendaciones: Number((data as { recomendaciones: number }).recomendaciones), error: null };
   return {
@@ -45,6 +47,8 @@ type Fila = {
   estado: EstadoSugerencia;
   created_at: string;
   resuelta_en: string | null;
+  lat: number | null;
+  lng: number | null;
   usuario: { nombre: string } | null;
 };
 
@@ -53,7 +57,7 @@ type Fila = {
 export async function getSugerenciasAdmin(): Promise<NegocioSugerido[]> {
   const { data, error } = await supabase
     .from('sugerencias_negocio')
-    .select('id, clave, nombre, direccion, contacto, grupo, giro, estado, created_at, resuelta_en, usuario:profiles!sugerencias_negocio_usuario_id_fkey(nombre)')
+    .select('id, clave, nombre, direccion, contacto, grupo, giro, estado, created_at, resuelta_en, lat, lng, usuario:profiles!sugerencias_negocio_usuario_id_fkey(nombre)')
     .order('created_at')
     .limit(1000);
   if (error) throw new Error(`Error al cargar sugerencias: ${error.message}`);
@@ -73,6 +77,7 @@ export async function getSugerenciasAdmin(): Promise<NegocioSugerido[]> {
         giro: f.giro,
         estado: f.estado,
         resuelta_en: f.resuelta_en,
+        ubicacion: f.lat !== null && f.lng !== null ? { lat: f.lat, lng: f.lng } : null,
         primera: f.created_at,
         ultima: f.created_at,
         recomendadores: [quien],
@@ -81,6 +86,7 @@ export async function getSugerenciasAdmin(): Promise<NegocioSugerido[]> {
     }
     n.ultima = f.created_at;
     n.contacto = n.contacto ?? f.contacto;
+    n.ubicacion = n.ubicacion ?? (f.lat !== null && f.lng !== null ? { lat: f.lat, lng: f.lng } : null);
     n.recomendadores.push(quien);
   }
   return [...porClave.values()].sort(
