@@ -8,7 +8,7 @@ import {
   getResumenNegocio,
 } from '../services/businesses';
 import { getCodigosAdmin, getMetricasAdmin, getOrdenesAdmin, getUsuariosAdmin } from '../services/admin';
-import { getMapaNegocios, getSectores } from '../services/mapa';
+import { getMapaNegocios, getMapaNegociosPublico, getSectores } from '../services/mapa';
 import { getMenu } from '../services/menu';
 import { getCodigoPublico, getEstadoCodigo, getMiCodigo, getMisRecomendaciones, getMisVisitasCliente, getStatsEmbajador, getVisitasNegocio } from '../services/referrals';
 import { getMisRecargas, getRecargasPendientesAdmin } from '../services/recargas';
@@ -55,6 +55,7 @@ export const K = {
   codigoPublico: 'codigo-publico',
   estadoCodigo: 'estado-codigo',
   mapaNegocios: 'mapa-negocios',
+  mapaNegociosPublico: 'mapa-negocios-publico',
   sectores: 'sectores',
   menu: 'menu',
 } as const;
@@ -114,7 +115,9 @@ export const useAdminSugerencias = () => useConsulta(K.adminSugerencias, getSuge
 export const useAdminCodigos = () => useConsulta(K.adminCodigos, getCodigosAdmin, LENTO);
 
 // ── Mapa ──────────────────────────────────────────────────────────────────────
-export const useMapaNegocios = () => useConsulta(K.mapaNegocios, getMapaNegocios);
+// El admin ve cifras (recomendadores, ventas del mes); el recomendador solo los negocios.
+export const useMapaNegocios = (admin: boolean) =>
+  useConsulta(admin ? K.mapaNegocios : K.mapaNegociosPublico, admin ? getMapaNegocios : getMapaNegociosPublico, admin ? {} : LENTO);
 export const useSectores = () => useConsulta(K.sectores, getSectores, LENTO);
 
 // Menú de un negocio: una clave por negocio (`menu:<id>`).

@@ -32,3 +32,11 @@ export function SoloAdmin({ children }: { children: React.ReactNode }) {
   if (!perfil?.roles.includes('admin')) return <Redirect href="/" />;
   return <>{children}</>;
 }
+
+/** Admin o recomendador (/mapa). Sin sesión, o dueño de negocio, de vuelta al inicio. */
+export function AdminOEmbajador({ children }: { children: React.ReactNode }) {
+  const { datos: perfil, cargando } = usePerfil();
+  if (cargando) return null;
+  if (!perfil?.roles.some((r) => r === 'admin' || r === 'embajador')) return <Redirect href="/" />;
+  return <>{children}</>;
+}

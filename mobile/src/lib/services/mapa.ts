@@ -10,6 +10,8 @@ export interface NegocioEnMapa {
   lng: number | null;
   recomendadores: number;
   ventasMes: number;
+  /** Beneficio para quien llega recomendado (solo lo trae la lectura del recomendador). */
+  oferta?: string | null;
 }
 
 /** Colonias agrupadas por el admin. Sin sectores, el mapa muestra las colonias tal cual. */
@@ -34,6 +36,24 @@ export async function getMapaNegocios(): Promise<NegocioEnMapa[]> {
     lng: typeof n.lng === 'number' ? n.lng : null,
     recomendadores: Number(n.recomendadores ?? 0),
     ventasMes: Number(n.ventas_mes ?? 0),
+  }));
+}
+
+// Lo que ve un recomendador: los mismos negocios activos, sin cifras internas.
+// RLS ya deja leer los negocios activos a cualquiera (el catálogo usa lo mismo).
+export async function getMapaNegociosPublico(): Promise<NegocioEnMapa[]> {
+  const { data, error } = await supabase.from('businesses').select('id, nombre, categoria, giros, lat, lng, oferta').eq('activo', true).order('nombre');
+  if (error) throw new Error(`Error al cargar el mapa: ${error.message}`);
+  return (data ?? []).map((n) => ({
+    id: String(n.id),
+    nombre: String(n.nombre),
+    categoria: String(n.categoria ?? ''),
+    giros: Array.isArray(n.giros) ? n.giros.map(String) : [],
+    lat: typeof n.lat === 'number' ? n.lat : null,
+    lng: typeof n.lng === 'number' ? n.lng : null,
+    recomendadores: 0,
+    ventasMes: 0,
+    oferta: typeof n.oferta === 'string' && n.oferta.trim() ? n.oferta : null,
   }));
 }
 

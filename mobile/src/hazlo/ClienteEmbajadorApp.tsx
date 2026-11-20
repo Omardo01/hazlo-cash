@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
 import { useAtras } from '@/lib/atras';
+import { useRecomendarDesdeMapa } from '@/lib/recomendarDesdeMapa';
 
 import { ExplicadorHazlo } from './explicador/ExplicadorHazlo';
 import { Retiros } from './Retiros';
@@ -38,6 +39,14 @@ export function ClienteEmbajadorApp() {
   const [invitando, setInvitando] = useState(false);
   // «Recomendar» en la ficha de un negocio: Recomienda abre directo su QR.
   const [porRecomendar, setPorRecomendar] = useState<string | null>(null);
+
+  // Desde la ficha del mapa (/mapa): al regresar, Recomienda con su QR.
+  useRecomendarDesdeMapa((id) => {
+    setInvitando(false);
+    setSheet(null);
+    setPorRecomendar(id);
+    setTab('share');
+  });
 
   const go = (t: Tab) => setTab(t);
   const openSheet = (s: SheetName) => setSheet(s);

@@ -39,6 +39,7 @@ export interface NegocioMapa {
   coloniaNombre: string | null;
   recomendadores: number;
   ventasMes: number;
+  oferta: string | null;
 }
 
 /** Lo que no cambia con los filtros: la forma de la zona. */
@@ -272,6 +273,7 @@ export function armarBase(geo: Geometria, crudos: NegocioEnMapa[], guardados: Se
       coloniaNombre: colonia?.nombre ?? null,
       recomendadores: n.recomendadores,
       ventasMes: n.ventasMes,
+      oferta: n.oferta ?? null,
     });
   }
 

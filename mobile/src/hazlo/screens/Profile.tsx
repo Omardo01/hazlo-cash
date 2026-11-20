@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -168,6 +169,26 @@ export function ProfileScreen({ openSheet, onAbrirCuentas }: ScreenProps & { onA
           <Icon name="chevR" size={16} color="rgba(255,255,255,0.5)" />
         </PressableScale>
       </Fade>
+
+      {/* Mapa: igual que en la Cuenta del admin; aquí para elegir a quién recomendar. */}
+      {esEmbajador && (
+        <Fade delay={STAGGER * 4} desde={10}>
+          <PressableScale
+            onPress={() => router.push('/mapa')}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir el mapa de la ciudad"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, marginTop: -10, marginBottom: 22, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
+            <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: `${C.primary}15`, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="map-outline" size={18} color={C.primary} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>Mapa</Text>
+              <Text numberOfLines={1} style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED, marginTop: 1 }}>Encuentra negocios cerca y recomiéndalos</Text>
+            </View>
+            <Icon name="chevR" size={16} color={MUTED} />
+          </PressableScale>
+        </Fade>
+      )}
 
       {/* Stats reales */}
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 22 }}>

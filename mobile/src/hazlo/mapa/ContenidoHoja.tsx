@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ActivityIndicator, FlatList, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { NegocioEnMapa } from '@/lib/services/mapa';
@@ -74,7 +75,8 @@ export function EncabezadoHoja({
   datos: DatosMapa;
   filtro: Filtro;
   haySectores: boolean;
-  alOrganizar: () => void;
+  /** Solo el admin organiza sectores; sin esto no sale el botón. */
+  alOrganizar?: () => void;
   alCerrar: () => void;
 }) {
   const giro = nombreFiltro(filtro);
@@ -99,7 +101,7 @@ export function EncabezadoHoja({
       <Fade key="ciudad" style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <Text style={{ fontFamily: F.bold, fontSize: 20, color: FG, letterSpacing: -0.4 }}>Villahermosa</Text>
-          <BotonSectores haySectores={haySectores} alTocar={alOrganizar} />
+          {alOrganizar && <BotonSectores haySectores={haySectores} alTocar={alOrganizar} />}
         </View>
         <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED, marginTop: 1 }}>
           {giro
@@ -135,7 +137,7 @@ function Rayitas({ nivel }: { nivel: number }) {
   );
 }
 
-function FilaZona({ zona, indice, alTocar }: { zona: Zona; indice: number; alTocar: (z: Zona) => void }) {
+function FilaZona({ zona, indice, conRecomendadores, alTocar }: { zona: Zona; indice: number; conRecomendadores: boolean; alTocar: (z: Zona) => void }) {
   return (
     <Fade delay={Math.min(indice, 7) * STAGGER} desde={8}>
       <PressableScale
@@ -147,7 +149,8 @@ function FilaZona({ zona, indice, alTocar }: { zona: Zona; indice: number; alToc
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text numberOfLines={1} style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>{zona.nombre}</Text>
           <Text numberOfLines={1} style={{ fontFamily: F.reg, fontSize: 11, color: MUTED, marginTop: 1 }}>
-            {zona.negocios} {zona.negocios === 1 ? 'negocio' : 'negocios'} · {zona.recomendadores} {zona.recomendadores === 1 ? 'recomendador' : 'recomendadores'}
+            {zona.negocios} {zona.negocios === 1 ? 'negocio' : 'negocios'}
+            {conRecomendadores && ` · ${zona.recomendadores} ${zona.recomendadores === 1 ? 'recomendador' : 'recomendadores'}`}
           </Text>
         </View>
         <Icon name="chevR" size={15} color={MUTED} />
@@ -258,13 +261,19 @@ function FilaDato({ etiqueta, valor, primera, alTocar }: { etiqueta: string; val
   );
 }
 
-/** Lo que se puede hacer con un negocio desde su ficha en el mapa. */
-export interface AccionesNegocio {
-  alMoverPin: (n: NegocioMapa) => void;
-  alEditar: (n: NegocioMapa) => void;
-  /** Mientras se trae la ficha completa para editarla. */
-  abriendoEdicion: boolean;
-}
+/**
+ * Lo que se puede hacer con un negocio desde su ficha en el mapa. El admin lo
+ * acomoda (pin, ficha) y ve sus cifras; el recomendador genera su QR.
+ */
+export type AccionesNegocio =
+  | {
+      tipo: 'admin';
+      alMoverPin: (n: NegocioMapa) => void;
+      alEditar: (n: NegocioMapa) => void;
+      /** Mientras se trae la ficha completa para editarla. */
+      abriendoEdicion: boolean;
+    }
+  | { tipo: 'recomendador'; alRecomendar: (n: NegocioMapa) => void };
 
 // Google Maps abre su app si está instalada (y ofrece Waze); si no, la web.
 function comoLlegar(n: NegocioMapa) {
@@ -315,6 +324,39 @@ function BotonAccion({
   );
 }
 
+/** El recomendador: qué se lleva su amigo y el botón que genera su QR. */
+function ParaRecomendar({ negocio, alRecomendar }: { negocio: NegocioMapa; alRecomendar: () => void }) {
+  return (
+    <>
+      <Fade desde={8}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: R.md, backgroundColor: `${C.primary}12`, borderWidth: StyleSheet.hairlineWidth, borderColor: `${C.primary}40` }}>
+          <HazloMark size={22} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ fontFamily: F.semi, fontSize: 11, color: C.accent, textTransform: 'uppercase', letterSpacing: 0.5 }}>Beneficio para quien llega recomendado</Text>
+            <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG, marginTop: 2 }}>{negocio.oferta ?? 'Pregunta en el negocio'}</Text>
+          </View>
+        </View>
+      </Fade>
+      <Fade delay={STAGGER} desde={8} style={{ marginTop: 10 }}>
+        <PressableScale onPress={alRecomendar} accessibilityRole="button" accessibilityLabel={`Recomendar ${negocio.nombre}`} style={{ height: 54, borderRadius: R.md, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          {/* En su propia View: en web el ícono suelto queda debajo del degradado. */}
+          <View>
+            <Icon name="qr" size={19} color="#fff" sw={2} />
+          </View>
+          <Text style={{ fontFamily: F.semi, fontSize: 15, color: '#fff' }}>Recomendar y ganar</Text>
+        </PressableScale>
+      </Fade>
+      <Fade delay={2 * STAGGER} desde={8} style={{ flexDirection: 'row', marginTop: 8 }}>
+        <PressableScale onPress={() => comoLlegar(negocio)} accessibilityRole="button" accessibilityLabel={`Cómo llegar a ${negocio.nombre}`} style={{ flex: 1, height: 46, borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#fff', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(13,13,13,0.09)' }}>
+          <Ionicons name="navigate-outline" size={17} color={FG} />
+          <Text style={{ fontFamily: F.semi, fontSize: 13, color: FG }}>Cómo llegar</Text>
+        </PressableScale>
+      </Fade>
+    </>
+  );
+}
+
 /** Lo que sale al tocar un negocio en el mapa o en una lista. */
 function FichaNegocio({
   negocio,
@@ -340,17 +382,23 @@ function FichaNegocio({
           <Text style={{ fontFamily: F.semi, fontSize: 12, color: C.accent }}>Está en Hazlo Cash</Text>
         </View>
       </Fade>
-      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
-        <BotonAccion principal icono="navigate" texto="Cómo llegar" indice={0} alTocar={() => comoLlegar(negocio)} />
-        <BotonAccion icono="pin-outline" texto="Mover pin" indice={1} alTocar={() => acciones.alMoverPin(negocio)} />
-        <BotonAccion icono="create-outline" texto="Editar ficha" indice={2} ocupado={acciones.abriendoEdicion} alTocar={() => acciones.alEditar(negocio)} />
-      </View>
-      <Cifras
-        valores={[
-          ['Recomendadores', negocio.recomendadores],
-          ['Ventas del mes', negocio.ventasMes],
-        ]}
-      />
+      {acciones.tipo === 'admin' ? (
+        <>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+            <BotonAccion principal icono="navigate" texto="Cómo llegar" indice={0} alTocar={() => comoLlegar(negocio)} />
+            <BotonAccion icono="pin-outline" texto="Mover pin" indice={1} alTocar={() => acciones.alMoverPin(negocio)} />
+            <BotonAccion icono="create-outline" texto="Editar ficha" indice={2} ocupado={acciones.abriendoEdicion} alTocar={() => acciones.alEditar(negocio)} />
+          </View>
+          <Cifras
+            valores={[
+              ['Recomendadores', negocio.recomendadores],
+              ['Ventas del mes', negocio.ventasMes],
+            ]}
+          />
+        </>
+      ) : (
+        <ParaRecomendar negocio={negocio} alRecomendar={() => acciones.alRecomendar(negocio)} />
+      )}
       <Fade delay={2 * STAGGER} desde={8}>
         <View style={{ marginTop: 10, borderRadius: R.md, backgroundColor: '#fff', overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(13,13,13,0.07)' }}>
           <FilaDato primera etiqueta="Categoría" valor={grupo?.nombre ?? 'Servicios varios'} />
@@ -370,6 +418,7 @@ function FichaNegocio({
 /** Detalle de una zona. */
 function DetalleZona({
   zona,
+  admin,
   relleno,
   pinActivo,
   sectorDe,
@@ -379,6 +428,8 @@ function DetalleZona({
   alCambiarFiltro,
 }: {
   zona: Zona;
+  /** Las cifras de la zona (recomendadores, ventas) son del admin. */
+  admin: boolean;
   relleno: number;
   pinActivo: string | null;
   sectorDe: (z: Zona) => Zona | undefined;
@@ -392,7 +443,7 @@ function DetalleZona({
   const lista = [...zona.lista].sort((a, b) => Number(b.id === pinActivo) - Number(a.id === pinActivo));
   return (
     <ScrollView key={zona.id} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: relleno }}>
-      <Cifras valores={cifrasDe(zona.negocios, zona.recomendadores, zona.ventasMes)} />
+      {admin && <Cifras valores={cifrasDe(zona.negocios, zona.recomendadores, zona.ventasMes)} />}
       <AyudaZona zona={zona} />
 
       <PorGiro lista={zona.lista} filtro={filtro} alCambiarFiltro={alCambiarFiltro} />
@@ -542,11 +593,13 @@ export function CuerpoHoja({
   alUbicar: (n: NegocioEnMapa) => void;
   acciones: AccionesNegocio;
 }) {
+  const admin = acciones.tipo === 'admin';
   if (negocio) return <FichaNegocio negocio={negocio} datos={datos} relleno={relleno} acciones={acciones} alElegirZona={alElegirZona} />;
   if (zona) {
     return (
       <DetalleZona
         zona={zona}
+        admin={admin}
         relleno={relleno}
         pinActivo={pinActivo}
         filtro={filtro}
@@ -572,8 +625,8 @@ export function CuerpoHoja({
       ListHeaderComponent={
         <>
           {cerca.length > 0 && <CercaDeTi lista={cerca} pinActivo={pinActivo} alElegirNegocio={alElegirNegocio} />}
-          <Cifras valores={cifrasDe(datos.totales.negocios, datos.totales.recomendadores, datos.totales.ventasMes)} />
-          {!giro && <SinUbicacion lista={base.sinUbicacion} alUbicar={alUbicar} />}
+          {admin && <Cifras valores={cifrasDe(datos.totales.negocios, datos.totales.recomendadores, datos.totales.ventasMes)} />}
+          {admin && !giro && <SinUbicacion lista={base.sinUbicacion} alUbicar={alUbicar} />}
           {/* Con un giro elegido se sigue viendo todo su grupo, para saltar a otro giro. */}
           {filas.length > 0 && <PorGiro lista={filtro.grupo ? base.negocios : datos.negocios} filtro={filtro} alCambiarFiltro={alCambiarFiltro} />}
           {filas.length > 0 && <Titulo texto={modo === 'sectores' ? 'Sectores' : 'Colonias'} />}
@@ -586,7 +639,7 @@ export function CuerpoHoja({
           <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED, marginTop: 3, textAlign: 'center' }}>Si conoces uno, recomiéndalo y es el primero del mapa.</Text>
         </Fade>
       }
-      renderItem={({ item, index }) => <FilaZona zona={item} indice={index} alTocar={alElegirZona} />}
+      renderItem={({ item, index }) => <FilaZona zona={item} indice={index} conRecomendadores={admin} alTocar={alElegirZona} />}
     />
   );
 }

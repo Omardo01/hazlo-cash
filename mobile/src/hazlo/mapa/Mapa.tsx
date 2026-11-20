@@ -8,7 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAtras } from '@/lib/atras';
 import { invalidar } from '@/lib/datos/cache';
-import { K, useMapaNegocios, useSectores } from '@/lib/datos/consultas';
+import { K, useMapaNegocios, usePerfil, useSectores } from '@/lib/datos/consultas';
+import { pedirRecomendar } from '@/lib/recomendarDesdeMapa';
 import { guardarSectores, type NegocioEnMapa, type Sector } from '@/lib/services/mapa';
 import { getNegocioAdmin, setUbicacionNegocio } from '@/lib/services/businesses';
 import type { BusinessAdmin, Ubicacion } from '@/lib/types';
@@ -41,7 +42,9 @@ import type { Geometria } from './tipos';
 export function Mapa() {
   const [geo, setGeo] = useState<Geometria | null>(null);
   const [fallo, setFallo] = useState(false);
-  const negocios = useMapaNegocios();
+  // El admin acomoda el mapa y ve cifras; el recomendador lo usa para elegir a quién recomendar.
+  const admin = usePerfil().datos?.roles.includes('admin') ?? false;
+  const negocios = useMapaNegocios(admin);
   const sectores = useSectores();
 
   const cargar = useCallback(() => {
@@ -60,7 +63,7 @@ export function Mapa() {
     const error = fallo || (!negocios.datos && negocios.error !== null) || (!sectores.datos && sectores.error !== null);
     return <Cargando fallo={error} reintentar={reintentar} />;
   }
-  return <MapaListo geo={geo} negocios={negocios.datos} sectores={sectores.datos} refrescarNegocios={negocios.refrescar} refrescarSectores={sectores.refrescar} />;
+  return <MapaListo admin={admin} geo={geo} negocios={negocios.datos} sectores={sectores.datos} refrescarNegocios={negocios.refrescar} refrescarSectores={sectores.refrescar} />;
 }
 
 function Cargando({ fallo, reintentar }: { fallo: boolean; reintentar: () => void }) {
@@ -296,12 +299,14 @@ function escalaParaCaja(caja: Caja, ancho: number, alto: number): number {
 }
 
 function MapaListo({
+  admin,
   geo,
   negocios,
   sectores,
   refrescarNegocios,
   refrescarSectores,
 }: {
+  admin: boolean;
   geo: Geometria;
   negocios: NegocioEnMapa[];
   sectores: Sector[];
@@ -635,7 +640,18 @@ function MapaListo({
 
   // ── Ficha del negocio: mover su pin o editarla sin salir del mapa ──
   const acciones: AccionesNegocio = useMemo(
-    () => ({
+    () =>
+      !admin
+        ? {
+            tipo: 'recomendador',
+            // La app de abajo abre Recomienda con el QR de este negocio.
+            alRecomendar: (n) => {
+              pedirRecomendar(n.id);
+              volverAtras();
+            },
+          }
+        : {
+      tipo: 'admin',
       abriendoEdicion,
       alMoverPin: (n) => setPorUbicar({ id: n.id, nombre: n.nombre, inicial: { lat: n.lat, lng: n.lng } }),
       alEditar: async (n) => {
@@ -650,8 +666,8 @@ function MapaListo({
           setAbriendoEdicion(false);
         }
       },
-    }),
-    [abriendoEdicion],
+    },
+    [admin, abriendoEdicion],
   );
   useAtras(fichaEditando !== null, () => setFichaEditando(null));
 
@@ -729,7 +745,7 @@ function MapaListo({
             borrador ? (
               <EncabezadoEditor guardando={guardandoSectores} alCancelar={cancelarEdicion} alGuardar={guardarEdicion} />
             ) : (
-              <EncabezadoHoja negocio={negocioActivo} zona={zona} datos={datos} filtro={filtro} haySectores={haySectores} alOrganizar={empezarEdicion} alCerrar={negocioActivo ? cerrarNegocio : cerrar} />
+              <EncabezadoHoja negocio={negocioActivo} zona={zona} datos={datos} filtro={filtro} haySectores={haySectores} alOrganizar={admin ? empezarEdicion : undefined} alCerrar={negocioActivo ? cerrarNegocio : cerrar} />
             )
           }>
           {borrador ? (
