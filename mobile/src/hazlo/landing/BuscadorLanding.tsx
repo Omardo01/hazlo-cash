@@ -93,7 +93,10 @@ export function BuscadorLanding({
   onElegir,
   onVerTodos,
   onInvitar,
+  claro = false,
 }: {
+  /** Sobre fondo claro la caja blanca necesita orilla y sombra para verse. */
+  claro?: boolean;
   abierto: boolean;
   progreso: Animated.Value;
   /** Espacio libre debajo de la caja, ya subida. */
@@ -145,7 +148,8 @@ export function BuscadorLanding({
           backgroundColor: '#fff',
           // Mismo grosor siempre: al enfocar no brinca nada.
           borderWidth: 1.5,
-          borderColor: foco ? C.primary : 'transparent',
+          borderColor: foco ? C.primary : claro ? 'rgba(13,13,13,0.08)' : 'transparent',
+          boxShadow: claro ? '0 8px 24px rgba(13,13,13,0.10)' : undefined,
         }}>
         <Icon name="search" size={17} color={foco ? C.primary : FG} sw={2.3} />
         <TextInput
