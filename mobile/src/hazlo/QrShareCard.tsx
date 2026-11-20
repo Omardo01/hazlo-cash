@@ -47,7 +47,11 @@ export const QrShareCard = forwardRef<View, { codigo: MiCodigo }>(function QrSha
       ) : null}
 
       <View style={{ marginTop: 18, padding: 14, borderRadius: R.lg, backgroundColor: '#fff' }}>
-        <QRCode value={codigo.shareUrl} size={196} color="#0D0D0D" backgroundColor="#fff" ecl="M" />
+        {/* ecl H: aguanta el logo tapando el centro, igual que en pantalla y en /r/CODE. */}
+        <QRCode value={codigo.shareUrl} size={196} color="#0D0D0D" backgroundColor="#fff" ecl="H" />
+        <View style={{ position: 'absolute', left: '50%', top: '50%', marginLeft: -22, marginTop: -22, width: 44, height: 44, borderRadius: 11, backgroundColor: '#fff', borderWidth: 2, borderColor: '#0D0D0D', alignItems: 'center', justifyContent: 'center' }}>
+          <HazloMark size={22} />
+        </View>
       </View>
 
       <Text style={{ fontFamily: F.bold, fontSize: 22, color: '#fff', letterSpacing: 1.4, marginTop: 16 }}>{codigo.codigo}</Text>
