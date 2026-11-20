@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -434,6 +435,28 @@ function Resultados({
   );
 }
 
+// Igual que el botón del Perfil: abre /mapa para encontrar negocios cerca y recomendarlos.
+function BotonMapa() {
+  return (
+    <Fade delay={STAGGER * 2} desde={8} style={{ marginBottom: 18 }}>
+      <PressableScale
+        onPress={() => router.push('/mapa')}
+        accessibilityRole="button"
+        accessibilityLabel="Abrir el mapa de la ciudad"
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: R.md, backgroundColor: '#fff', borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.05)' }}>
+        <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: `${C.primary}15`, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="map-outline" size={18} color={C.primary} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG }}>Mapa</Text>
+          <Text numberOfLines={1} style={{ fontFamily: F.reg, fontSize: 11.5, color: MUTED, marginTop: 1 }}>Encuentra negocios cerca y recomiéndalos</Text>
+        </View>
+        <Icon name="chevR" size={16} color={MUTED} />
+      </PressableScale>
+    </Fade>
+  );
+}
+
 // Descubre: el catálogo de categorías del Excel (12 grupos) con los negocios
 // que hay en cada una y en cada giro. `invitado`: se entró sin cuenta desde el
 // landing; invitar a un negocio (pide sesión para guardarse) llama `onSugerirBloqueado`. Con `onElegir` (pantalla Recomienda) cada negocio se
@@ -499,6 +522,8 @@ export function DiscoverScreen({
 
   // En la pantalla Recomienda (elegir para QR) no se ofrece el formulario.
   const puedeRecomendar = !onElegir;
+  // El mapa pide cuenta y en Recomienda ya se está eligiendo: solo en la pestaña Descubre.
+  const verMapa = !invitado && !onElegir;
   // Sin sesión no se puede guardar: en vez del formulario sale la puerta de cuenta.
   const recomendar = (g?: GiroElegido) => (invitado ? onSugerirBloqueado?.() : setRecomendando({ giro: g }));
 
@@ -550,9 +575,10 @@ export function DiscoverScreen({
           </Fade>
           {encabezado}
 
-          <Fade delay={STAGGER} desde={8} style={{ marginBottom: 18 }}>
+          <Fade delay={STAGGER} desde={8} style={{ marginBottom: verMapa && !busqueda.trim() ? 10 : 18 }}>
             <Buscador valor={busqueda} onCambio={setBusqueda} placeholder="Busca un negocio o un giro: tacos, dentista…" />
           </Fade>
+          {verMapa && !busqueda.trim() && <BotonMapa />}
 
           {busqueda.trim() ? (
             <Resultados busqueda={busqueda} negocios={negocios} onAbrir={abrir} onElegir={onElegir} onAbrirNegocio={abrirNegocio} />
