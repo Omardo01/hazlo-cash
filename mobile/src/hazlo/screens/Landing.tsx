@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Keyboard, Pressable, StyleSheet, Text, useWindowDimensions, View, type LayoutRectangle } from 'react-native';
+import { Animated, Keyboard, Pressable, ScrollView, StyleSheet, Text, View, type LayoutRectangle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAtras } from '@/lib/atras';
+import { useVentanaApp } from '@/lib/columna-web';
 import type { NegocioCatalogo } from '@/lib/types';
 
 import { HazloMark } from '../HazloMark';
@@ -20,6 +21,9 @@ const S = StyleSheet.create({ pasaToques: { pointerEvents: 'box-none' } });
 
 // Lo que se mide del landing para subir la caja de búsqueda bajo el logo.
 type Pieza = 'cuadro' | 'logo' | 'centro' | 'bloque' | 'caja';
+
+// Lo menos que necesita el diseño bajo (un SE deja ~647) para no encimarse.
+const ALTO_MINIMO = 640;
 
 const igual = (a: LayoutRectangle | undefined, b: LayoutRectangle) =>
   !!a && Math.round(a.x) === Math.round(b.x) && Math.round(a.y) === Math.round(b.y) && Math.round(a.width) === Math.round(b.width) && Math.round(a.height) === Math.round(b.height);
@@ -156,7 +160,7 @@ export function LandingScreen({
   onEntrar: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
+  const { width, height } = useVentanaApp();
   // Pantallas bajas (SE y parecidas): cada diseño quita sus adornos antes que
   // encimar el centro con los botones.
   const bajo = height < 760;
@@ -209,6 +213,12 @@ export function LandingScreen({
   // Al buscar, la caja sube bajo el logo para que el teclado no tape la lista, y
   // el resto se desvanece. Solo se animan transform y opacidad.
   const [buscando, setBuscando] = useState(false);
+  const desliza = useRef<ScrollView>(null);
+  const abrirBusqueda = () => {
+    // La caja sube según su lugar sin deslizar: primero se regresa arriba.
+    desliza.current?.scrollTo({ y: 0, animated: false });
+    setBuscando(true);
+  };
   const progreso = useState(() => new Animated.Value(0))[0];
   useEffect(() => {
     const destino = buscando ? 1 : 0;
@@ -240,133 +250,147 @@ export function LandingScreen({
   return (
     <View style={{ flex: 1, padding: 10, paddingBottom: 10 + insets.bottom }}>
       <Fade style={{ flex: 1 }}>
-        <View onLayout={medir('cuadro')} style={{ flex: 1, borderRadius: 32, overflow: 'hidden', backgroundColor: tema.fondo }}>
-          {estilo && cuadro && (
-            <Animated.View key={estilo} style={[StyleSheet.absoluteFill, { opacity: salida }]}>
-              <FondoLanding estilo={estilo} ancho={cuadro.width} topeToldo={topeToldo} />
-            </Animated.View>
-          )}
-
-          {/* Tocar fuera de la caja cierra la búsqueda. */}
-          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.62)', opacity: progreso, pointerEvents: buscando ? 'auto' : 'none' }]}>
-            <Pressable onPress={cerrarBusqueda} accessibilityLabel="Cerrar la búsqueda" style={{ flex: 1 }} />
-          </Animated.View>
-
-          <View style={[S.pasaToques, { flex: 1, paddingHorizontal: 26, paddingTop: 28, paddingBottom: 26 }]}>
-            <View onLayout={medir('logo')} style={{ zIndex: 6 }}>
-              <Fade delay={STAGGER} desde={10}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: angosta ? 6 : 8 }}>
-                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: angosta ? 7 : 9 }}>
-                    <HazloMark size={angosta ? 24 : 26} />
-                    <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.bold, fontSize: angosta ? 15.5 : 17, color: textoMarca, letterSpacing: -0.3 }}>
-                      Hazlo <Text style={{ color: C.primary }}>Cash</Text>
-                    </Text>
-                  </View>
-                  {/* Diseño del landing en prueba: cada toque pasa al siguiente. */}
-                  <PressableScale
-                    onPress={siguienteEstilo}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Cambiar el diseño. Ahora: ${ESTILOS[indice].nombre}, ${indice + 1} de ${ESTILOS.length}`}
-                    hitSlop={8}
-                    style={[pildora(tema.oscuro), { width: 34, justifyContent: 'center' }]}>
-                    <Ionicons name="color-palette-outline" size={16} color={textoBarra} />
-                    {/* Qué diseño es: 1, 2 o 3. */}
-                    <View style={{ position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, backgroundColor: C.primary, borderWidth: 2, borderColor: tema.fondo, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontFamily: F.bold, fontSize: 9, lineHeight: 11, color: '#fff' }}>{indice + 1}</Text>
-                    </View>
-                  </PressableScale>
-                  <PressableScale onPress={onEntrar} accessibilityRole="button" accessibilityLabel="Iniciar sesión" hitSlop={8} style={[pildora(tema.oscuro), { paddingLeft: angosta ? 10 : 11, paddingRight: angosta ? 12 : 14 }]}>
-                    <Icon name="user" size={14} color={textoBarra} sw={2.2} />
-                    <Text style={{ fontFamily: F.semi, fontSize: 12.5, color: textoBarra }}>Iniciar sesión</Text>
-                  </PressableScale>
-                </View>
-              </Fade>
-              {nombre && (
-                <Animated.View
-                  style={{
-                    position: 'absolute',
-                    right: 0,
-                    top: 42,
-                    opacity: aviso,
-                    transform: [{ translateY: aviso.interpolate({ inputRange: [0, 1], outputRange: [-6, 0] }) }],
-                    pointerEvents: 'none',
-                  }}>
-                  <View style={{ paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999, backgroundColor: FG, boxShadow: '0 6px 16px rgba(13,13,13,0.25)' }}>
-                    <Text style={{ fontFamily: F.semi, fontSize: 11.5, color: '#fff' }}>{nombre}</Text>
-                  </View>
+        <View style={{ flex: 1, borderRadius: 32, overflow: 'hidden', backgroundColor: tema.fondo }}>
+          {/* Pantallas muy bajas (iPhone Duo acostado: 585; su pantalla de
+              afuera acostada: 368): el diseño conserva su alto y se desliza,
+              en vez de encimar el centro con los botones. */}
+          <ScrollView
+            ref={desliza}
+            scrollEnabled={!buscando}
+            bounces={false}
+            alwaysBounceVertical={false}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ flexGrow: 1, minHeight: ALTO_MINIMO }}>
+            <View onLayout={medir('cuadro')} style={{ flex: 1 }}>
+              {estilo && cuadro && (
+                <Animated.View key={estilo} style={[StyleSheet.absoluteFill, { opacity: salida }]}>
+                  <FondoLanding estilo={estilo} ancho={cuadro.width} topeToldo={topeToldo} />
                 </Animated.View>
               )}
-            </View>
 
-            {/* zIndex: la lista de resultados flota sobre los botones de abajo. */}
-            <View onLayout={medir('centro')} style={[S.pasaToques, { flex: 1, justifyContent: 'center', alignItems: 'stretch', zIndex: 5, paddingTop: espacioToldo }]}>
-              <View onLayout={medir('bloque')} style={[S.pasaToques, { alignItems: 'center' }]}>
-                {estilo && (
-                  <Animated.View key={estilo} style={{ alignSelf: 'stretch', alignItems: 'center', opacity: Animated.multiply(resto, salida), pointerEvents: soloSinBuscar }}>
-                    <HeroLanding estilo={estilo} titulo={titulo} bajo={bajo} />
-                  </Animated.View>
-                )}
+              {/* Tocar fuera de la caja cierra la búsqueda. */}
+              <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.62)', opacity: progreso, pointerEvents: buscando ? 'auto' : 'none' }]}>
+                <Pressable onPress={cerrarBusqueda} accessibilityLabel="Cerrar la búsqueda" style={{ flex: 1 }} />
+              </Animated.View>
 
-                {/* Se sube la caja completa: abajo no queda un hueco que se trague los toques. */}
-                <Animated.View
-                  onLayout={medir('caja')}
-                  style={{ alignSelf: 'stretch', marginTop: 20, transform: [{ translateY: progreso.interpolate({ inputRange: [0, 1], outputRange: [0, subir] }) }] }}>
+              <View style={[S.pasaToques, { flex: 1, paddingHorizontal: 26, paddingTop: 28, paddingBottom: 26 }]}>
+                <View onLayout={medir('logo')} style={{ zIndex: 6 }}>
+                  <Fade delay={STAGGER} desde={10}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: angosta ? 6 : 8 }}>
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: angosta ? 7 : 9 }}>
+                        <HazloMark size={angosta ? 24 : 26} />
+                        <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.bold, fontSize: angosta ? 15.5 : 17, color: textoMarca, letterSpacing: -0.3 }}>
+                          Hazlo <Text style={{ color: C.primary }}>Cash</Text>
+                        </Text>
+                      </View>
+                      {/* Diseño del landing en prueba: cada toque pasa al siguiente. */}
+                      <PressableScale
+                        onPress={siguienteEstilo}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Cambiar el diseño. Ahora: ${ESTILOS[indice].nombre}, ${indice + 1} de ${ESTILOS.length}`}
+                        hitSlop={8}
+                        style={[pildora(tema.oscuro), { width: 34, justifyContent: 'center' }]}>
+                        <Ionicons name="color-palette-outline" size={16} color={textoBarra} />
+                        {/* Qué diseño es: 1, 2 o 3. */}
+                        <View style={{ position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, backgroundColor: C.primary, borderWidth: 2, borderColor: tema.fondo, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontFamily: F.bold, fontSize: 9, lineHeight: 11, color: '#fff' }}>{indice + 1}</Text>
+                        </View>
+                      </PressableScale>
+                      <PressableScale onPress={onEntrar} accessibilityRole="button" accessibilityLabel="Iniciar sesión" hitSlop={8} style={[pildora(tema.oscuro), { paddingLeft: angosta ? 10 : 11, paddingRight: angosta ? 12 : 14 }]}>
+                        <Icon name="user" size={14} color={textoBarra} sw={2.2} />
+                        <Text style={{ fontFamily: F.semi, fontSize: 12.5, color: textoBarra }}>Iniciar sesión</Text>
+                      </PressableScale>
+                    </View>
+                  </Fade>
+                  {nombre && (
+                    <Animated.View
+                      style={{
+                        position: 'absolute',
+                        right: 0,
+                        top: 42,
+                        opacity: aviso,
+                        transform: [{ translateY: aviso.interpolate({ inputRange: [0, 1], outputRange: [-6, 0] }) }],
+                        pointerEvents: 'none',
+                      }}>
+                      <View style={{ paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999, backgroundColor: FG, boxShadow: '0 6px 16px rgba(13,13,13,0.25)' }}>
+                        <Text style={{ fontFamily: F.semi, fontSize: 11.5, color: '#fff' }}>{nombre}</Text>
+                      </View>
+                    </Animated.View>
+                  )}
+                </View>
+
+                {/* zIndex: la lista de resultados flota sobre los botones de abajo. */}
+                <View onLayout={medir('centro')} style={[S.pasaToques, { flex: 1, justifyContent: 'center', alignItems: 'stretch', zIndex: 5, paddingTop: espacioToldo }]}>
+                  <View onLayout={medir('bloque')} style={[S.pasaToques, { alignItems: 'center' }]}>
+                    {estilo && (
+                      <Animated.View key={estilo} style={{ alignSelf: 'stretch', alignItems: 'center', opacity: Animated.multiply(resto, salida), pointerEvents: soloSinBuscar }}>
+                        <HeroLanding estilo={estilo} titulo={titulo} bajo={bajo} />
+                      </Animated.View>
+                    )}
+
+                    {/* Se sube la caja completa: abajo no queda un hueco que se trague los toques. */}
+                    <Animated.View
+                      onLayout={medir('caja')}
+                      style={{ alignSelf: 'stretch', marginTop: 20, transform: [{ translateY: progreso.interpolate({ inputRange: [0, 1], outputRange: [0, subir] }) }] }}>
+                      <Fade delay={STAGGER * 5} desde={14}>
+                        <BuscadorLanding
+                          claro={claro}
+                          abierto={buscando}
+                          progreso={progreso}
+                          altoLista={altoLista}
+                          onAbrir={abrirBusqueda}
+                          onCerrar={cerrarBusqueda}
+                          onElegir={onAbrirNegocio}
+                          onVerTodos={onBuscar}
+                          onInvitar={onInvitar}
+                        />
+                      </Fade>
+                    </Animated.View>
+
+                    {estilo && !bajo && (
+                      <Animated.View key={`pie-${estilo}`} style={{ alignSelf: 'stretch', marginTop: 18, opacity: Animated.multiply(resto, salida), pointerEvents: 'none' }}>
+                        <PieLanding estilo={estilo} />
+                      </Animated.View>
+                    )}
+                  </View>
+                </View>
+
+                <Animated.View style={{ opacity: resto, pointerEvents: soloSinBuscar }}>
                   <Fade delay={STAGGER * 5} desde={14}>
-                    <BuscadorLanding
-                      claro={claro}
-                      abierto={buscando}
-                      progreso={progreso}
-                      altoLista={altoLista}
-                      onAbrir={() => setBuscando(true)}
-                      onCerrar={cerrarBusqueda}
-                      onElegir={onAbrirNegocio}
-                      onVerTodos={onBuscar}
-                      onInvitar={onInvitar}
-                    />
+                    <Text
+                      style={{
+                        fontFamily: F.semi,
+                        fontSize: 10.5,
+                        letterSpacing: 1.6,
+                        color: tema.oscuro ? 'rgba(255,255,255,0.6)' : 'rgba(13,13,13,0.45)',
+                        textAlign: 'center',
+                        textTransform: 'uppercase',
+                        marginBottom: 12,
+                      }}>
+                      ¿Qué quieres hacer?
+                    </Text>
+                  </Fade>
+                  <View style={{ gap: 10 }}>
+                    <Fade delay={STAGGER * 6} desde={14}>
+                      <OpcionLanding titulo="Regístrate gratis" detalle="para recomendar" icono="user" principal onPress={onRecomendar} />
+                    </Fade>
+                    <Fade delay={STAGGER * 7} desde={14}>
+                      <OpcionLanding titulo="Invita a un negocio" detalle="a ser parte de Hazlo Cash" icono="home" claro={claro} onPress={onInvitar} />
+                    </Fade>
+                  </View>
+
+                  <Fade delay={STAGGER * 8}>
+                    <Pressable onPress={onEntrar} hitSlop={10} accessibilityRole="link">
+                      <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: tema.oscuro ? 'rgba(255,255,255,0.55)' : MUTED, textAlign: 'center', marginTop: 18 }}>
+                        ¿Ya tienes cuenta? <Text style={{ fontFamily: F.semi, color: C.primary }}>Entrar</Text>
+                      </Text>
+                    </Pressable>
                   </Fade>
                 </Animated.View>
-
-                {estilo && !bajo && (
-                  <Animated.View key={`pie-${estilo}`} style={{ alignSelf: 'stretch', marginTop: 18, opacity: Animated.multiply(resto, salida), pointerEvents: 'none' }}>
-                    <PieLanding estilo={estilo} />
-                  </Animated.View>
-                )}
               </View>
             </View>
-
-            <Animated.View style={{ opacity: resto, pointerEvents: soloSinBuscar }}>
-              <Fade delay={STAGGER * 5} desde={14}>
-                <Text
-                  style={{
-                    fontFamily: F.semi,
-                    fontSize: 10.5,
-                    letterSpacing: 1.6,
-                    color: tema.oscuro ? 'rgba(255,255,255,0.6)' : 'rgba(13,13,13,0.45)',
-                    textAlign: 'center',
-                    textTransform: 'uppercase',
-                    marginBottom: 12,
-                  }}>
-                  ¿Qué quieres hacer?
-                </Text>
-              </Fade>
-              <View style={{ gap: 10 }}>
-                <Fade delay={STAGGER * 6} desde={14}>
-                  <OpcionLanding titulo="Regístrate gratis" detalle="para recomendar" icono="user" principal onPress={onRecomendar} />
-                </Fade>
-                <Fade delay={STAGGER * 7} desde={14}>
-                  <OpcionLanding titulo="Invita a un negocio" detalle="a ser parte de Hazlo Cash" icono="home" claro={claro} onPress={onInvitar} />
-                </Fade>
-              </View>
-
-              <Fade delay={STAGGER * 8}>
-                <Pressable onPress={onEntrar} hitSlop={10} accessibilityRole="link">
-                  <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: tema.oscuro ? 'rgba(255,255,255,0.55)' : MUTED, textAlign: 'center', marginTop: 18 }}>
-                    ¿Ya tienes cuenta? <Text style={{ fontFamily: F.semi, color: C.primary }}>Entrar</Text>
-                  </Text>
-                </Pressable>
-              </Fade>
-            </Animated.View>
-          </View>
+          </ScrollView>
         </View>
       </Fade>
     </View>

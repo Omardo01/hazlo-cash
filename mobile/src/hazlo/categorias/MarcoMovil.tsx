@@ -1,5 +1,7 @@
 import { Platform, Text, View, useWindowDimensions } from 'react-native';
 
+import { conMouse } from '@/lib/marco-web';
+
 import { BG, F, FG } from '../theme';
 
 // Pantalla lógica de un teléfono "normal", la misma que usa /lab.
@@ -11,11 +13,12 @@ const ESTADO = 44;
 /**
  * En el navegador de escritorio, la pantalla se dibuja dentro de un teléfono
  * para verla como en el celular. En el teléfono (o una ventana angosta) no
- * hace nada: la pantalla ocupa todo.
+ * hace nada: la pantalla ocupa todo. Con dedo nunca dibuja el teléfono: en un
+ * plegable abierto o una tablet la app ya va en su columna (lib/columna-web.ts).
  */
 export function MarcoMovil({ children }: { children: React.ReactNode }) {
   const { width, height } = useWindowDimensions();
-  if (Platform.OS !== 'web' || width < 640) return <>{children}</>;
+  if (Platform.OS !== 'web' || width < 640 || !conMouse()) return <>{children}</>;
 
   const alto = Math.min(ALTO, height - 48);
   return (

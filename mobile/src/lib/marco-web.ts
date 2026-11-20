@@ -1,6 +1,16 @@
 import { Platform } from 'react-native';
 
 /**
+ * ¿Hay mouse? Un teléfono plegable abierto (iPhone Duo: 669×867 en vertical,
+ * 951×585 acostado) o una tablet miden como escritorio, pero ahí va la app de
+ * verdad, nunca un teléfono dibujado.
+ */
+export function conMouse(): boolean {
+  if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(pointer: fine) and (hover: hover)').matches;
+}
+
+/**
  * En una pantalla de escritorio la raíz (/) no estira la app a todo lo ancho:
  * enseña un teléfono con la app adentro (un iframe de `/`), para que lo que se
  * prueba en web sea siempre la vista móvil tal cual, con el ancho de un
@@ -17,6 +27,7 @@ function calcular(): boolean {
   if (window.location.pathname !== '/') return false;
   const params = new URLSearchParams(window.location.search);
   if (params.has('sesion') || params.get('marco') === '0') return false;
+  if (!conMouse()) return false;
   // Un celular acostado puede pasar de 700 de ancho, pero no de 560 de alto.
   return window.matchMedia('(min-width: 700px) and (min-height: 560px)').matches;
 }

@@ -13,6 +13,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { AuthProvider } from '@/lib/auth-context';
+import { CSS_COLUMNA } from '@/lib/columna-web';
 import { RealtimeProvider } from '@/lib/datos/realtime';
 import { registrarServiceWorker } from '@/lib/services/push';
 import { AvisoLive } from '@/hazlo/AvisoLive';
@@ -24,7 +25,8 @@ SplashScreen.preventAutoHideAsync();
 // ajeno al diseño. Los campos ya marcan el foco con su borde (CajaCampo).
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   const estilo = document.createElement('style');
-  estilo.textContent = 'input:focus, textarea:focus { outline: none; }';
+  // En pantallas táctiles anchas, la app en una columna (ver lib/columna-web.ts).
+  estilo.textContent = 'input:focus, textarea:focus { outline: none; }' + CSS_COLUMNA;
   document.head.appendChild(estilo);
 }
 
