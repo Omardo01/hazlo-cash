@@ -463,7 +463,6 @@ function BotonMapa() {
 // puede tocar para generar su QR; `titulo` y `encabezado` cambian lo de arriba.
 export function DiscoverScreen({
   invitado = false,
-  busquedaInicial = '',
   onSugerirBloqueado,
   onElegir,
   titulo = 'Descubre',
@@ -472,7 +471,6 @@ export function DiscoverScreen({
   onRecomendarBloqueado,
 }: {
   invitado?: boolean;
-  busquedaInicial?: string;
   onSugerirBloqueado?: () => void;
   /** Botón «Recomendar» de la ficha: lleva al QR de ese negocio. */
   onRecomendarNegocio?: AlElegir;
@@ -485,7 +483,7 @@ export function DiscoverScreen({
   const [grupo, setGrupo] = useState<Grupo | null>(null);
   // Giro abierto dentro del grupo (o TODOS para la lista completa del grupo).
   const [giro, setGiro] = useState<string | null>(null);
-  const [busqueda, setBusqueda] = useState(busquedaInicial);
+  const [busqueda, setBusqueda] = useState('');
   // Formulario para invitar a un negocio abierto, quizá con el giro ya puesto.
   const [recomendando, setRecomendando] = useState<{ giro?: GiroElegido } | null>(null);
   // Negocio abierto: su ficha con menú. En Recomienda (onElegir) tocar uno genera el QR directo.

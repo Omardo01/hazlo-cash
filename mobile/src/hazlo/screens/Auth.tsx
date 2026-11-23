@@ -25,8 +25,6 @@ export function AuthScreen() {
   // la pantalla anterior, no al landing.
   const [pasos, setPasos] = useState<Modo[]>(['landing']);
   const modo = pasos[pasos.length - 1];
-  // Con qué búsqueda se abre el catálogo: el negocio elegido en el landing.
-  const [busquedaInicial, setBusquedaInicial] = useState('');
   // Hoja "Invita a un negocio": para invitar hay que registrarse o entrar.
   const [invitando, setInvitando] = useState(false);
 
@@ -42,10 +40,6 @@ export function AuthScreen() {
 
   const registrarse = () => (modo === 'login' ? cambiar('registro') : ir('registro'));
   const entrar = () => (modo === 'registro' ? cambiar('login') : ir('login'));
-  const explorar = (busqueda: string) => {
-    setBusquedaInicial(busqueda);
-    ir('explorar');
-  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -53,13 +47,12 @@ export function AuthScreen() {
         {modo === 'landing' ? (
           <LandingScreen
             onRecomendar={() => ir('registro')}
-            onBuscar={() => explorar('')}
-            onAbrirNegocio={(negocio) => explorar(negocio.nombre)}
+            onBuscar={() => ir('explorar')}
             onInvitar={() => setInvitando(true)}
             onEntrar={() => ir('login')}
           />
         ) : modo === 'explorar' ? (
-          <ExplorarInvitado busquedaInicial={busquedaInicial} onVolver={atras} onRegistrarse={registrarse} onEntrar={entrar} />
+          <ExplorarInvitado onVolver={atras} onRegistrarse={registrarse} onEntrar={entrar} />
         ) : (
           <View style={{ flex: 1 }}>
             <View style={{ height: 52, paddingHorizontal: 16, justifyContent: 'center' }}>

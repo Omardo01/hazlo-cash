@@ -20,7 +20,7 @@ export async function getNegociosActivos(): Promise<Business[]> {
 // Catálogo para quien entra sin cuenta: los negocios sin el texto de su
 // promoción, que ni siquiera viaja al teléfono del invitado.
 export async function getNegociosPublicos(): Promise<NegocioCatalogo[]> {
-  const { data, error } = await supabase.from('businesses').select('id, nombre, categoria, descripcion, direccion, activo, giros').eq('activo', true).order('nombre');
+  const { data, error } = await supabase.from('businesses').select('id, nombre, categoria, descripcion, direccion, activo, giros, lat, lng').eq('activo', true).order('nombre');
   if (error) throw new Error(`Error al cargar negocios: ${error.message}`);
   return (data ?? []).map((n) => ({ ...n, oferta: null }));
 }

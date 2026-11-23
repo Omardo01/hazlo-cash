@@ -6,11 +6,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAtras } from '@/lib/atras';
 import { useVentanaApp } from '@/lib/columna-web';
-import type { NegocioCatalogo } from '@/lib/types';
 
+import { ALTO_CAMPO, CampoBusqueda } from '../buscador/CampoBusqueda';
+import { MapaGrande } from '../buscador/MapaGrande';
+import { PanelBusqueda } from '../buscador/PanelBusqueda';
+import { useBuscador } from '../buscador/useBuscador';
 import { HazloMark } from '../HazloMark';
 import { Icon, type IconName } from '../icons';
-import { BuscadorLanding } from '../landing/BuscadorLanding';
 import { ESTILO_INICIAL, ESTILOS, FondoLanding, HeroLanding, TEMAS, useEstiloLanding, type EstiloLanding, type MarcoLanding } from '../landing/EstilosLanding';
 import { bucle, DUR, EASE, Fade, PressableScale, STAGGER, useReduceMotion } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
@@ -150,15 +152,12 @@ const pildora = (oscuro: boolean) =>
 export function LandingScreen({
   onRecomendar,
   onBuscar,
-  onAbrirNegocio,
   onInvitar,
   onEntrar,
 }: {
   onRecomendar: () => void;
   /** Abre el catálogo completo, sin cuenta. */
   onBuscar: () => void;
-  /** Abre el catálogo con ese negocio ya buscado. */
-  onAbrirNegocio: (negocio: NegocioCatalogo) => void;
   onInvitar: () => void;
   onEntrar: () => void;
 }) {
@@ -217,27 +216,51 @@ export function LandingScreen({
     Animated.parallel(TEMAS[otro].arriba === tema.arriba ? [irse(salida)] : [irse(salida), irse(salidaCaja)]).start(cambiar);
   };
 
-  // Al buscar, la caja sube bajo el logo para que el teclado no tape la lista, y
-  // el resto se desvanece. Solo se animan transform y opacidad.
+  // Al buscar, la caja sube bajo el logo, el resto se desvanece y entra el panel
+  // con el minimapa. Solo se animan transform y opacidad.
   const [buscando, setBuscando] = useState(false);
+  // El panel se queda montado hasta que termina de irse.
+  const [conPanel, setConPanel] = useState(false);
+  const buscador = useBuscador(conPanel);
+  const { limpiar } = buscador;
+  // Mapa a pantalla completa, quizá con un lugar ya abierto.
+  const [mapa, setMapa] = useState<{ lugar: string | null } | null>(null);
   const desliza = useRef<ScrollView>(null);
   const abrirBusqueda = () => {
     // La caja sube según su lugar sin deslizar: primero se regresa arriba.
     desliza.current?.scrollTo({ y: 0, animated: false });
     setBuscando(true);
+    setConPanel(true);
   };
   const progreso = useState(() => new Animated.Value(0))[0];
   useEffect(() => {
     const destino = buscando ? 1 : 0;
-    if (quieto) progreso.setValue(destino);
-    else Animated.timing(progreso, { toValue: destino, duration: buscando ? DUR.slow : DUR.base, easing: buscando ? EASE.out : EASE.in, useNativeDriver: true }).start();
-  }, [buscando, progreso, quieto]);
+    const alTerminar = () => {
+      if (buscando) return;
+      setConPanel(false);
+      limpiar();
+    };
+    if (quieto) {
+      progreso.setValue(destino);
+      alTerminar();
+      return;
+    }
+    Animated.timing(progreso, { toValue: destino, duration: buscando ? DUR.slow : DUR.base, easing: buscando ? EASE.out : EASE.in, useNativeDriver: true }).start(({ finished }) => {
+      if (finished) alTerminar();
+    });
+  }, [buscando, progreso, quieto, limpiar]);
 
   const cerrarBusqueda = () => {
     Keyboard.dismiss();
     setBuscando(false);
   };
   useAtras(buscando, cerrarBusqueda);
+  // Atrás primero suelta lo buscado y luego cierra la caja.
+  useAtras(buscando && (buscador.fase === 'resultados' || buscador.fase === 'colonia'), limpiar);
+  const abrirMapa = (lugar: string | null) => {
+    Keyboard.dismiss();
+    setMapa({ lugar });
+  };
 
   const { cuadro, logo, centro, bloque, caja } = medidas;
   const topeCaja = logo ? logo.y + logo.height + 14 : 0;
@@ -247,8 +270,6 @@ export function LandingScreen({
   const yBloque = centro && bloque ? centro.y + aire + (tema.arriba ? 0 : (centro.height - aire - bloque.height) / 2) : 0;
   const yCaja = bloque && caja ? yBloque + bloque.height - caja.height : 0;
   const subir = centro && bloque && caja ? topeCaja - yCaja : 0;
-  // Lo que queda debajo de la caja ya subida: alto del cuadro menos caja (48 + 8) y orillas.
-  const altoLista = cuadro ? Math.min(380, cuadro.height - topeCaja - 56 - 28 - 16) : 280;
   const resto = progreso.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
   const soloSinBuscar = buscando ? ('none' as const) : ('auto' as const);
   // Dónde quedó lo fijo: con eso se acomoda el fondo.
@@ -289,10 +310,8 @@ export function LandingScreen({
                 </Animated.View>
               )}
 
-              {/* Tocar fuera de la caja cierra la búsqueda. */}
-              <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.62)', opacity: progreso, pointerEvents: buscando ? 'auto' : 'none' }]}>
-                <Pressable onPress={cerrarBusqueda} accessibilityLabel="Cerrar la búsqueda" style={{ flex: 1 }} />
-              </Animated.View>
+              {/* Tocar fuera del panel cierra la búsqueda. */}
+              {buscando && <Pressable onPress={cerrarBusqueda} accessibilityLabel="Cerrar la búsqueda" style={StyleSheet.absoluteFill} />}
 
               <View style={[S.pasaToques, { flex: 1, paddingHorizontal: 26, paddingTop: 28, paddingBottom: 26 }]}>
                 <View onLayout={medir('logo')} style={{ zIndex: 6 }}>
@@ -340,7 +359,6 @@ export function LandingScreen({
                   )}
                 </View>
 
-                {/* zIndex: la lista de resultados flota sobre los botones de abajo. */}
                 <View onLayout={medir('centro')} style={[S.pasaToques, { flex: 1, justifyContent: tema.arriba ? 'flex-start' : 'center', alignItems: 'stretch', zIndex: 5, paddingTop: aire }]}>
                   <View onLayout={medir('bloque')} style={[S.pasaToques, { alignItems: 'center' }]}>
                     {estilo && (
@@ -355,17 +373,7 @@ export function LandingScreen({
                       style={{ alignSelf: 'stretch', marginTop: 22, opacity: salidaCaja, transform: [{ translateY: progreso.interpolate({ inputRange: [0, 1], outputRange: [0, subir] }) }] }}>
                       {/* Con otra llave entra de nuevo en su nuevo lugar. */}
                       <Fade key={tema.arriba ? 'arriba' : 'centro'} delay={STAGGER * 3} desde={14}>
-                        <BuscadorLanding
-                          claro={claro}
-                          abierto={buscando}
-                          progreso={progreso}
-                          altoLista={altoLista}
-                          onAbrir={abrirBusqueda}
-                          onCerrar={cerrarBusqueda}
-                          onElegir={onAbrirNegocio}
-                          onVerTodos={onBuscar}
-                          onInvitar={onInvitar}
-                        />
+                        <CampoBusqueda buscador={buscador} claro={claro} abierto={buscando} progreso={progreso} alAbrir={abrirBusqueda} alCerrar={cerrarBusqueda} />
                       </Fade>
                     </Animated.View>
                   </View>
@@ -405,6 +413,23 @@ export function LandingScreen({
                 </Animated.View>
               </View>
 
+              {conPanel && (
+                <Animated.View
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    top: topeCaja + ALTO_CAMPO + 14,
+                    bottom: 0,
+                    zIndex: 4,
+                    opacity: progreso,
+                    transform: [{ translateY: progreso.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }],
+                    pointerEvents: buscando ? 'auto' : 'none',
+                  }}>
+                  <PanelBusqueda buscador={buscador} alAbrirLugar={abrirMapa} alAmpliar={() => abrirMapa(null)} alRegistrarse={onRecomendar} alVerTodos={onBuscar} alInvitar={onInvitar} />
+                </Animated.View>
+              )}
+
               {tema.credito && (
                 <Text style={{ position: 'absolute', left: 0, right: 0, bottom: 7, textAlign: 'center', fontFamily: F.reg, fontSize: 8.5, color: tema.oscuro ? 'rgba(255,255,255,0.4)' : 'rgba(13,13,13,0.4)', pointerEvents: 'none' }}>
                   Mapa © OpenStreetMap
@@ -414,6 +439,7 @@ export function LandingScreen({
           </ScrollView>
         </View>
       </Fade>
+      {mapa && <MapaGrande buscador={buscador} inicial={mapa.lugar} alCerrar={() => setMapa(null)} alRegistrarse={onRecomendar} />}
     </View>
   );
 }

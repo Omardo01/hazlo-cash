@@ -25,10 +25,11 @@ const GROSOR = 0.4;
 let geoGuardada: Geometria | null = null;
 let coloniasGuardadas: ZonaBase[] | null = null;
 
-function useGeometria(): Geometria | null {
+/** `activo` en false no la pide todavía. */
+export function useGeometria(activo = true): Geometria | null {
   const [geo, setGeo] = useState(geoGuardada);
   useEffect(() => {
-    if (geo) return;
+    if (geo || !activo) return;
     let vivo = true;
     import('./geometria')
       .then((g) => {
@@ -39,7 +40,7 @@ function useGeometria(): Geometria | null {
     return () => {
       vivo = false;
     };
-  }, [geo]);
+  }, [geo, activo]);
   return geo;
 }
 

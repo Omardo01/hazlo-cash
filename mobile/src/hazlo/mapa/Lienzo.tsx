@@ -131,7 +131,7 @@ const CapaEdicion = memo(function CapaEdicion({ colonias, colores, ancho, alto }
 
 // La zona elegida vive en su propio SVG, del tamaño de la zona: entra y sale con
 // opacidad nativa sin repintar la ciudad entera.
-function ZonaResaltada({ zona, grosor }: { zona: ZonaBase | null; grosor: number }) {
+export function ZonaResaltada({ zona, grosor }: { zona: ZonaBase | null; grosor: number }) {
   // Sigue pintando la última zona mientras se desvanece.
   const [ultima, setUltima] = useState(zona);
   const opacidad = useState(() => new RNAnimated.Value(0))[0];
@@ -417,7 +417,7 @@ export function SuperficieMapa({
 // ── «Estás aquí»: punto azul con un halo que late despacio. ────────────────────
 const AZUL_YO = '#1A73E8';
 
-function PuntoYo() {
+export function PuntoYo() {
   const reduce = useReduceMotion();
   const [p] = useState(() => new RNAnimated.Value(0));
   useEffect(() => {

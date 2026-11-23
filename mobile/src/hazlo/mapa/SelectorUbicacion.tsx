@@ -58,7 +58,7 @@ const NIVELES_TRAZO: { desde: number; calles: number; orillas: number }[] = [
  * Ciudad y orillas con el trazo de su nivel. Al cruzar de nivel, el trazo nuevo
  * entra encima del anterior y este se quita ya tapado: nada parpadea.
  */
-function CapasConTrazo({ geo, colonias, camara }: { geo: Geometria; colonias: ZonaBase[]; camara: ReturnType<typeof useCamara> }) {
+export function CapasConTrazo({ geo, colonias, camara }: { geo: Geometria; /** null: solo la ciudad, sin orillas. */ colonias: ZonaBase[] | null; camara: ReturnType<typeof useCamara> }) {
   const [capas, setCapas] = useState([0]);
   const quitar = useRef<ReturnType<typeof setTimeout> | null>(null);
   const setNivel = useCallback((nivel: number) => {
@@ -85,7 +85,7 @@ function CapasConTrazo({ geo, colonias, camara }: { geo: Geometria; colonias: Zo
       {capas.map((n) => (
         <Fade key={n} style={StyleSheet.absoluteFill}>
           <CapaBase geo={geo} grosor={NIVELES_TRAZO[n].calles} />
-          <Contornos colonias={colonias} ancho={geo.ANCHO_MAPA} alto={geo.ALTO_MAPA} grosor={NIVELES_TRAZO[n].orillas} />
+          {colonias && <Contornos colonias={colonias} ancho={geo.ANCHO_MAPA} alto={geo.ALTO_MAPA} grosor={NIVELES_TRAZO[n].orillas} />}
         </Fade>
       ))}
     </>
