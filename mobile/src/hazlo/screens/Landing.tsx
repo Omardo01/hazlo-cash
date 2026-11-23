@@ -11,7 +11,7 @@ import type { NegocioCatalogo } from '@/lib/types';
 import { HazloMark } from '../HazloMark';
 import { Icon, type IconName } from '../icons';
 import { BuscadorLanding } from '../landing/BuscadorLanding';
-import { ESTILOS, FondoLanding, HeroLanding, PieLanding, TEMAS, useEstiloLanding, type EstiloLanding } from '../landing/EstilosLanding';
+import { ESTILO_INICIAL, ESTILOS, FondoLanding, HeroLanding, TEMAS, useEstiloLanding, type EstiloLanding, type MarcoLanding } from '../landing/EstilosLanding';
 import { bucle, DUR, EASE, Fade, PressableScale, STAGGER, useReduceMotion } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
 
@@ -72,6 +72,7 @@ function OpcionLanding({
   detalle,
   icono,
   principal = false,
+  negro = false,
   claro = false,
   onPress,
 }: {
@@ -79,6 +80,8 @@ function OpcionLanding({
   detalle: string;
   icono: IconName;
   principal?: boolean;
+  /** Sobre fondos que ya son naranjas: el principal va en negro. */
+  negro?: boolean;
   claro?: boolean;
   onPress: () => void;
 }) {
@@ -91,12 +94,12 @@ function OpcionLanding({
       style={[
         { height: principal ? 68 : 60, borderRadius: R.md + 2, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 12, paddingRight: 14 },
         principal
-          ? { boxShadow: '0 10px 26px rgba(235,78,0,0.45)' }
+          ? { boxShadow: negro ? '0 10px 24px rgba(80,20,0,0.32)' : '0 10px 26px rgba(235,78,0,0.45)' }
           : claro
             ? { backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(13,13,13,0.1)', boxShadow: '0 2px 10px rgba(13,13,13,0.05)' }
             : { backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
       ]}>
-      {principal && <LinearGradient colors={[C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />}
+      {principal && <LinearGradient colors={negro ? ['#1A1614', '#100D0C'] : [C.primary, C.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />}
       {principal && <Destello />}
       {/* En Views: en web el degradado absoluto taparía a los SVG sueltos. */}
       <View
@@ -104,7 +107,7 @@ function OpcionLanding({
           width: principal ? 44 : 38,
           height: principal ? 44 : 38,
           borderRadius: 13,
-          backgroundColor: principal ? 'rgba(255,255,255,0.22)' : claro ? `${C.primary}1F` : 'rgba(255,255,255,0.12)',
+          backgroundColor: principal ? (negro ? C.primary : 'rgba(255,255,255,0.22)') : claro ? `${C.primary}1F` : 'rgba(255,255,255,0.12)',
           alignItems: 'center',
           justifyContent: 'center',
         }}>
@@ -112,7 +115,7 @@ function OpcionLanding({
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text numberOfLines={1} style={{ fontFamily: F.bold, fontSize: principal ? 17 : 15, color: texto, letterSpacing: -0.3 }}>{titulo}</Text>
-        <Text numberOfLines={1} style={{ fontFamily: F.base, fontSize: 12, color: principal ? 'rgba(255,255,255,0.92)' : claro ? MUTED : 'rgba(255,255,255,0.68)', marginTop: 1 }}>
+        <Text numberOfLines={1} style={{ fontFamily: F.base, fontSize: 12, color: principal ? 'rgba(255,255,255,0.92)' : claro ? MUTED : negro ? '#fff' : 'rgba(255,255,255,0.68)', marginTop: 1 }}>
           {detalle}
         </Text>
       </View>
@@ -139,10 +142,10 @@ const pildora = (oscuro: boolean) =>
 
 /**
  * Landing: la primera pantalla sin sesión. Arriba el logo, el botón de diseño y
- * «Iniciar sesión»; al centro lo que cuenta qué es Hazlo Cash (cambia con el
- * diseño) y una caja para buscar negocios sin cuenta; abajo las dos puertas:
- * registrarse para recomendar o invitar a un negocio. Esas piezas no se mueven
- * entre diseños.
+ * «Iniciar sesión»; luego «Recomienda y gana» y una caja para buscar negocios
+ * sin cuenta; abajo las dos puertas: registrarse para recomendar o invitar a un
+ * negocio. Nada más: el fondo es lo único que cambia con el diseño (y si el
+ * título y la caja van arriba o al centro).
  */
 export function LandingScreen({
   onRecomendar,
@@ -161,14 +164,14 @@ export function LandingScreen({
 }) {
   const insets = useSafeAreaInsets();
   const { width, height } = useVentanaApp();
-  // Pantallas bajas (SE y parecidas): cada diseño quita sus adornos antes que
-  // encimar el centro con los botones.
+  // Pantallas bajas (SE y parecidas): menos aire y título más chico.
   const bajo = height < 760;
   // Logo, diseño e «Iniciar sesión» en un renglón: en 375 o menos se aprietan.
   const angosta = width < 390;
-  // "Tu recomendación" en una sola línea: mide ~9.3 × el tamaño de letra y el
-  // cuadro deja 72 puntos de márgenes. De 33 en un SE a 38 en pantallas grandes.
-  const titulo = Math.max(28, Math.min(38, Math.floor((width - 72) / 9.3)));
+  // En 360 el logo completo vale más que el ícono de la sesión.
+  const muyAngosta = width < 370;
+  // «Recomienda» mide ~6.1 × el tamaño de letra y el cuadro deja 72 de márgenes.
+  const titulo = Math.max(38, Math.min(bajo ? 46 : 52, Math.floor((width - 72) / 6.3)));
   const [medidas, setMedidas] = useState<Partial<Record<Pieza, LayoutRectangle>>>({});
   const medir = (p: Pieza) => (e: { nativeEvent: { layout: LayoutRectangle } }) => {
     const l = e.nativeEvent.layout;
@@ -177,11 +180,13 @@ export function LandingScreen({
 
   // ── Diseño en prueba ──
   const [estilo, setEstilo] = useEstiloLanding();
-  const tema = TEMAS[estilo ?? 'mercado'];
+  const tema = TEMAS[estilo ?? ESTILO_INICIAL];
   const claro = !tema.oscuro;
   const quieto = useReduceMotion();
   // Lo que cambia sale con fade antes de cambiar; lo nuevo entra con sus Fade.
   const salida = useState(() => new Animated.Value(1))[0];
+  // La caja solo se va cuando el otro diseño la pone en otro lado.
+  const salidaCaja = useState(() => new Animated.Value(1))[0];
   const cambiando = useRef(false);
   // El nombre del diseño aparece un momento bajo la barra al cambiarlo.
   const [nombre, setNombre] = useState<string | null>(null);
@@ -194,6 +199,7 @@ export function LandingScreen({
     const cambiar = () => {
       setEstilo(otro);
       salida.setValue(1);
+      salidaCaja.setValue(1);
       cambiando.current = false;
       setNombre(ESTILOS.find((e) => e.k === otro)?.nombre ?? null);
       aviso.stopAnimation();
@@ -207,7 +213,8 @@ export function LandingScreen({
     };
     cambiando.current = true;
     if (quieto) return cambiar();
-    Animated.timing(salida, { toValue: 0, duration: DUR.fast, easing: EASE.in, useNativeDriver: true }).start(cambiar);
+    const irse = (v: Animated.Value) => Animated.timing(v, { toValue: 0, duration: DUR.fast, easing: EASE.in, useNativeDriver: true });
+    Animated.parallel(TEMAS[otro].arriba === tema.arriba ? [irse(salida)] : [irse(salida), irse(salidaCaja)]).start(cambiar);
   };
 
   // Al buscar, la caja sube bajo el logo para que el teclado no tape la lista, y
@@ -234,14 +241,27 @@ export function LandingScreen({
 
   const { cuadro, logo, centro, bloque, caja } = medidas;
   const topeCaja = logo ? logo.y + logo.height + 14 : 0;
-  const subir = centro && bloque && caja ? topeCaja - (centro.y + bloque.y + caja.y) : 0;
+  // El lugar del bloque se calcula: en web onLayout avisa cuando algo cambia de
+  // tamaño, no cuando solo se mueve (al cambiar de diseño o girar la pantalla).
+  const aire = tema.arriba ? (bajo ? 18 : 32) : bajo ? 20 : 40;
+  const yBloque = centro && bloque ? centro.y + aire + (tema.arriba ? 0 : (centro.height - aire - bloque.height) / 2) : 0;
+  const yCaja = bloque && caja ? yBloque + bloque.height - caja.height : 0;
+  const subir = centro && bloque && caja ? topeCaja - yCaja : 0;
   // Lo que queda debajo de la caja ya subida: alto del cuadro menos caja (48 + 8) y orillas.
   const altoLista = cuadro ? Math.min(380, cuadro.height - topeCaja - 56 - 28 - 16) : 280;
   const resto = progreso.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
   const soloSinBuscar = buscando ? ('none' as const) : ('auto' as const);
-  // El toldo cuelga justo bajo la barra; el centro le deja su espacio.
-  const topeToldo = logo ? logo.y + logo.height + 4 : 76;
-  const espacioToldo = estilo === 'mercado' ? 62 : 0;
+  // Dónde quedó lo fijo: con eso se acomoda el fondo.
+  const marco: MarcoLanding | null =
+    cuadro && centro && bloque && caja
+      ? {
+          ancho: cuadro.width,
+          alto: cuadro.height,
+          titulo: yBloque,
+          caja: yCaja,
+          hueco: { y: yCaja + caja.height, alto: Math.max(0, centro.y + centro.height - yCaja - caja.height) },
+        }
+      : null;
 
   const textoMarca = tema.oscuro ? '#fff' : FG;
   const textoBarra = tema.oscuro ? '#fff' : FG;
@@ -263,9 +283,9 @@ export function LandingScreen({
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ flexGrow: 1, minHeight: ALTO_MINIMO }}>
             <View onLayout={medir('cuadro')} style={{ flex: 1 }}>
-              {estilo && cuadro && (
+              {estilo && marco && (
                 <Animated.View key={estilo} style={[StyleSheet.absoluteFill, { opacity: salida }]}>
-                  <FondoLanding estilo={estilo} ancho={cuadro.width} topeToldo={topeToldo} />
+                  <FondoLanding estilo={estilo} marco={marco} />
                 </Animated.View>
               )}
 
@@ -279,9 +299,9 @@ export function LandingScreen({
                   <Fade delay={STAGGER} desde={10}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: angosta ? 6 : 8 }}>
                       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: angosta ? 7 : 9 }}>
-                        <HazloMark size={angosta ? 24 : 26} />
+                        <HazloMark size={angosta ? 24 : 26} mono={tema.logo} />
                         <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.bold, fontSize: angosta ? 15.5 : 17, color: textoMarca, letterSpacing: -0.3 }}>
-                          Hazlo <Text style={{ color: C.primary }}>Cash</Text>
+                          Hazlo <Text style={{ color: tema.cash }}>Cash</Text>
                         </Text>
                       </View>
                       {/* Diseño del landing en prueba: cada toque pasa al siguiente. */}
@@ -292,13 +312,13 @@ export function LandingScreen({
                         hitSlop={8}
                         style={[pildora(tema.oscuro), { width: 34, justifyContent: 'center' }]}>
                         <Ionicons name="color-palette-outline" size={16} color={textoBarra} />
-                        {/* Qué diseño es: 1, 2 o 3. */}
-                        <View style={{ position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, backgroundColor: C.primary, borderWidth: 2, borderColor: tema.fondo, alignItems: 'center', justifyContent: 'center' }}>
+                        {/* Qué diseño es, del 1 al 5. */}
+                        <View style={{ position: 'absolute', top: -5, right: -5, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, backgroundColor: tema.logo ? FG : C.primary, borderWidth: 2, borderColor: tema.fondo, alignItems: 'center', justifyContent: 'center' }}>
                           <Text style={{ fontFamily: F.bold, fontSize: 9, lineHeight: 11, color: '#fff' }}>{indice + 1}</Text>
                         </View>
                       </PressableScale>
-                      <PressableScale onPress={onEntrar} accessibilityRole="button" accessibilityLabel="Iniciar sesión" hitSlop={8} style={[pildora(tema.oscuro), { paddingLeft: angosta ? 10 : 11, paddingRight: angosta ? 12 : 14 }]}>
-                        <Icon name="user" size={14} color={textoBarra} sw={2.2} />
+                      <PressableScale onPress={onEntrar} accessibilityRole="button" accessibilityLabel="Iniciar sesión" hitSlop={8} style={[pildora(tema.oscuro), { paddingLeft: muyAngosta ? 12 : angosta ? 10 : 11, paddingRight: angosta ? 12 : 14 }]}>
+                        {!muyAngosta && <Icon name="user" size={14} color={textoBarra} sw={2.2} />}
                         <Text style={{ fontFamily: F.semi, fontSize: 12.5, color: textoBarra }}>Iniciar sesión</Text>
                       </PressableScale>
                     </View>
@@ -321,19 +341,20 @@ export function LandingScreen({
                 </View>
 
                 {/* zIndex: la lista de resultados flota sobre los botones de abajo. */}
-                <View onLayout={medir('centro')} style={[S.pasaToques, { flex: 1, justifyContent: 'center', alignItems: 'stretch', zIndex: 5, paddingTop: espacioToldo }]}>
+                <View onLayout={medir('centro')} style={[S.pasaToques, { flex: 1, justifyContent: tema.arriba ? 'flex-start' : 'center', alignItems: 'stretch', zIndex: 5, paddingTop: aire }]}>
                   <View onLayout={medir('bloque')} style={[S.pasaToques, { alignItems: 'center' }]}>
                     {estilo && (
                       <Animated.View key={estilo} style={{ alignSelf: 'stretch', alignItems: 'center', opacity: Animated.multiply(resto, salida), pointerEvents: soloSinBuscar }}>
-                        <HeroLanding estilo={estilo} titulo={titulo} bajo={bajo} />
+                        <HeroLanding estilo={estilo} titulo={titulo} />
                       </Animated.View>
                     )}
 
                     {/* Se sube la caja completa: abajo no queda un hueco que se trague los toques. */}
                     <Animated.View
                       onLayout={medir('caja')}
-                      style={{ alignSelf: 'stretch', marginTop: 20, transform: [{ translateY: progreso.interpolate({ inputRange: [0, 1], outputRange: [0, subir] }) }] }}>
-                      <Fade delay={STAGGER * 5} desde={14}>
+                      style={{ alignSelf: 'stretch', marginTop: 22, opacity: salidaCaja, transform: [{ translateY: progreso.interpolate({ inputRange: [0, 1], outputRange: [0, subir] }) }] }}>
+                      {/* Con otra llave entra de nuevo en su nuevo lugar. */}
+                      <Fade key={tema.arriba ? 'arriba' : 'centro'} delay={STAGGER * 3} desde={14}>
                         <BuscadorLanding
                           claro={claro}
                           abierto={buscando}
@@ -347,12 +368,6 @@ export function LandingScreen({
                         />
                       </Fade>
                     </Animated.View>
-
-                    {estilo && !bajo && (
-                      <Animated.View key={`pie-${estilo}`} style={{ alignSelf: 'stretch', marginTop: 18, opacity: Animated.multiply(resto, salida), pointerEvents: 'none' }}>
-                        <PieLanding estilo={estilo} />
-                      </Animated.View>
-                    )}
                   </View>
                 </View>
 
@@ -363,7 +378,7 @@ export function LandingScreen({
                         fontFamily: F.semi,
                         fontSize: 10.5,
                         letterSpacing: 1.6,
-                        color: tema.oscuro ? 'rgba(255,255,255,0.6)' : 'rgba(13,13,13,0.45)',
+                        color: tema.pregunta,
                         textAlign: 'center',
                         textTransform: 'uppercase',
                         marginBottom: 12,
@@ -373,22 +388,28 @@ export function LandingScreen({
                   </Fade>
                   <View style={{ gap: 10 }}>
                     <Fade delay={STAGGER * 6} desde={14}>
-                      <OpcionLanding titulo="Regístrate gratis" detalle="para recomendar" icono="user" principal onPress={onRecomendar} />
+                      <OpcionLanding titulo="Regístrate gratis" detalle="para recomendar" icono="user" principal negro={tema.principalNegro} onPress={onRecomendar} />
                     </Fade>
                     <Fade delay={STAGGER * 7} desde={14}>
-                      <OpcionLanding titulo="Invita a un negocio" detalle="a ser parte de Hazlo Cash" icono="home" claro={claro} onPress={onInvitar} />
+                      <OpcionLanding titulo="Invita a un negocio" detalle="a ser parte de Hazlo Cash" icono="home" negro={tema.principalNegro} claro={claro} onPress={onInvitar} />
                     </Fade>
                   </View>
 
                   <Fade delay={STAGGER * 8}>
                     <Pressable onPress={onEntrar} hitSlop={10} accessibilityRole="link">
-                      <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: tema.oscuro ? 'rgba(255,255,255,0.55)' : MUTED, textAlign: 'center', marginTop: 18 }}>
-                        ¿Ya tienes cuenta? <Text style={{ fontFamily: F.semi, color: C.primary }}>Entrar</Text>
+                      <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: tema.pie, textAlign: 'center', marginTop: 18 }}>
+                        ¿Ya tienes cuenta? <Text style={{ fontFamily: F.semi, color: tema.liga }}>Entrar</Text>
                       </Text>
                     </Pressable>
                   </Fade>
                 </Animated.View>
               </View>
+
+              {tema.credito && (
+                <Text style={{ position: 'absolute', left: 0, right: 0, bottom: 7, textAlign: 'center', fontFamily: F.reg, fontSize: 8.5, color: tema.oscuro ? 'rgba(255,255,255,0.4)' : 'rgba(13,13,13,0.4)', pointerEvents: 'none' }}>
+                  Mapa © OpenStreetMap
+                </Text>
+              )}
             </View>
           </ScrollView>
         </View>

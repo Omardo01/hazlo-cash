@@ -1,42 +1,72 @@
-import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import { Animated, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import Svg, { Circle, Defs, Ellipse, G, LinearGradient as DegradadoSvg, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-import { HazloMark } from '../HazloMark';
+import nocheAvenidas from '@/assets/images/landing/noche-avenidas.webp';
+import nocheCalles from '@/assets/images/landing/noche-calles.webp';
+import rioAgua from '@/assets/images/landing/rio-agua.webp';
+import rioCalles from '@/assets/images/landing/rio-calles.webp';
+
 import { bucle, DUR, EASE, Fade, STAGGER, useReduceMotion } from '../motion';
 import { C, F, FG, MUTED } from '../theme';
 
 /**
- * Tres caras para el landing, en prueba: el botón junto a «Iniciar sesión» las
- * va cambiando. Lo que no se mueve (logo, buscador, los dos botones y «Entrar»)
- * vive en Landing.tsx; aquí solo el fondo, lo de arriba del buscador y la línea
- * de abajo.
+ * Cinco caras para el landing, en prueba: el botón junto a «Iniciar sesión» las
+ * va cambiando. Todas dicen lo mismo («Recomienda y gana», el buscador y las dos
+ * puertas); lo único que cambia es el fondo, y cada uno lleva una sola idea. Lo
+ * fijo vive en Landing.tsx.
  *
- * 1 · Toldo de mercado — claro: el puesto del comercio local y sus giros.
- * 2 · Mapa vivo — oscuro: Villahermosa con pines de negocios.
- * 3 · Boca en boca — claro: la plática de WhatsApp donde ya recomiendas.
+ * 1 · La voz que se corre — naranja: el globo de plática que crece y paga.
+ * 2 · Mapa con ruta — claro: una sola línea, de ti al negocio.
+ * 3 · Ciudad encendida — oscuro: Villahermosa real, de noche y desde el aire.
+ * 4 · Solo el río — blanco: calles finísimas y el agua naranja.
+ * 5 · Amanecer — pura luz, sin dibujo.
  */
-export type EstiloLanding = 'mercado' | 'mapa' | 'platica';
+export type EstiloLanding = 'voz' | 'ruta' | 'noche' | 'rio' | 'amanecer';
 
 export const ESTILOS: { k: EstiloLanding; nombre: string }[] = [
-  { k: 'mercado', nombre: 'Toldo de mercado' },
-  { k: 'mapa', nombre: 'Mapa vivo' },
-  { k: 'platica', nombre: 'Boca en boca' },
+  { k: 'voz', nombre: 'La voz que se corre' },
+  { k: 'ruta', nombre: 'Mapa con ruta' },
+  { k: 'noche', nombre: 'Ciudad encendida' },
+  { k: 'rio', nombre: 'Solo el río' },
+  { k: 'amanecer', nombre: 'Amanecer' },
 ];
 
-/** Colores de lo fijo (logo, sesión, botón secundario) según el fondo. */
+/** Cómo se viste lo fijo (logo, título, botones) sobre cada fondo. */
 export interface TemaLanding {
-  oscuro: boolean;
   fondo: string;
+  /** Fondo oscuro: la barra y el botón secundario van de vidrio. */
+  oscuro: boolean;
+  /** El título y el buscador arriba, con el dibujo abajo; si no, al centro. */
+  arriba: boolean;
+  titulo: string;
+  acento: string;
+  /** Color de «Cash» y, si el logo va de un color, cuál. */
+  cash: string;
+  logo?: string;
+  /** El botón principal en negro, para fondos que ya son naranjas. */
+  principalNegro: boolean;
+  pregunta: string;
+  pie: string;
+  liga: string;
+  /** Usa el trazo de OpenStreetMap: la licencia pide el crédito a la vista. */
+  credito: boolean;
 }
 
+const CLARO = { oscuro: false, titulo: FG, acento: '#F06400', cash: C.primary, principalNegro: false, pregunta: 'rgba(13,13,13,0.55)', pie: MUTED, liga: '#E05A00' } as const;
+
 export const TEMAS: Record<EstiloLanding, TemaLanding> = {
-  mercado: { oscuro: false, fondo: '#FFF8EF' },
-  mapa: { oscuro: true, fondo: '#121212' },
-  platica: { oscuro: false, fondo: '#FFFFFF' },
+  ruta: { ...CLARO, fondo: '#FBF7F0', arriba: true, credito: false },
+  voz: { fondo: '#D53E00', oscuro: true, arriba: true, titulo: '#fff', acento: '#1B0A00', cash: '#1B0A00', logo: '#fff', principalNegro: true, pregunta: '#fff', pie: '#fff', liga: '#fff', credito: false },
+  noche: { fondo: '#0B0A0C', oscuro: true, arriba: false, titulo: '#fff', acento: '#FF8A1F', cash: C.primary, principalNegro: false, pregunta: 'rgba(255,255,255,0.8)', pie: 'rgba(255,255,255,0.72)', liga: '#FF8A1F', credito: true },
+  rio: { ...CLARO, fondo: '#FFFFFF', arriba: false, credito: true },
+  amanecer: { ...CLARO, fondo: '#FFF4E6', arriba: false, principalNegro: true, pregunta: '#5A2C08', pie: '#5A2C08', liga: '#7A2600', credito: false },
 };
+
+/** Con cuál abre quien no ha elegido. */
+export const ESTILO_INICIAL: EstiloLanding = 'voz';
 
 const LLAVE = 'hazlo-estilo-landing';
 
@@ -48,7 +78,7 @@ export function useEstiloLanding(): [EstiloLanding | null, (e: EstiloLanding) =>
     AsyncStorage.getItem(LLAVE)
       .catch(() => null)
       .then((v) => {
-        if (vivo) setEstilo(ESTILOS.some((e) => e.k === v) ? (v as EstiloLanding) : 'mercado');
+        if (vivo) setEstilo(ESTILOS.find((e) => e.k === v)?.k ?? ESTILO_INICIAL);
       });
     return () => {
       vivo = false;
@@ -61,364 +91,369 @@ export function useEstiloLanding(): [EstiloLanding | null, (e: EstiloLanding) =>
   return [estilo, elegir];
 }
 
-type IconoIon = React.ComponentProps<typeof Ionicons>['name'];
+/** Dónde quedó lo fijo: los fondos se acomodan a eso, no a una pantalla modelo. */
+export interface MarcoLanding {
+  ancho: number;
+  alto: number;
+  /** Dónde empieza el título y dónde la caja de búsqueda. */
+  titulo: number;
+  caja: number;
+  /** El espacio libre entre la caja y «¿Qué quieres hacer?». */
+  hueco: { y: number; alto: number };
+}
 
-// ── Fondos ────────────────────────────────────────────────────────────────────
+// ── Piezas comunes ───────────────────────────────────────────────────────────
 
-/** El toldo de rayas del puesto: cae bajo el logo. */
-function Toldo({ ancho }: { ancho: number }) {
-  const RAYA = 23;
-  const n = Math.ceil(ancho / RAYA) + 1;
+/** Un color que tapa más o menos según la altura: así el texto siempre se lee. */
+function Velo({ rgb, alto, puntos }: { rgb: string; alto: number; puntos: [y: number, tapa: number][] }) {
+  const color = (tapa: number) => `rgba(${rgb},${tapa})`;
+  // En pantallas bajas dos puntos pueden cruzarse: nunca van para atrás.
+  const lugares = puntos.reduce<number[]>((a, [y]) => [...a, Math.max(a.length ? a[a.length - 1] : 0, Math.min(1, Math.max(0, y / alto)))], []);
+  const colores = puntos.map(([, tapa]) => color(tapa));
   return (
-    <Svg width={ancho} height={72}>
-      <Rect width={ancho} height={6} fill={C.accent} />
-      {Array.from({ length: n }, (_, i) => {
-        const x = i * RAYA;
-        return <Path key={i} d={`M${x} 6h${RAYA}v46q${-RAYA / 2} 20 ${-RAYA} 0Z`} fill={i % 2 === 0 ? C.primary : '#FFFFFF'} stroke={C.accent} strokeOpacity={0.3} strokeWidth={1} />;
-      })}
-    </Svg>
+    <LinearGradient
+      colors={[colores[0], colores[1], ...colores.slice(2)]}
+      locations={[lugares[0], lugares[1], ...lugares.slice(2)]}
+      style={StyleSheet.absoluteFill}
+    />
   );
 }
 
-/** Calles, río y manzanas a oscuras: se estira a todo el cuadro. */
-function Calles() {
-  return (
-    <Svg width="100%" height="100%" viewBox="0 0 370 824" preserveAspectRatio="xMidYMid slice">
-      <Path d="M250 -10C230 120 300 200 260 300S180 470 230 560S320 700 300 840" stroke="#16323A" strokeWidth={26} fill="none" />
-      <Path d="M-10 180L380 140M-10 260L380 230M-10 350L380 330M-10 520L380 500M-10 600L380 610M40 -10L80 840M130 -10L150 840M220 -10L210 840M300 -10L330 840" stroke="#262626" strokeWidth={1.2} fill="none" />
-      <Path d="M-10 300C90 280 120 380 200 370S330 300 380 320" stroke="#3A2A1C" strokeWidth={5} fill="none" strokeLinecap="round" />
-      <Rect x={60} y={190} width={58} height={34} rx={6} fill="#1A1A1A" />
-      <Rect x={150} y={240} width={48} height={60} rx={6} fill="#1A1A1A" />
-      <Rect x={60} y={540} width={70} height={40} rx={6} fill="#1A1A1A" />
-      <Rect x={290} y={540} width={44} height={50} rx={6} fill="#1A1A1A" />
-    </Svg>
-  );
-}
-
-/** Dos luces cálidas detrás de la plática. */
-function Luces() {
-  return (
-    <Svg width="100%" height="100%">
-      <Defs>
-        <RadialGradient id="luz-a" cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor={C.primary} stopOpacity={0.24} />
-          <Stop offset="1" stopColor={C.primary} stopOpacity={0} />
-        </RadialGradient>
-        <RadialGradient id="luz-b" cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor="#FFB400" stopOpacity={0.2} />
-          <Stop offset="1" stopColor="#FFB400" stopOpacity={0} />
-        </RadialGradient>
-      </Defs>
-      <Circle cx="92%" cy="28%" r={190} fill="url(#luz-a)" />
-      <Circle cx="2%" cy="52%" r={160} fill="url(#luz-b)" />
-    </Svg>
-  );
-}
-
-/** Lo que va detrás de todo: color, dibujo y adornos fijos. */
-export function FondoLanding({ estilo, ancho, topeToldo }: { estilo: EstiloLanding; ancho: number; topeToldo: number }) {
-  return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: TEMAS[estilo].fondo, pointerEvents: 'none' }]}>
-      {estilo === 'mercado' && (
-        <Fade desde={-18} style={{ position: 'absolute', left: 0, right: 0, top: topeToldo }}>
-          <Toldo ancho={ancho} />
-        </Fade>
-      )}
-      {estilo === 'mapa' && (
-        <Fade style={StyleSheet.absoluteFill}>
-          <Calles />
-        </Fade>
-      )}
-      {estilo === 'platica' && (
-        <Fade style={StyleSheet.absoluteFill}>
-          <Luces />
-        </Fade>
-      )}
-    </View>
-  );
-}
-
-// ── 1 · Toldo de mercado ─────────────────────────────────────────────────────
-
-const GIROS: { nombre: string; icono: IconoIon; color: string; gana: string }[][] = [
-  [
-    { nombre: 'Taquería', icono: 'restaurant', color: '#E8590C', gana: '+$25' },
-    { nombre: 'Barbería', icono: 'cut', color: '#2F9E44', gana: '+$30' },
-    { nombre: 'Taller', icono: 'construct', color: '#1971C2', gana: '+$80' },
-    { nombre: 'Panadería', icono: 'nutrition', color: '#B7791F', gana: '+$15' },
-  ],
-  [
-    { nombre: 'Estética', icono: 'sparkles', color: '#C2255C', gana: '+$40' },
-    { nombre: 'Plomero', icono: 'water', color: '#5F3DC4', gana: '+$60' },
-    { nombre: 'Café', icono: 'cafe', color: '#8B5E34', gana: '+$15' },
-    { nombre: 'Lavandería', icono: 'shirt', color: '#0C8599', gana: '+$20' },
-  ],
-];
-
-function Chip({ g }: { g: (typeof GIROS)[number][number] }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 6, paddingRight: 8, paddingVertical: 5, borderRadius: 999, backgroundColor: '#fff', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(13,13,13,0.1)', boxShadow: '0 3px 10px rgba(13,13,13,0.06)' }}>
-      <View style={{ width: 26, height: 26, borderRadius: 9, backgroundColor: g.color, alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons name={g.icono} size={14} color="#fff" />
-      </View>
-      <Text style={{ fontFamily: F.semi, fontSize: 12.5, color: FG }}>{g.nombre}</Text>
-      <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: `${C.primary}1F` }}>
-        <Text style={{ fontFamily: F.bold, fontSize: 10.5, color: C.accent }}>{g.gana}</Text>
-      </View>
-    </View>
-  );
-}
-
-/**
- * Una fila de giros que corre sola, de lado a lado. Se dibuja dos veces seguidas
- * y se recorre el ancho de una: al volver al inicio no se nota el corte.
- */
-function FilaGiros({ giros, sentido, demora }: { giros: (typeof GIROS)[number]; sentido: 1 | -1; demora: number }) {
-  const [ancho, setAncho] = useState(0);
-  const x = useState(() => new Animated.Value(0))[0];
+/** De 0 a 1 una sola vez, cuando `listo`. */
+function useEntrada(listo: boolean, duracion: number, demora = 0) {
+  const p = useState(() => new Animated.Value(0))[0];
   const quieto = useReduceMotion();
   useEffect(() => {
-    if (!ancho || quieto) return;
-    x.setValue(0);
-    const a = bucle(Animated.timing(x, { toValue: 1, duration: ancho * 55, easing: Easing.linear, useNativeDriver: true }));
+    if (!listo) return;
+    if (quieto) {
+      p.setValue(1);
+      return;
+    }
+    const a = Animated.timing(p, { toValue: 1, duration: duracion, delay: demora, easing: EASE.inOut, useNativeDriver: true });
     a.start();
     return () => a.stop();
-  }, [ancho, quieto, x]);
-  const desde = sentido === -1 ? 0 : -ancho;
-  const hasta = sentido === -1 ? -ancho : 0;
+  }, [p, listo, quieto, duracion, demora]);
+  return p;
+}
+
+/** Va y viene despacio entre 1 y `minimo`, sin parar. */
+function useRespiro(minimo: number, duracion: number) {
+  const p = useState(() => new Animated.Value(1))[0];
+  const quieto = useReduceMotion();
+  useEffect(() => {
+    if (quieto) {
+      p.setValue(1);
+      return;
+    }
+    const a = bucle(
+      Animated.sequence([
+        Animated.timing(p, { toValue: minimo, duration: duracion, easing: EASE.inOut, useNativeDriver: true }),
+        Animated.timing(p, { toValue: 1, duration: duracion, easing: EASE.inOut, useNativeDriver: true }),
+      ]),
+    );
+    a.start();
+    return () => a.stop();
+  }, [p, quieto, minimo, duracion]);
+  return p;
+}
+
+/** Descubre lo de adentro como cortina: dos cajas que corren al revés (solo transform). */
+function Cortina({ p, ancho, alto, eje, children }: { p: Animated.Value; ancho: number; alto: number; eje: 'x' | 'y'; children: React.ReactNode }) {
+  const largo = eje === 'x' ? ancho : alto;
+  const fuera = p.interpolate({ inputRange: [0, 1], outputRange: [-largo, 0] });
+  const dentro = p.interpolate({ inputRange: [0, 1], outputRange: [largo, 0] });
   return (
-    <Fade delay={demora} desde={10} style={{ overflow: 'hidden', marginHorizontal: -26, paddingVertical: 4 }}>
-      <Animated.View style={{ flexDirection: 'row', alignSelf: 'flex-start', transform: [{ translateX: ancho ? x.interpolate({ inputRange: [0, 1], outputRange: [desde, hasta] }) : -12 }] }}>
-        {[0, 1].map((copia) => (
-          <View key={copia} onLayout={copia === 0 ? (e) => setAncho(Math.round(e.nativeEvent.layout.width)) : undefined} style={{ flexDirection: 'row', gap: 8, paddingRight: 8 }}>
-            {giros.map((g) => (
-              <Chip key={g.nombre} g={g} />
-            ))}
-          </View>
-        ))}
-      </Animated.View>
-    </Fade>
+    <Animated.View style={{ width: ancho, height: alto, overflow: 'hidden', transform: [eje === 'x' ? { translateX: fuera } : { translateY: fuera }] }}>
+      <Animated.View style={{ width: ancho, height: alto, transform: [eje === 'x' ? { translateX: dentro } : { translateY: dentro }] }}>{children}</Animated.View>
+    </Animated.View>
   );
 }
 
-function HeroMercado({ titulo, bajo }: { titulo: number; bajo: boolean }) {
+const llenar = { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' } as const;
+
+// ── Mapa con ruta ────────────────────────────────────────────────────────
+
+const RUTA = 'M66 572C120 572 118 512 176 500S250 484 262 440S292 392 314 392';
+const CALLES_V = Array.from({ length: 16 }, (_, i) => `M${-320 + i * 74} -200V1100`).join('');
+const CALLES_H = Array.from({ length: 21 }, (_, i) => `M-320 ${-180 + i * 62}H820`).join('');
+// Lo que ocupa la ruta con su pin, en las medidas del dibujo.
+const VISTA_RUTA = { x: 40, y: 312, ancho: 312, alto: 282 };
+
+function FondoRuta({ m }: { m: MarcoLanding }) {
+  const vista = `${VISTA_RUTA.x} ${VISTA_RUTA.y} ${VISTA_RUTA.ancho} ${VISTA_RUTA.alto}`;
+  // Las calles se asoman un poco detrás de la caja y de la pregunta, ya difusas.
+  const arriba = Math.max(0, m.hueco.y - 78);
+  const alto = m.hueco.alto + 78 + 60;
+  const altoRuta = Math.max(80, m.hueco.alto - 26);
+  const traza = useEntrada(true, 950, DUR.slow);
   return (
-    <View style={{ alignSelf: 'stretch', alignItems: 'center' }}>
-      {!bajo && (
-        <Fade delay={STAGGER * 2} desde={12}>
-          <View style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, backgroundColor: `${C.primary}1A`, marginBottom: 14 }}>
-            <Text style={{ fontFamily: F.semi, fontSize: 10.5, letterSpacing: 1.6, color: C.accent, textTransform: 'uppercase' }}>Hecho para el comercio local</Text>
-          </View>
-        </Fade>
-      )}
-      <Fade delay={STAGGER * 3} desde={14}>
-        <Text style={{ fontFamily: F.bold, fontSize: titulo, lineHeight: titulo * 1.1, letterSpacing: -titulo * 0.034, color: FG, textAlign: 'center' }}>
-          Tu recomendación{'\n'}
-          <Text style={{ color: C.primary }}>vale dinero</Text>
-        </Text>
+    <>
+      <Fade style={{ position: 'absolute', left: 0, right: 0, top: arriba, height: alto, overflow: 'hidden' }}>
+        <Svg width={m.ancho} height={alto} viewBox="0 250 390 440" preserveAspectRatio="xMidYMid slice">
+          <Rect x={-200} y={0} width={800} height={1000} fill="#F3EBDD" />
+          <G transform="rotate(-14 195 450)">
+            <Rect x={50} y={384} width={148} height={62} fill="#DFE8CE" />
+            <Path d={CALLES_V + CALLES_H} stroke="#FFFDF9" strokeWidth={7} fill="none" />
+            <Path d="M-320 508H820" stroke="#FFFDF9" strokeWidth={15} />
+          </G>
+          <Path d="M420 470C360 500 350 540 296 566S220 640 200 720" stroke="#CBE3E1" strokeWidth={40} fill="none" />
+        </Svg>
+        <Velo
+          rgb="251,247,240"
+          alto={alto}
+          puntos={[
+            [0, 1],
+            [40, 0.85],
+            [100, 0],
+            [alto - 110, 0],
+            [alto - 56, 0.92],
+            [alto, 1],
+          ]}
+        />
       </Fade>
-      <View style={{ alignSelf: 'stretch', marginTop: 16, gap: 4 }}>
-        <FilaGiros giros={GIROS[0]} sentido={-1} demora={STAGGER * 4} />
-        {!bajo && <FilaGiros giros={GIROS[1]} sentido={1} demora={STAGGER * 5} />}
+      <View style={{ position: 'absolute', left: 0, top: m.hueco.y + 10 }}>
+        <Cortina p={traza} ancho={m.ancho} alto={altoRuta} eje="x">
+          <Svg width={m.ancho} height={altoRuta} viewBox={vista}>
+            <Defs>
+              <DegradadoSvg id="ruta-color" x1={66} y1={572} x2={314} y2={392} gradientUnits="userSpaceOnUse">
+                <Stop offset="0" stopColor="#FFB400" />
+                <Stop offset="0.5" stopColor={C.primary} />
+                <Stop offset="1" stopColor={C.accent} />
+              </DegradadoSvg>
+            </Defs>
+            <Path d={RUTA} stroke={C.accent} strokeOpacity={0.14} strokeWidth={17} fill="none" strokeLinecap="round" transform="translate(0 5)" />
+            <Path d={RUTA} stroke="#fff" strokeWidth={12} fill="none" strokeLinecap="round" />
+            <Path d={RUTA} stroke="url(#ruta-color)" strokeWidth={7} fill="none" strokeLinecap="round" />
+            <Circle cx={66} cy={572} r={13} fill="#fff" />
+            <Circle cx={66} cy={572} r={8} fill="#FFB400" />
+          </Svg>
+        </Cortina>
       </View>
-    </View>
+      {/* El pin cae cuando la línea llega. */}
+      <Fade delay={DUR.slow + 820} desde={-16} style={{ position: 'absolute', left: 0, top: m.hueco.y + 10 }}>
+        <Svg width={m.ancho} height={altoRuta} viewBox={vista}>
+          <Ellipse cx={314} cy={393} rx={13} ry={4.5} fill="#7A2C00" opacity={0.22} />
+          <Path d="M314 392C302 372 290 365 290 348a24 24 0 0 1 48 0C338 365 326 372 314 392Z" fill={C.accent} stroke="#fff" strokeWidth={3.5} />
+          <Circle cx={314} cy={348} r={8.5} fill="#fff" />
+        </Svg>
+      </Fade>
+    </>
   );
 }
 
-function PieMercado() {
-  const caras = ['#FFD8A8', '#B2F2BB', '#A5D8FF'];
+// ── La voz que se corre ──────────────────────────────────────────────────
+
+const GLOBO = 'M150 402h90a34 34 0 0 1 34 34v22a34 34 0 0 1-34 34h-62l-30 26v-27.5a34 34 0 0 1-32-32.5v-22a34 34 0 0 1 34-34Z';
+// El mismo globo con orilla cada vez más gruesa: crece parejo por todos lados.
+const ECOS: [orilla: number, color: string][] = [
+  [1010, '#DB4300'],
+  [800, '#E04900'],
+  [610, '#E65100'],
+  [440, '#EC5A00'],
+  [290, '#F26503'],
+  [160, '#F8730C'],
+  [62, '#FD8420'],
+];
+
+function Globo({ lado }: { lado: number }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 }}>
-      <View style={{ flexDirection: 'row' }}>
-        {caras.map((c, i) => (
-          <View key={c} style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: c, borderWidth: 2, borderColor: TEMAS.mercado.fondo, marginLeft: i === 0 ? 0 : -8, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="person" size={11} color="rgba(13,13,13,0.35)" />
-          </View>
-        ))}
-      </View>
-      <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.reg, fontSize: 12, color: MUTED }}>
-        <Text style={{ fontFamily: F.semi, color: FG }}>Tus vecinos</Text> ya están recomendando
-      </Text>
-    </View>
+    <Svg width={lado} height={lado} viewBox="105 365 180 180">
+      <Path d={GLOBO} fill="#fff" />
+    </Svg>
   );
 }
 
-// ── 2 · Mapa vivo ─────────────────────────────────────────────────────────────
-
-/** Pin con forma de gota y un halo que late. */
-function Pin({ icono, x, y, color = C.primary, demora, tenue }: { icono: IconoIon; x: string; y: number; color?: string; demora: number; tenue?: boolean }) {
-  const p = useState(() => new Animated.Value(0))[0];
+function FondoVoz({ m }: { m: MarcoLanding }) {
+  const e = Math.max(0.62, Math.min(1.1, m.hueco.alto / 300));
+  const cx = m.ancho / 2;
+  const cy = m.hueco.y + m.hueco.alto / 2;
+  const lado = 180 * e;
+  const sale = useEntrada(true, DUR.slow, STAGGER * 5);
+  const eco = useState(() => new Animated.Value(0))[0];
   const quieto = useReduceMotion();
   useEffect(() => {
     if (quieto) return;
     const a = bucle(
       Animated.sequence([
-        Animated.delay(demora),
-        Animated.timing(p, { toValue: 1, duration: 1600, easing: EASE.out, useNativeDriver: true }),
-        Animated.timing(p, { toValue: 0, duration: 0, useNativeDriver: true }),
+        Animated.delay(900),
+        Animated.timing(eco, { toValue: 1, duration: 2200, easing: EASE.out, useNativeDriver: true }),
+        Animated.timing(eco, { toValue: 0, duration: 0, useNativeDriver: true }),
       ]),
     );
     a.start();
     return () => a.stop();
-  }, [p, quieto, demora]);
+  }, [eco, quieto]);
+  const caja = { position: 'absolute', left: cx - lado / 2, top: cy - lado / 2, width: lado, height: lado } as const;
   return (
-    // La opacidad tenue va adentro: en el style de Fade pisaría su entrada.
-    <Fade delay={demora} desde={-14} style={{ position: 'absolute', left: x as `${number}%`, top: y }}>
-      <View style={{ opacity: tenue ? 0.8 : 1 }}>
+    <>
+      <Fade style={StyleSheet.absoluteFill}>
+        <Svg width={m.ancho} height={m.alto}>
+          <G transform={`translate(${cx} ${cy}) scale(${e}) translate(-195 -455)`}>
+            {ECOS.map(([orilla, color]) => (
+              <Path key={color} d={GLOBO} fill={color} stroke={color} strokeWidth={orilla} strokeLinejoin="round" />
+            ))}
+          </G>
+        </Svg>
+      </Fade>
+      {!quieto && (
+        <Animated.View style={[caja, { opacity: eco.interpolate({ inputRange: [0, 0.08, 1], outputRange: [0, 0.3, 0] }), transform: [{ scale: eco.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1.75] }) }] }]}>
+          <Globo lado={lado} />
+        </Animated.View>
+      )}
+      <Animated.View style={[caja, { opacity: sale, transform: [{ scale: sale.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }] }]}>
+        <Globo lado={lado} />
+        {/* El globo va del 20 al 70 % de su caja; abajo queda el piquito. */}
+        <View style={{ position: 'absolute', left: 0, right: 0, top: lado * 0.205, height: lado * 0.5, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontFamily: F.bold, fontSize: 54 * e, lineHeight: 66 * e, color: C.accent, includeFontPadding: false }}>$</Text>
+        </View>
+      </Animated.View>
+    </>
+  );
+}
+
+// ── Villahermosa real: de noche y solo el río ────────────────────────────────────────────────
+// Las imágenes salen de scripts/fondos-landing.ts (trazo © OpenStreetMap).
+
+const MAPA: Record<'calles' | 'avenidas' | 'callesRio' | 'agua', ImageSourcePropType> = {
+  calles: nocheCalles,
+  avenidas: nocheAvenidas,
+  callesRio: rioCalles,
+  agua: rioAgua,
+};
+
+function FondoNoche({ m }: { m: MarcoLanding }) {
+  const [listas, setListas] = useState({ calles: false, avenidas: false });
+  const calles = useEntrada(listas.calles, 420);
+  // La ciudad se prende: primero las colonias, luego las avenidas.
+  const avenidas = useEntrada(listas.calles && listas.avenidas, 1500, 260);
+  const respiro = useRespiro(0.72, 3400);
+  const piso = m.hueco.y + m.hueco.alto;
+  return (
+    <>
+      <Animated.Image source={MAPA.calles} resizeMode="cover" onLoad={() => setListas((l) => ({ ...l, calles: true }))} style={[llenar, { opacity: calles }]} />
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: avenidas }]}>
+        <Animated.Image source={MAPA.avenidas} resizeMode="cover" onLoad={() => setListas((l) => ({ ...l, avenidas: true }))} style={[llenar, { opacity: respiro }]} />
+      </Animated.View>
+      <Velo
+        rgb="11,10,12"
+        alto={m.alto}
+        puntos={[
+          [0, 0.84],
+          [70, 0.62],
+          [m.titulo - 90, 0.45],
+          [m.titulo - 6, 0.84],
+          [m.caja - 8, 0.84],
+          [m.hueco.y + 24, 0.08],
+          [piso - 44, 0.12],
+          [piso + 6, 0.9],
+          [m.alto, 0.97],
+        ]}
+      />
+    </>
+  );
+}
+
+function FondoRio({ m }: { m: MarcoLanding }) {
+  const [listas, setListas] = useState({ calles: false, agua: false });
+  const calles = useEntrada(listas.calles, 420);
+  // El agua baja de norte a sur.
+  const agua = useEntrada(listas.calles && listas.agua, 1500, 160);
+  const piso = m.hueco.y + m.hueco.alto;
+  return (
+    <>
+      <Animated.Image source={MAPA.callesRio} resizeMode="cover" onLoad={() => setListas((l) => ({ ...l, calles: true }))} style={[llenar, { opacity: calles }]} />
+      <View style={StyleSheet.absoluteFill}>
+        <Cortina p={agua} ancho={m.ancho} alto={m.alto} eje="y">
+          <Animated.Image source={MAPA.agua} resizeMode="cover" onLoad={() => setListas((l) => ({ ...l, agua: true }))} style={llenar} />
+        </Cortina>
+      </View>
+      <Velo
+        rgb="255,255,255"
+        alto={m.alto}
+        puntos={[
+          [0, 0.92],
+          [80, 0.62],
+          [m.titulo - 90, 0.5],
+          [m.titulo - 6, 0.95],
+          [m.caja - 8, 0.95],
+          [m.hueco.y + 30, 0],
+          [piso - 54, 0.06],
+          [piso + 6, 0.96],
+          [m.alto, 1],
+        ]}
+      />
+    </>
+  );
+}
+
+// ── Amanecer ─────────────────────────────────────────────────────────────
+
+function FondoAmanecer({ m }: { m: MarcoLanding }) {
+  const sube = useEntrada(true, 1300, STAGGER * 2);
+  const respiro = useRespiro(0.8, 3600);
+  const radio = Math.max(m.ancho, 340) * 0.72;
+  const cy = m.hueco.y + 20;
+  return (
+    <>
+      <LinearGradient colors={['#FFFDFA', '#FFF4E6', '#FFDDB0', '#FFB469', '#FF9440']} locations={[0, 0.3, 0.52, 0.74, 1]} style={StyleSheet.absoluteFill} />
+      <Svg width={m.ancho} height={m.alto} style={StyleSheet.absoluteFill}>
+        <Defs>
+          <RadialGradient id="brasa" cx="50%" cy="50%" r="50%">
+            <Stop offset="0" stopColor={C.primary} stopOpacity={0.5} />
+            <Stop offset="1" stopColor={C.primary} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Ellipse cx={m.ancho * 0.06} cy={m.alto * 0.95} rx={m.ancho * 0.78} ry={230} fill="url(#brasa)" />
+        <Ellipse cx={m.ancho * 1.03} cy={m.alto * 0.855} rx={m.ancho * 0.6} ry={200} fill="url(#brasa)" opacity={0.7} />
+      </Svg>
       <Animated.View
         style={{
           position: 'absolute',
-          left: -6,
-          top: -6,
-          width: 46,
-          height: 46,
-          borderRadius: 23,
-          backgroundColor: color,
-          opacity: p.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] }),
-          transform: [{ scale: p.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.5] }) }],
-        }}
-      />
-      <View style={{ width: 34, height: 34, borderTopLeftRadius: 17, borderTopRightRadius: 17, borderBottomRightRadius: 17, backgroundColor: color, transform: [{ rotate: '-45deg' }], alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 18px ${color}99` }}>
-        <View style={{ transform: [{ rotate: '45deg' }] }}>
-          <Ionicons name={icono} size={16} color="#fff" />
-        </View>
-      </View>
-      </View>
-    </Fade>
-  );
-}
-
-function HeroMapa({ titulo, bajo }: { titulo: number; bajo: boolean }) {
-  const t = Math.min(titulo, 34);
-  return (
-    <View style={{ alignSelf: 'stretch' }}>
-      {!bajo && (
-        <Fade delay={STAGGER * 2} desde={12} style={{ alignSelf: 'flex-start', marginBottom: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 9, paddingRight: 12, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' }}>
-            <Ionicons name="location-outline" size={13} color={C.primary} />
-            <Text style={{ fontFamily: F.semi, fontSize: 11, color: '#fff' }}>Villahermosa, Tabasco</Text>
-          </View>
-        </Fade>
-      )}
-      <Fade delay={STAGGER * 3} desde={14}>
-        <Text style={{ fontFamily: F.bold, fontSize: t, lineHeight: t * 1.08, letterSpacing: -t * 0.034, color: '#fff' }}>
-          Recomienda{'\n'}lo mejor de{'\n'}
-          <Text style={{ color: C.primary, textShadowColor: 'rgba(254,120,1,0.5)', textShadowRadius: 20, textShadowOffset: { width: 0, height: 0 } }}>tu ciudad</Text>
-        </Text>
-      </Fade>
-      {/* Los pines van en su propio espacio: nunca pisan el titular ni el buscador. */}
-      <View style={{ height: bajo ? 96 : 150, marginTop: 6 }}>
-        <Pin icono="restaurant" x="4%" y={bajo ? 26 : 34} color="#E8590C" demora={STAGGER * 4} />
-        <Pin icono="construct" x="84%" y={bajo ? 58 : 98} color={C.accent} demora={STAGGER * 6} tenue />
-        <Pin icono="cut" x="46%" y={bajo ? 54 : 92} demora={STAGGER * 5} />
-        <Fade delay={STAGGER * 8} desde={8} style={{ position: 'absolute', left: '26%', right: 0, top: bajo ? 2 : 22, alignItems: 'flex-end' }}>
-          <View style={{ backgroundColor: '#fff', borderRadius: 14, paddingVertical: 8, paddingHorizontal: 12, boxShadow: '0 10px 30px rgba(0,0,0,0.45)' }}>
-            <Text style={{ fontFamily: F.bold, fontSize: 13, color: FG }}>Barbería Don Chuy</Text>
-            <Text style={{ fontFamily: F.reg, fontSize: 11, color: MUTED }}>
-              Tamulté · 12 te recomiendan <Text style={{ fontFamily: F.bold, color: C.accent }}>+$30</Text>
-            </Text>
-          </View>
-        </Fade>
-      </View>
-    </View>
-  );
-}
-
-function PieMapa() {
-  return (
-    <View style={{ height: 56 }}>
-      <Pin icono="sparkles" x="10%" y={6} color={C.accent} demora={STAGGER * 7} tenue />
-      <Pin icono="cafe" x="76%" y={14} demora={STAGGER * 9} tenue />
-    </View>
-  );
-}
-
-// ── 3 · Boca en boca ─────────────────────────────────────────────────────────
-
-function Burbuja({ quien, children, mia, demora }: { quien: string; children: React.ReactNode; mia?: boolean; demora: number }) {
-  return (
-    <Fade delay={demora} desde={10} style={{ alignSelf: mia ? 'flex-end' : 'flex-start', maxWidth: '82%' }}>
-      <View
-        style={{
-          paddingVertical: 9,
-          paddingHorizontal: 13,
-          borderRadius: 18,
-          borderBottomLeftRadius: mia ? 18 : 5,
-          borderBottomRightRadius: mia ? 5 : 18,
-          backgroundColor: mia ? C.primary : '#F1EFEC',
-          boxShadow: mia ? '0 8px 20px rgba(235,78,0,0.28)' : undefined,
+          left: m.ancho / 2 - radio,
+          top: cy - radio,
+          opacity: Animated.multiply(sube, respiro),
+          transform: [{ translateY: sube.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }],
         }}>
-        <Text style={{ fontFamily: F.semi, fontSize: 10, color: mia ? 'rgba(255,255,255,0.8)' : 'rgba(13,13,13,0.5)', marginBottom: 1 }}>{quien}</Text>
-        <Text style={{ fontFamily: F.reg, fontSize: 12.5, lineHeight: 18, color: mia ? '#fff' : FG }}>{children}</Text>
-      </View>
-    </Fade>
-  );
-}
-
-/** El aviso de la comisión llega al final, deslizándose desde arriba. */
-function Aviso({ demora }: { demora: number }) {
-  return (
-    <Fade delay={demora} desde={-12} style={{ marginHorizontal: 8 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 18, backgroundColor: FG, boxShadow: '0 14px 30px rgba(13,13,13,0.25)' }}>
-        <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-          <HazloMark size={20} />
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ fontFamily: F.reg, fontSize: 10.5, color: 'rgba(255,255,255,0.6)' }}>Hazlo Cash · ahora</Text>
-          <Text numberOfLines={1} style={{ fontFamily: F.semi, fontSize: 13, color: '#fff' }}>
-            Ganaste <Text style={{ color: C.primary }}>+$80.00</Text> por recomendar
-          </Text>
-        </View>
-      </View>
-    </Fade>
-  );
-}
-
-function HeroPlatica({ titulo, bajo }: { titulo: number; bajo: boolean }) {
-  const t = Math.min(26, Math.round(titulo * 0.72));
-  return (
-    <View style={{ alignSelf: 'stretch' }}>
-      <Fade delay={STAGGER * 2} desde={14}>
-        <Text style={{ fontFamily: F.bold, fontSize: t, lineHeight: t * 1.12, letterSpacing: -t * 0.034, color: FG }}>
-          Recomendar ya lo haces.{'\n'}
-          <Text style={{ color: C.primary }}>Ahora cobra por ello.</Text>
-        </Text>
-      </Fade>
-      <View style={{ gap: 8, marginTop: 18 }}>
-        <Burbuja quien="Mamá" demora={DUR.slow + STAGGER * 2}>
-          ¿Conocen un buen mecánico? Se me descompuso el coche
-        </Burbuja>
-        <Burbuja quien="Tú" mia demora={DUR.slow + STAGGER * 8}>
-          ¡Taller Ramírez! Dile que vas de mi parte: <Text style={{ fontFamily: F.bold }}>HAZLO-OD42</Text>
-        </Burbuja>
-        {!bajo && <Aviso demora={DUR.slow + STAGGER * 16} />}
-      </View>
-    </View>
-  );
-}
-
-function PiePlatica() {
-  return (
-    <Text style={{ fontFamily: F.reg, fontSize: 12, color: MUTED, textAlign: 'center' }}>
-      Como siempre, pero ahora <Text style={{ fontFamily: F.semi, color: FG }}>te llega dinero</Text>.
-    </Text>
+        <Svg width={radio * 2} height={radio * 2}>
+          <Defs>
+            <RadialGradient id="sol" cx="50%" cy="50%" r="50%">
+              <Stop offset="0" stopColor="#FFF9EC" stopOpacity={0.95} />
+              <Stop offset="0.3" stopColor="#FFF4DF" stopOpacity={0.8} />
+              <Stop offset="0.65" stopColor="#FFE9C8" stopOpacity={0.35} />
+              <Stop offset="1" stopColor="#FFE2B5" stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Circle cx={radio} cy={radio} r={radio} fill="url(#sol)" />
+        </Svg>
+      </Animated.View>
+    </>
   );
 }
 
 // ── Lo que usa el landing ────────────────────────────────────────────────────
 
-/** Lo que va arriba del buscador. `bajo`: pantalla chica, se quitan adornos. */
-export function HeroLanding({ estilo, titulo, bajo }: { estilo: EstiloLanding; titulo: number; bajo: boolean }) {
-  if (estilo === 'mapa') return <HeroMapa titulo={titulo} bajo={bajo} />;
-  if (estilo === 'platica') return <HeroPlatica titulo={titulo} bajo={bajo} />;
-  return <HeroMercado titulo={titulo} bajo={bajo} />;
+/** Lo que va detrás de todo. */
+export function FondoLanding({ estilo, marco }: { estilo: EstiloLanding; marco: MarcoLanding }) {
+  return (
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: TEMAS[estilo].fondo, overflow: 'hidden', pointerEvents: 'none' }]}>
+      {estilo === 'ruta' && <FondoRuta m={marco} />}
+      {estilo === 'voz' && <FondoVoz m={marco} />}
+      {estilo === 'noche' && <FondoNoche m={marco} />}
+      {estilo === 'rio' && <FondoRio m={marco} />}
+      {estilo === 'amanecer' && <FondoAmanecer m={marco} />}
+    </View>
+  );
 }
 
-/** La línea entre el buscador y los botones. */
-export function PieLanding({ estilo }: { estilo: EstiloLanding }) {
+/** El título: lo único que se lee antes del buscador. */
+export function HeroLanding({ estilo, titulo }: { estilo: EstiloLanding; titulo: number }) {
+  const tema = TEMAS[estilo];
   return (
-    <Fade delay={STAGGER * 6} desde={8}>
-      {estilo === 'mapa' ? <PieMapa /> : estilo === 'platica' ? <PiePlatica /> : <PieMercado />}
+    <Fade delay={STAGGER * 2} desde={14} style={{ alignSelf: 'stretch' }}>
+      <Text style={{ fontFamily: F.bold, fontSize: titulo, lineHeight: titulo * 1.08, letterSpacing: -titulo * 0.038, color: tema.titulo, textAlign: tema.arriba ? 'left' : 'center' }}>
+        Recomienda{'\n'}
+        <Text style={{ color: tema.acento }}>y gana</Text>
+      </Text>
     </Fade>
   );
 }
