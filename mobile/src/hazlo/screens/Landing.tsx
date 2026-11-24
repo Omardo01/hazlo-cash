@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Keyboard, Pressable, ScrollView, StyleSheet, Text, View, type LayoutRectangle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -259,10 +259,11 @@ export function LandingScreen({
   useSinRecorrer(buscando);
   // Atrás primero suelta lo buscado y luego cierra la caja.
   useAtras(buscando && (buscador.fase === 'resultados' || buscador.fase === 'colonia'), limpiar);
-  const abrirMapa = (lugar: string | null) => {
+  // Fija: los gestos del minimapa la capturan.
+  const abrirMapa = useCallback((lugar: string | null) => {
     Keyboard.dismiss();
     setMapa({ lugar });
-  };
+  }, []);
 
   const { cuadro, logo, centro, bloque, caja } = medidas;
   const topeCaja = logo ? logo.y + logo.height + 14 : 0;

@@ -369,8 +369,18 @@ export function SuperficieMapa({
       const fuerza = e.ctrlKey ? 0.012 : 0.0022;
       camara.acercar(Math.exp(-e.deltaY * fuerza), e.clientX - caja.left, e.clientY - caja.top, false);
     };
+    // Dentro de algo que se desliza, el mapa cambia de lugar sin cambiar de
+    // tamaño: se mide al tocarlo, para que el pellizco apunte donde es.
+    const alTocarlo = () => {
+      const caja = nodo.getBoundingClientRect();
+      camara.medirOrigen(caja.left, caja.top);
+    };
     nodo.addEventListener('wheel', alGirar, { passive: false });
-    return () => nodo.removeEventListener('wheel', alGirar);
+    nodo.addEventListener('pointerdown', alTocarlo, { capture: true });
+    return () => {
+      nodo.removeEventListener('wheel', alGirar);
+      nodo.removeEventListener('pointerdown', alTocarlo, { capture: true });
+    };
   }, [camara]);
 
   // iPhone: sin esto, Safari también acerca la página entera con dos dedos o con

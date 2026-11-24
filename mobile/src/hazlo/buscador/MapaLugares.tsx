@@ -1,19 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
+import { useAnimatedReaction } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { useCamara } from '../mapa/camara';
 import type { ZonaBase } from '../mapa/datos';
 import { Flotante, PuntoYo, Rotulo, SuperficieMapa, ZonaResaltada, escalasSinChoque } from '../mapa/Lienzo';
 import { CapasConTrazo } from '../mapa/SelectorUbicacion';
 import type { Geometria } from '../mapa/tipos';
-import { DUR, EASE, Fade, STAGGER, useReduceMotion } from '../motion';
-import { C, F } from '../theme';
+import { DUR, EASE, Fade, PressableScale, STAGGER, useReduceMotion } from '../motion';
+import { C, F, FG } from '../theme';
 import type { Punto } from './motor';
 import type { PinLugar } from './useBuscador';
 
 const ESCALA_MAX = 6;
 const FUERA = '#4A4540';
+/** En el chico, los nombres de colonia salen hasta acercarse: son 129. */
+const ESCALA_NOMBRES = 1.5;
+
+function Zoom({ icono, etiqueta, alTocar }: { icono: 'add' | 'remove'; etiqueta: string; alTocar: () => void }) {
+  return (
+    <PressableScale onPress={alTocar} accessibilityRole="button" accessibilityLabel={etiqueta} hitSlop={{ left: 8, right: 8 }} style={{ width: 34, height: 33, alignItems: 'center', justifyContent: 'center' }}>
+      <Ionicons name={icono} size={19} color={FG} />
+    </PressableScale>
+  );
+}
 
 /** La gota: la punta queda justo en el lugar. */
 function Gota({ pin, activa, demora }: { pin: PinLugar; activa: boolean; demora: number }) {
@@ -64,7 +76,9 @@ function Gota({ pin, activa, demora }: { pin: PinLugar; activa: boolean; demora:
 
 /**
  * El mapa del buscador, chico o grande: pinta los lugares y vuela a donde estén
- * cada vez que cambian. Es el mismo lienzo del mapa de la ciudad, sin repintarlo.
+ * cada vez que cambian. Los dos se arrastran y se acercan (pellizco, doble toque,
+ * rueda); el chico además lleva botones. Es el mismo lienzo del mapa de la ciudad,
+ * sin repintarlo.
  */
 export function MapaLugares({
   geo,
@@ -74,7 +88,7 @@ export function MapaLugares({
   zona,
   yo,
   activo = null,
-  interactivo = false,
+  chico = false,
   margenArriba = 0,
   margenAbajo = 0,
   alTocarPin,
@@ -88,13 +102,14 @@ export function MapaLugares({
   yo: Punto | null;
   /** Id del lugar elegido: crece y el mapa se centra en él. */
   activo?: string | null;
-  interactivo?: boolean;
+  /** El minimapa del panel. */
+  chico?: boolean;
   /** Lo que tapan la barra y la ficha del mapa grande. */
   margenArriba?: number;
   margenAbajo?: number;
   alTocarPin?: (id: string | null) => void;
 }) {
-  const camara = useCamara(geo.ANCHO_MAPA, geo.ALTO_MAPA, ESCALA_MAX);
+  const camara = useCamara(geo.ANCHO_MAPA, geo.ALTO_MAPA, ESCALA_MAX, chico);
   const quieto = useReduceMotion();
   const [tam, setTam] = useState({ w: 0, h: 0 });
   const alMedir = useCallback(
@@ -122,9 +137,11 @@ export function MapaLugares({
     const y0 = Math.min(...puntos.map((p) => p.y));
     const y1 = Math.max(...puntos.map((p) => p.y));
     // Aire para que las gotas no se corten: arriba más, porque crecen hacia allá.
-    const escala = Math.max(0.4, Math.min(3.6, (w - 56) / Math.max(1, x1 - x0), (h - 62) / Math.max(1, y1 - y0)));
-    return { x: (x0 + x1) / 2, y: (y0 + y1) / 2 - 14 / escala, escala };
-  }, [tam, margenArriba, margenAbajo, pines, encuadrar, activo, zona, yo, colonias]);
+    // En el chico, la orilla derecha es de los botones.
+    const orilla = chico ? 40 : 0;
+    const escala = Math.max(0.4, Math.min(3.6, (w - 56 - orilla) / Math.max(1, x1 - x0), (h - 62) / Math.max(1, y1 - y0)));
+    return { x: (x0 + x1) / 2 + orilla / 2 / escala, y: (y0 + y1) / 2 - 14 / escala, escala };
+  }, [tam, margenArriba, margenAbajo, pines, encuadrar, activo, zona, yo, colonias, chico]);
 
   const primera = useRef(true);
   useEffect(() => {
@@ -152,10 +169,19 @@ export function MapaLugares({
     [pines, alTocarPin],
   );
 
+  const [nombres, setNombres] = useState(!chico);
+  useAnimatedReaction(
+    () => camara.s.get() >= ESCALA_NOMBRES,
+    (ahora, antes) => {
+      if (chico && ahora !== antes) scheduleOnRN(setNombres, ahora);
+    },
+  );
+  const acercar = (factor: number) => camara.acercar(factor, tam.w / 2, tam.h / 2, !quieto);
+
   const escalaColonia = useMemo(() => escalasSinChoque(colonias, 10, 1), [colonias]);
 
   return (
-    <View style={{ flex: 1, pointerEvents: interactivo ? 'auto' : 'none' }}>
+    <View style={{ flex: 1 }}>
       <SuperficieMapa
         camara={camara}
         ancho={geo.ANCHO_MAPA}
@@ -170,7 +196,7 @@ export function MapaLugares({
         }
         encima={
           <>
-            {interactivo &&
+            {nombres &&
               colonias.map((z) => (
                 <Flotante key={z.id} camara={camara} x={z.x} y={z.y} desde={escalaColonia.get(z) ?? 1.2}>
                   <Rotulo texto={z.nombre} peso={F.base} tam={10} color="rgba(13,13,13,0.66)" />
@@ -198,6 +224,13 @@ export function MapaLugares({
       <View style={{ position: 'absolute', right: 6, bottom: 5 + margenAbajo, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.8)', pointerEvents: 'none' }}>
         <Text style={{ fontFamily: F.reg, fontSize: 8, color: 'rgba(13,13,13,0.55)' }}>© OpenStreetMap</Text>
       </View>
+      {chico && (
+        <View style={{ position: 'absolute', right: 9, top: 51, borderRadius: 11, backgroundColor: '#fff', boxShadow: '0 2px 8px rgba(13,13,13,0.16)' }}>
+          <Zoom icono="add" etiqueta="Acercar el mapa" alTocar={() => acercar(1.8)} />
+          <View style={{ height: StyleSheet.hairlineWidth, marginHorizontal: 7, backgroundColor: 'rgba(13,13,13,0.14)' }} />
+          <Zoom icono="remove" etiqueta="Alejar el mapa" alTocar={() => acercar(1 / 1.8)} />
+        </View>
+      )}
     </View>
   );
 }

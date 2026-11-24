@@ -48,8 +48,13 @@ export interface Camara {
 }
 
 /** La cámara del mapa: pantalla = (tx, ty) + s · lienzo. Solo mueve transform. */
-/** `escalaMax`: el selector de ubicación deja acercar más que el mapa general. */
-export function useCamara(anchoMapa: number, altoMapa: number, escalaMax = ESCALA_MAX): Camara {
+/**
+ * `escalaMax`: el selector de ubicación deja acercar más que el mapa general.
+ * `completo`: nada tapa el mapa (el minimapa); se arrastra justo hasta su orilla.
+ */
+export function useCamara(anchoMapa: number, altoMapa: number, escalaMax = ESCALA_MAX, completo = false): Camara {
+  const tapadoArriba = completo ? 0 : TAPADO_ARRIBA;
+  const tapadoAbajo = completo ? 0 : TAPADO_ABAJO;
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
   const s = useSharedValue(0.6);
@@ -73,7 +78,7 @@ export function useCamara(anchoMapa: number, altoMapa: number, escalaMax = ESCAL
   };
   const limY = (t: number, escala: number) => {
     'worklet';
-    return limitarEje(t, altoMapa * escala, Math.max(120, alto.get() - TAPADO_ARRIBA - TAPADO_ABAJO), TAPADO_ARRIBA);
+    return limitarEje(t, altoMapa * escala, Math.max(120, alto.get() - tapadoArriba - tapadoAbajo), tapadoArriba);
   };
   const aplicarZoom = (factor: number, fx: number, fy: number) => {
     'worklet';

@@ -85,7 +85,7 @@ export function MapaGrande({ buscador: b, inicial, alCerrar, alRegistrarse }: { 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { zIndex: 20, backgroundColor: TIERRA, opacity: p, transform: [{ translateY: p.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] }]}>
       {geo && (
-        <MapaLugares geo={geo} colonias={colonias} pines={pines} encuadrar={b.encuadrar} zona={b.zona} yo={b.yo} activo={activo} interactivo margenArriba={arriba} margenAbajo={lugar ? ALTO_FICHA + insets.bottom : 84 + insets.bottom} alTocarPin={setActivo} />
+        <MapaLugares geo={geo} colonias={colonias} pines={pines} encuadrar={b.encuadrar} zona={b.zona} yo={b.yo} activo={activo} margenArriba={arriba} margenAbajo={lugar ? ALTO_FICHA + insets.bottom : 84 + insets.bottom} alTocarPin={setActivo} />
       )}
 
       <View style={{ position: 'absolute', left: 14, right: 14, top: insets.top + 10, flexDirection: 'row', alignItems: 'center', gap: 9 }}>

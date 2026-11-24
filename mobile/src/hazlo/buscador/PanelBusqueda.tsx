@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useVentanaApp } from '@/lib/columna-web';
@@ -50,15 +50,18 @@ function Partida({ b }: { b: Buscador }) {
   );
 }
 
-function Minimapa({ b, alAmpliar }: { b: Buscador; alAmpliar: () => void }) {
+function Minimapa({ b, alAmpliar, alAbrir }: { b: Buscador; alAmpliar: () => void; alAbrir: (id: string) => void }) {
   const { geo, colonias } = b.indice;
   const { width } = useVentanaApp();
   const rotulo = b.zona ? (b.base === 'yo' && b.fase === 'inicio' ? `Estás en ${b.zona.nombre}` : b.zona.nombre) : null;
+  const alTocarPin = useCallback((id: string | null) => {
+    if (id) alAbrir(id);
+  }, [alAbrir]);
   return (
-    <PressableScale onPress={alAmpliar} disabled={!geo} accessibilityRole="button" accessibilityLabel="Abrir el mapa" style={{ height: altoMapa(width), borderRadius: R.lg - 4, overflow: 'hidden', backgroundColor: TIERRA }}>
+    <View style={{ height: altoMapa(width), borderRadius: R.lg - 4, overflow: 'hidden', backgroundColor: TIERRA }}>
       {geo ? (
         <Fade style={{ flex: 1 }}>
-          <MapaLugares geo={geo} colonias={colonias} pines={b.pines} encuadrar={b.encuadrar} zona={b.zona} yo={b.yo} />
+          <MapaLugares geo={geo} colonias={colonias} pines={b.pines} encuadrar={b.encuadrar} zona={b.zona} yo={b.yo} chico alTocarPin={alTocarPin} />
         </Fade>
       ) : (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -66,17 +69,17 @@ function Minimapa({ b, alAmpliar }: { b: Buscador; alAmpliar: () => void }) {
         </View>
       )}
       {geo && (
-        <View style={{ position: 'absolute', right: 9, top: 9, width: 34, height: 34, borderRadius: 11, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(13,13,13,0.16)', pointerEvents: 'none' }}>
+        <PressableScale onPress={alAmpliar} accessibilityRole="button" accessibilityLabel="Abrir el mapa completo" hitSlop={6} style={{ position: 'absolute', right: 9, top: 9, width: 34, height: 34, borderRadius: 11, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(13,13,13,0.16)' }}>
           <Ionicons name="expand-outline" size={17} color={FG} />
-        </View>
+        </PressableScale>
       )}
       {rotulo && (
-        <Fade key={rotulo} desde={5} style={{ position: 'absolute', left: 9, bottom: 9, maxWidth: '75%', flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 8, paddingRight: 11, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.95)', pointerEvents: 'none' }}>
+        <Fade key={rotulo} desde={5} style={{ position: 'absolute', left: 9, bottom: 9, maxWidth: '62%', flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 8, paddingRight: 11, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.95)', pointerEvents: 'none' }}>
           <Ionicons name="location-outline" size={13} color={C.accent} />
           <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: F.semi, fontSize: 11.5, color: FG }}>{rotulo}</Text>
         </Fade>
       )}
-    </PressableScale>
+    </View>
   );
 }
 
@@ -314,7 +317,7 @@ export function PanelBusqueda({
             )}
           </Fade>
         )}
-        <Minimapa b={b} alAmpliar={alAmpliar} />
+        <Minimapa b={b} alAmpliar={alAmpliar} alAbrir={alAbrirLugar} />
 
         {b.error ? (
           <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: MUTED, padding: 18, textAlign: 'center' }}>No pudimos buscar. Revisa tu conexión e inténtalo otra vez.</Text>
