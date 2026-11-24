@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useVentanaApp } from '@/lib/columna-web';
+import { useTecladoWeb } from '@/lib/ios-web';
 import { abrirAjustes, hayUbicacion } from '@/lib/ubicacion';
 
 import { TextoResaltado } from '../categorias/piezas';
@@ -17,7 +19,8 @@ import type { Buscador } from './useBuscador';
 
 const MORADO = '#5F3DC4';
 const FUERA = '#4A4540';
-const ALTO_MAPA = 152;
+// En columnas anchas (iPhone Duo) el mapa también crece: si no, corta los pines.
+const altoMapa = (ancho: number) => Math.max(152, Math.min(210, Math.round((ancho - 56) * 0.42)));
 
 const distancia = (c: LugarCerca) => (c.metros === null ? null : formatearDistancia(c.metros));
 const donde = (c: LugarCerca) => [c.lugar.giro, c.lugar.coloniaNombre].filter(Boolean).join(' · ');
@@ -49,9 +52,10 @@ function Partida({ b }: { b: Buscador }) {
 
 function Minimapa({ b, alAmpliar }: { b: Buscador; alAmpliar: () => void }) {
   const { geo, colonias } = b.indice;
+  const { width } = useVentanaApp();
   const rotulo = b.zona ? (b.base === 'yo' && b.fase === 'inicio' ? `Estás en ${b.zona.nombre}` : b.zona.nombre) : null;
   return (
-    <PressableScale onPress={alAmpliar} disabled={!geo} accessibilityRole="button" accessibilityLabel="Abrir el mapa" style={{ height: ALTO_MAPA, borderRadius: R.lg - 4, overflow: 'hidden', backgroundColor: TIERRA }}>
+    <PressableScale onPress={alAmpliar} disabled={!geo} accessibilityRole="button" accessibilityLabel="Abrir el mapa" style={{ height: altoMapa(width), borderRadius: R.lg - 4, overflow: 'hidden', backgroundColor: TIERRA }}>
       {geo ? (
         <Fade style={{ flex: 1 }}>
           <MapaLugares geo={geo} colonias={colonias} pines={b.pines} encuadrar={b.encuadrar} zona={b.zona} yo={b.yo} />
@@ -281,6 +285,8 @@ export function PanelBusqueda({
     };
   }, []);
 
+  const tecladoWeb = useTecladoWeb();
+
   // Cada vista empieza desde arriba.
   const lista = useRef<ScrollView>(null);
   const clave = `${b.fase}|${b.que?.que ?? ''}|${b.colonia?.id ?? ''}`;
@@ -296,7 +302,7 @@ export function PanelBusqueda({
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 16, paddingBottom: 26 + teclado }}>
+        contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 16, paddingBottom: 26 + Math.max(teclado, tecladoWeb) }}>
         <Partida b={b} />
         {b.fallo && (
           <Fade key={b.fallo} desde={-4} style={{ marginBottom: 12, padding: 11, borderRadius: R.sm, backgroundColor: `${C.accent}12` }}>

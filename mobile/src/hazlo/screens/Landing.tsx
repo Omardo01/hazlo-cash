@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAtras } from '@/lib/atras';
 import { useVentanaApp } from '@/lib/columna-web';
+import { useSinRecorrer } from '@/lib/ios-web';
 
 import { ALTO_CAMPO, CampoBusqueda } from '../buscador/CampoBusqueda';
 import { MapaGrande } from '../buscador/MapaGrande';
@@ -255,6 +256,7 @@ export function LandingScreen({
     setBuscando(false);
   };
   useAtras(buscando, cerrarBusqueda);
+  useSinRecorrer(buscando);
   // Atrás primero suelta lo buscado y luego cierra la caja.
   useAtras(buscando && (buscador.fase === 'resultados' || buscador.fase === 'colonia'), limpiar);
   const abrirMapa = (lugar: string | null) => {

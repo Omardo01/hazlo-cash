@@ -19,15 +19,21 @@ const CONSULTA = `(pointer: coarse) and (min-width: ${DESDE}px)`;
 
 export const CSS_COLUMNA = `
 @media ${CONSULTA} {
-  html { background-color: #E4E0DA; }
+  /* Mismo fondo que la app y que la barra de estado: con otro tono se veía el
+     corte arriba y franjas a los lados. */
+  html { background-color: #F5F3F0; }
   body {
     width: 100%;
     max-width: ${ANCHO_COLUMNA}px;
     margin: 0 auto;
     /* Con transform, <body> contiene a lo fijo: las hojas no se salen de la columna. */
     transform: translateZ(0);
-    box-shadow: 0 0 0 1px rgba(13,13,13,0.05), 0 0 48px rgba(13,13,13,0.08);
   }
+}
+/* Instalada en el Duo, iOS difumina la orilla de arriba: lo primero baja tantito
+   para que no quede borroso. */
+@media ${CONSULTA} {
+  html.ios-instalada #root { box-sizing: border-box; padding-top: 22px; }
 }
 `;
 

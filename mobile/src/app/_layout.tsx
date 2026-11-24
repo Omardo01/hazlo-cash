@@ -15,6 +15,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider } from '@/lib/auth-context';
 import { CSS_COLUMNA } from '@/lib/columna-web';
 import { RealtimeProvider } from '@/lib/datos/realtime';
+import { prepararIOS } from '@/lib/ios-web';
 import { registrarServiceWorker } from '@/lib/services/push';
 import { AvisoLive } from '@/hazlo/AvisoLive';
 import { BG } from '@/hazlo/theme';
@@ -26,9 +27,13 @@ SplashScreen.preventAutoHideAsync();
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   const estilo = document.createElement('style');
   // En pantallas táctiles anchas, la app en una columna (ver lib/columna-web.ts).
-  estilo.textContent = 'input:focus, textarea:focus { outline: none; }' + CSS_COLUMNA;
+  // La ✕ propia de WebKit sobra en los buscadores: ya llevan la suya.
+  estilo.textContent = 'input:focus, textarea:focus { outline: none; } input::-webkit-search-cancel-button { display: none; }' + CSS_COLUMNA;
   document.head.appendChild(estilo);
 }
+
+// iPhone y iPad en web: que la página no se acerque sola al escribir.
+prepararIOS();
 
 // Web: el service worker de los avisos push (solo avisos, sin caché).
 registrarServiceWorker();

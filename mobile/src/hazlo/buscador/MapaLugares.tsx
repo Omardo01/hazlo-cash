@@ -195,7 +195,9 @@ export function MapaLugares({
           </>
         }
       />
-      <Text style={{ position: 'absolute', right: 8, bottom: 4 + margenAbajo, fontFamily: F.reg, fontSize: 8, color: 'rgba(13,13,13,0.45)', pointerEvents: 'none' }}>© OpenStreetMap</Text>
+      <View style={{ position: 'absolute', right: 6, bottom: 5 + margenAbajo, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.8)', pointerEvents: 'none' }}>
+        <Text style={{ fontFamily: F.reg, fontSize: 8, color: 'rgba(13,13,13,0.55)' }}>© OpenStreetMap</Text>
+      </View>
     </View>
   );
 }

@@ -97,9 +97,13 @@ export function CampoBusqueda({
           if (b.colonia) b.quitarColonia();
           else if (b.que) b.quitarQue();
         }}
-        placeholder={abierto && b.fase === 'colonia' ? '¿En qué colonia estás?' : abierto && (b.que || b.colonia) ? '' : 'Busca giro, negocio o colonia'}
+        placeholder={abierto && b.fase === 'colonia' ? '¿En qué colonia estás?' : abierto && (b.que || b.colonia) ? '' : 'Giro, negocio o colonia'}
         placeholderTextColor={MUTED}
         accessibilityLabel="Busca un giro, un negocio o una colonia"
+        // Es un buscador: que el teléfono no ofrezca llenarlo con tus datos.
+        inputMode="search"
+        autoComplete="off"
+        textContentType="none"
         returnKeyType="search"
         onSubmitEditing={confirmar}
         autoCorrect={false}
