@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAtras } from '@/lib/atras';
 import { hayUbicacion } from '@/lib/ubicacion';
 
+import { nombreCorto } from '../categorias/catalogo';
 import { Icon } from '../icons';
 import { formatearDistancia } from '../mapa/datos';
 import { TIERRA } from '../mapa/paleta';
@@ -79,7 +80,7 @@ export function MapaGrande({ buscador: b, inicial, alCerrar, alRegistrarse }: { 
     return ya ? ya.metros : (ordenar(b.indice, [lugar], b.yo)[0]?.metros ?? null);
   }, [lugar, b.resultados, b.cercanos, b.indice, b.yo]);
 
-  const resumen = [b.que?.etiqueta, b.colonia?.nombre].filter(Boolean).join(' · ') || (b.fase === 'escribe' ? [b.entendido.etiqueta, b.entendido.colonia?.nombre].filter(Boolean).join(' · ') : b.zona ? `Cerca de ${b.zona.nombre}` : 'Villahermosa');
+  const resumen = [b.que?.etiqueta, b.grupo && nombreCorto(b.grupo), b.colonia?.nombre].filter(Boolean).join(' · ') || (b.fase === 'escribe' ? [b.entendido.etiqueta, b.entendido.colonia?.nombre].filter(Boolean).join(' · ') : b.zona ? `Cerca de ${b.zona.nombre}` : 'Villahermosa');
   const arriba = insets.top + 64;
 
   return (

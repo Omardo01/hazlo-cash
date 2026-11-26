@@ -269,11 +269,12 @@ export function ordenar(indice: Indice, lugares: Lugar[], desde: Punto | null): 
 /**
  * Los lugares que encajan: primero los de la colonia y luego los de fuera, cada
  * grupo del más cercano al más lejano. Sin colonia, todos van en `fuera`.
+ * Con `grupo`, solo los de esa categoría.
  */
-export function buscar(indice: Indice, que: string, colonia: ZonaBase | null, desde: Punto | null): Resultados {
+export function buscar(indice: Indice, que: string, colonia: ZonaBase | null, desde: Punto | null, grupo: string | null = null): Resultados {
   const tokens = tokensDe(que);
   // Algo escrito que no deja palabras útiles no es «todo»: no encontró nada.
-  const encajan = que.trim() && tokens.length === 0 ? [] : indice.lugares.filter((l) => encaja(l.palabras, tokens));
+  const encajan = que.trim() && tokens.length === 0 ? [] : indice.lugares.filter((l) => (!grupo || l.grupo.slug === grupo) && encaja(l.palabras, tokens));
   const ubicados = ordenar(indice, encajan.filter((l) => l.punto), desde);
   return {
     dentro: colonia ? ubicados.filter((l) => l.lugar.coloniaId === colonia.id) : [],

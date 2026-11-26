@@ -187,6 +187,19 @@ export function grupoPorSlug(slug: string | undefined): Grupo | undefined {
   return GRUPOS.find((g) => g.slug === slug);
 }
 
+// Para donde no cabe el nombre completo (chips en fila).
+const CORTOS: Record<string, string> = {
+  salud: 'Salud',
+  alimentos: 'Comida',
+  belleza: 'Belleza',
+  automotriz: 'Autos y motos',
+  fiestas: 'Fiestas',
+  ensenanza: 'Enseñanza',
+  servicios: 'Servicios',
+};
+
+export const nombreCorto = (g: Grupo) => CORTOS[g.slug] ?? g.nombre;
+
 /**
  * Sin acentos ni mayúsculas: "medico" encuentra "Médico". Conserva la longitud
  * de los textos en NFC (cada letra acentuada sigue siendo un carácter), así el

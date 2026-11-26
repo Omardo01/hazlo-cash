@@ -4,13 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useCatalogoPublico } from '@/lib/datos/consultas';
 import { leerMiUbicacion, mensajeSinUbicacion } from '@/lib/ubicacion';
 
+import { GRUPOS, grupoPorSlug, type Grupo } from '../categorias/catalogo';
 import { aLienzo, coloniaEn, contiene, type ZonaBase } from '../mapa/datos';
 import { useGeometria } from '../mapa/MiniMapa';
 import { armarIndice, buscar, buscarColonias, coloniasDe, etiquetaDe, girosCon, interpretar, ordenar, porNombre, tokensDe, type Indice, type Lugar, type LugarCerca, type Punto, type Resultados } from './motor';
 
 const LLAVE_COLONIA = 'hazlo-mi-colonia';
 /** Hasta dónde algo está «cerca». */
-const CERCA = 3000;
+export const CERCA = 3000;
 
 /**
  * - inicio: nada escrito; lo que hay alrededor.
@@ -26,6 +27,14 @@ export interface PinLugar {
   numero?: number;
   /** Fuera de la colonia buscada. */
   fuera: boolean;
+}
+
+export interface ConteoCategoria {
+  grupo: Grupo;
+  /** En la colonia o a menos de CERCA. */
+  cerca: number;
+  /** En toda la ciudad, con o sin ubicación. */
+  total: number;
 }
 
 export interface Pedido {
@@ -49,6 +58,17 @@ export interface Buscador {
   quitarQue: () => void;
   quitarColonia: () => void;
   limpiar: () => void;
+  /** La categoría elegida: lo de la colonia y lo cercano, solo de esa. */
+  grupo: Grupo | null;
+  /** null la suelta. */
+  elegirGrupo: (slug: string | null) => void;
+  /** Categorías con negocios en el área o cerca, de más a menos. Vacía sin colonia ni ubicación. */
+  categorias: { grupo: Grupo; total: number }[];
+  /** Las 12, también las que aún no tienen negocios: cuántos hay cerca y en toda la ciudad. */
+  todasCategorias: ConteoCategoria[];
+  /** La lista con todas está abierta. */
+  viendoCategorias: boolean;
+  abrirCategorias: (abrir: boolean) => void;
   resultados: Resultados;
   /** Los más cercanos a donde se parte (o todos, sin punto de partida). */
   cercanos: LugarCerca[];
@@ -84,7 +104,10 @@ export function useBuscador(abierto: boolean): Buscador {
   const [texto, setTexto] = useState('');
   const [que, setQue] = useState<Pedido | null>(null);
   const [colonia, setColonia] = useState<ZonaBase | null>(null);
+  const [grupoSlug, setGrupoSlug] = useState<string | null>(null);
   const [eligiendo, setEligiendo] = useState(false);
+  const [viendoCategorias, setViendoCategorias] = useState(false);
+  const grupo = useMemo(() => grupoPorSlug(grupoSlug ?? undefined) ?? null, [grupoSlug]);
 
   // ── De dónde se parte: la ubicación (si la dio) o su colonia (si la eligió) ──
   const [yo, setYo] = useState<Punto | null>(null);
@@ -138,17 +161,18 @@ export function useBuscador(abierto: boolean): Buscador {
       setMiColoniaId(z.id);
       setBase('colonia');
       // A media búsqueda, la colonia nueva también cambia dónde se busca.
-      setColonia(que ? z : null);
+      setColonia(que || grupoSlug ? z : null);
       setEligiendo(false);
       setTexto('');
       setFallo(null);
       AsyncStorage.setItem(LLAVE_COLONIA, z.id).catch(() => {});
     },
-    [que],
+    [que, grupoSlug],
   );
 
   const abrirColonias = useCallback((abrir: boolean) => {
     setEligiendo(abrir);
+    setViendoCategorias(false);
     setTexto('');
     setFallo(null);
   }, []);
@@ -156,29 +180,56 @@ export function useBuscador(abierto: boolean): Buscador {
   const escribir = useCallback((t: string) => {
     setTexto(t);
     setFallo(null);
+    // Escribir es buscar otra cosa: la categoría se suelta.
+    if (t.trim()) {
+      setGrupoSlug(null);
+      setViendoCategorias(false);
+    }
   }, []);
 
   const fijar = useCallback(
     (nuevo: string, zona: ZonaBase | null, etiqueta?: string) => {
       setQue(nuevo.trim() ? { que: nuevo, etiqueta: etiqueta ?? etiquetaDe(indice, nuevo) } : null);
       setColonia(zona);
+      setGrupoSlug(null);
       setTexto('');
       setEligiendo(false);
+      setViendoCategorias(false);
     },
     [indice],
+  );
+  const elegirGrupo = useCallback(
+    (slug: string | null) => {
+      setGrupoSlug(slug);
+      setQue(null);
+      setTexto('');
+      setEligiendo(false);
+      setViendoCategorias(false);
+      setFallo(null);
+      // Con categoría se busca en la colonia (y alrededor); sin ella, de vuelta al inicio.
+      setColonia((c) => (slug ? (c ?? (base === 'colonia' ? miColonia : null)) : null));
+    },
+    [base, miColonia],
   );
   const limpiar = useCallback(() => {
     setQue(null);
     setColonia(null);
+    setGrupoSlug(null);
     setTexto('');
     setEligiendo(false);
+    setViendoCategorias(false);
     setFallo(null);
+  }, []);
+  const abrirCategorias = useCallback((abrir: boolean) => {
+    setViendoCategorias(abrir);
+    setEligiendo(false);
+    setTexto('');
   }, []);
   const quitarQue = useCallback(() => setQue(null), []);
   const quitarColonia = useCallback(() => setColonia(null), []);
 
   const hayTexto = texto.trim().length > 0;
-  const fase: Fase = eligiendo ? 'colonia' : hayTexto ? 'escribe' : que || colonia ? 'resultados' : 'inicio';
+  const fase: Fase = eligiendo ? 'colonia' : hayTexto ? 'escribe' : que || colonia || grupo ? 'resultados' : 'inicio';
 
   const completo = [que?.que, texto].filter(Boolean).join(' ');
   const entendido = useMemo(() => {
@@ -196,14 +247,46 @@ export function useBuscador(abierto: boolean): Buscador {
   const zonaBuscada = enfoque.colonia;
 
   // Dentro de la colonia buscada se mide desde uno mismo; si no, desde su centro.
-  const desde = useMemo<{ punto: Punto; nombre: string } | null>(() => {
-    if (zonaBuscada) return yo && contiene(zonaBuscada, yo.x, yo.y) ? { punto: yo, nombre: 'donde estás' } : { punto: { x: zonaBuscada.x, y: zonaBuscada.y }, nombre: zonaBuscada.nombre };
-    if (base === 'yo' && yo) return { punto: yo, nombre: 'donde estás' };
-    if (base === 'colonia' && miColonia) return { punto: { x: miColonia.x, y: miColonia.y }, nombre: miColonia.nombre };
-    return null;
-  }, [zonaBuscada, yo, base, miColonia]);
+  const medirDesde = useCallback(
+    (z: ZonaBase | null): { punto: Punto; nombre: string } | null => {
+      if (z) return yo && contiene(z, yo.x, yo.y) ? { punto: yo, nombre: 'donde estás' } : { punto: { x: z.x, y: z.y }, nombre: z.nombre };
+      if (base === 'yo' && yo) return { punto: yo, nombre: 'donde estás' };
+      if (base === 'colonia' && miColonia) return { punto: { x: miColonia.x, y: miColonia.y }, nombre: miColonia.nombre };
+      return null;
+    },
+    [yo, base, miColonia],
+  );
+  const desde = useMemo(() => medirDesde(zonaBuscada), [medirDesde, zonaBuscada]);
 
-  const resultados = useMemo(() => buscar(indice, enfoque.que, zonaBuscada, desde?.punto ?? null), [indice, enfoque.que, zonaBuscada, desde]);
+  const resultados = useMemo(() => buscar(indice, enfoque.que, zonaBuscada, desde?.punto ?? null, fase === 'resultados' ? grupoSlug : null), [indice, enfoque.que, zonaBuscada, desde, fase, grupoSlug]);
+
+  // El área de las categorías sale de lo ya elegido, no de lo que se va
+  // escribiendo: así los chips no cambian de orden con cada letra.
+  const todasCategorias = useMemo<ConteoCategoria[]>(() => {
+    const desdeArea = medirDesde(colonia);
+    if (!desdeArea) return [];
+    const area = colonia ?? (base === 'colonia' ? miColonia : base === 'yo' && yo ? coloniaEn(todas, yo.x, yo.y) : null);
+    const cerca = new Map<string, number>();
+    const total = new Map<string, number>();
+    for (const l of indice.lugares) total.set(l.grupo.slug, (total.get(l.grupo.slug) ?? 0) + 1);
+    for (const c of ordenar(indice, indice.lugares.filter((l) => l.punto), desdeArea.punto)) {
+      const enArea = (area && c.lugar.coloniaId === area.id) || (c.metros !== null && c.metros <= CERCA);
+      if (enArea) cerca.set(c.lugar.grupo.slug, (cerca.get(c.lugar.grupo.slug) ?? 0) + 1);
+    }
+    return GRUPOS.map((g) => ({ grupo: g, cerca: cerca.get(g.slug) ?? 0, total: total.get(g.slug) ?? 0 }));
+  }, [medirDesde, colonia, base, miColonia, yo, todas, indice]);
+
+  const categorias = useMemo(() => {
+    // Si alrededor no hay nada, las de toda la ciudad.
+    const hayCerca = todasCategorias.some((c) => c.cerca > 0);
+    const lista = todasCategorias
+      .map((c) => ({ grupo: c.grupo, total: hayCerca ? c.cerca : c.total }))
+      .filter((c) => c.total > 0)
+      .sort((a, b) => b.total - a.total);
+    // La elegida no se pierde aunque aquí no haya: va primero, a la vista.
+    const elegida = lista.some((c) => c.grupo.slug === grupoSlug) ? null : todasCategorias.find((c) => c.grupo.slug === grupoSlug);
+    return elegida ? [{ grupo: elegida.grupo, total: 0 }, ...lista] : lista;
+  }, [todasCategorias, grupoSlug]);
 
   const cercanos = useMemo(() => ordenar(indice, indice.lugares.filter((l) => l.punto || !indice.geo), desde?.punto ?? null), [indice, desde]);
   const alrededor = useMemo(() => cercanos.filter((c) => c.metros !== null && c.metros <= CERCA), [cercanos]);
@@ -267,6 +350,12 @@ export function useBuscador(abierto: boolean): Buscador {
     quitarQue,
     quitarColonia,
     limpiar,
+    grupo,
+    elegirGrupo,
+    categorias,
+    todasCategorias,
+    viendoCategorias,
+    abrirCategorias,
     resultados,
     cercanos,
     giros,

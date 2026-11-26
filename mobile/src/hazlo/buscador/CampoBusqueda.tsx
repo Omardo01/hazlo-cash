@@ -52,7 +52,7 @@ export function CampoBusqueda({
     if (!abierto) campo.current?.blur();
   }, [abierto]);
 
-  const hayAlgo = b.texto.length > 0 || !!b.que || !!b.colonia;
+  const hayAlgo = b.texto.length > 0 || !!b.que || !!b.colonia || !!b.grupo;
   const confirmar = () => {
     if (b.fase === 'colonia') {
       if (b.texto.trim() && b.colonias[0]) b.elegirColonia(b.colonias[0].zona);

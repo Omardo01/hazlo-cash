@@ -1,21 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Keyboard, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useVentanaApp } from '@/lib/columna-web';
 import { useTecladoWeb } from '@/lib/ios-web';
 import { abrirAjustes, hayUbicacion } from '@/lib/ubicacion';
 
+import { nombreCorto, type Grupo } from '../categorias/catalogo';
 import { TextoResaltado } from '../categorias/piezas';
 import { Icon } from '../icons';
 import { formatearDistancia } from '../mapa/datos';
 import { TIERRA } from '../mapa/paleta';
-import { Fade, PressableScale, STAGGER } from '../motion';
+import { DUR, EASE, Fade, PressableScale, STAGGER, useReduceMotion } from '../motion';
 import { C, F, FG, MUTED, R } from '../theme';
+import { hueColors } from '../ui';
 import { MapaLugares } from './MapaLugares';
 import type { LugarCerca } from './motor';
 import { RegistrateParaVer, Renglon, Titulo, type IconoIon } from './piezas';
-import type { Buscador } from './useBuscador';
+import { CERCA, type Buscador, type ConteoCategoria } from './useBuscador';
 
 const MORADO = '#5F3DC4';
 const FUERA = '#4A4540';
@@ -80,6 +82,111 @@ function Minimapa({ b, alAmpliar, alAbrir }: { b: Buscador; alAmpliar: () => voi
         </Fade>
       )}
     </View>
+  );
+}
+
+// ── El tercer filtro: qué categoría, en la colonia o cerca ──────────────────
+
+function ChipCategoria({ grupo, total, activo, apagada, indice, alTocar }: { grupo: Grupo; total: number; activo: boolean; apagada: boolean; indice: number; alTocar: () => void }) {
+  const corto = nombreCorto(grupo);
+  return (
+    <Fade delay={Math.min(indice, 7) * STAGGER} desde={6}>
+      <PressableScale
+        onPress={alTocar}
+        disabled={apagada}
+        accessibilityRole="button"
+        accessibilityState={{ selected: activo, disabled: apagada }}
+        accessibilityLabel={activo ? `Quitar ${corto}` : `${corto}, ${negocios(total)}`}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingLeft: 11, paddingRight: 12, borderRadius: 999, backgroundColor: activo ? FG : 'rgba(13,13,13,0.045)' }}>
+        <Ionicons name={grupo.icono} size={15} color={activo ? '#fff' : hueColors(grupo.hue)[1]} />
+        <Text numberOfLines={1} style={{ fontFamily: F.semi, fontSize: 12.5, color: activo ? '#fff' : FG }}>{corto}</Text>
+        {/* Mismo ancho elegido o no: la cuenta cede su lugar a la cruz. */}
+        <View style={{ minWidth: 10, alignItems: 'center' }}>
+          {activo ? <Icon name="x" size={10} color="rgba(255,255,255,0.75)" sw={2.6} /> : <Text style={{ fontFamily: F.base, fontSize: 12, color: MUTED }}>{total}</Text>}
+        </View>
+      </PressableScale>
+    </Fade>
+  );
+}
+
+/** Abre la lista con las 12, también las que aún no tienen negocios. */
+function VerTodas({ abierta, apagada, alTocar }: { abierta: boolean; apagada: boolean; alTocar: () => void }) {
+  return (
+    <Fade desde={6}>
+      <PressableScale
+        onPress={alTocar}
+        disabled={apagada}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: abierta, disabled: apagada }}
+        accessibilityLabel={abierta ? 'Cerrar la lista de categorías' : 'Ver todas las categorías'}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingLeft: 11, paddingRight: 11, borderRadius: 999, backgroundColor: abierta ? FG : 'rgba(13,13,13,0.045)' }}>
+        <Ionicons name="grid-outline" size={14} color={abierta ? '#fff' : FG} />
+        <Text numberOfLines={1} style={{ fontFamily: F.semi, fontSize: 12.5, color: abierta ? '#fff' : FG }}>Ver todas</Text>
+        <Ionicons name={abierta ? 'chevron-up' : 'chevron-down'} size={13} color={abierta ? 'rgba(255,255,255,0.75)' : MUTED} />
+      </PressableScale>
+    </Fade>
+  );
+}
+
+/** Aparece ya elegida la colonia (o la ubicación); mientras se elige otra, se apaga. */
+function Categorias({ b }: { b: Buscador }) {
+  const apagada = b.fase === 'colonia';
+  const reduce = useReduceMotion();
+  const opacidad = useState(() => new Animated.Value(1))[0];
+  useEffect(() => {
+    const a = apagada ? 0.35 : 1;
+    if (reduce) opacidad.setValue(a);
+    else Animated.timing(opacidad, { toValue: a, duration: DUR.fast, easing: EASE.inOut, useNativeDriver: true }).start();
+  }, [apagada, reduce, opacidad]);
+
+  if (b.categorias.length === 0) return null;
+  return (
+    <Animated.View style={{ opacity: opacidad, marginHorizontal: -18, marginBottom: 12 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 18, gap: 7 }}>
+        <VerTodas abierta={b.viendoCategorias} apagada={apagada} alTocar={() => b.abrirCategorias(!b.viendoCategorias)} />
+        {b.categorias.map(({ grupo, total }, i) => {
+          const activo = b.grupo?.slug === grupo.slug;
+          return <ChipCategoria key={grupo.slug} grupo={grupo} total={total} activo={activo} apagada={apagada} indice={i + 1} alTocar={() => b.elegirGrupo(activo ? null : grupo.slug)} />;
+        })}
+      </ScrollView>
+    </Animated.View>
+  );
+}
+
+/** Las 12: primero las que hay cerca, luego las de otras partes y al final las que aún no tienen negocios. */
+function ListaCategorias({ b }: { b: Buscador }) {
+  const cerca = b.todasCategorias.filter((c) => c.cerca > 0).sort((x, y) => y.cerca - x.cerca);
+  const lejos = b.todasCategorias.filter((c) => c.cerca === 0 && c.total > 0).sort((x, y) => y.total - x.total);
+  const vacias = b.todasCategorias.filter((c) => c.total === 0);
+  const area = b.base === 'yo' && !b.colonia ? 'Cerca de ti' : b.zona ? `En ${b.zona.nombre} o cerca` : 'Cerca';
+  const fila = (c: ConteoCategoria, i: number, detalle: string, vacia = false) => {
+    const elegida = b.grupo?.slug === c.grupo.slug;
+    return (
+      <Renglon
+        key={c.grupo.slug}
+        indice={i}
+        icono={c.grupo.icono}
+        color={vacia ? FUERA : hueColors(c.grupo.hue)[1]}
+        titulo={c.grupo.nombre}
+        detalle={detalle}
+        etiqueta={elegida ? 'Elegida' : undefined}
+        alTocar={() => b.elegirGrupo(c.grupo.slug)}
+      />
+    );
+  };
+  return (
+    <>
+      {cerca.length > 0 && <Titulo>{area}</Titulo>}
+      {cerca.map((c, i) => fila(c, i, c.total > c.cerca ? `${negocios(c.cerca)} · ${c.total} en Villahermosa` : negocios(c.cerca)))}
+      {lejos.length > 0 && <Titulo demora={STAGGER * 2}>En otras partes de Villahermosa</Titulo>}
+      {lejos.map((c, i) => fila(c, i, `${negocios(c.total)}, a más de ${CERCA / 1000} km`))}
+      {vacias.length > 0 && (
+        <Titulo demora={STAGGER * 3} cuenta={vacias.length}>
+          Aún sin negocios
+        </Titulo>
+      )}
+      {vacias.map((c, i) => fila(c, i, c.grupo.giros.slice(0, 4).join(', '), true))}
+    </>
   );
 }
 
@@ -181,7 +288,10 @@ function ListaResultados({ b, alAbrir, alInvitar }: { b: Buscador; alAbrir: (id:
   const { dentro, fuera, sinUbicacion } = b.resultados;
   const total = dentro.length + fuera.length + sinUbicacion.length;
   const que = b.que?.etiqueta ?? '';
-  if (total === 0) return <SinNada que={que || (b.colonia?.nombre ?? '')} alInvitar={alInvitar} />;
+  if (total === 0) {
+    const titulo = !que && b.grupo ? `Aún no hay negocios de ${nombreCorto(b.grupo).toLowerCase()} en Hazlo Cash` : undefined;
+    return <SinNada que={que || (b.colonia?.nombre ?? '')} titulo={titulo} alInvitar={alInvitar} />;
+  }
   const primero = fuera[0];
   return (
     <>
@@ -193,7 +303,7 @@ function ListaResultados({ b, alAbrir, alInvitar }: { b: Buscador; alAbrir: (id:
       {b.colonia && dentro.length === 0 && (
         <Fade desde={6} style={{ marginTop: 14, padding: 13, borderRadius: R.md, backgroundColor: 'rgba(13,13,13,0.05)' }}>
           <Text style={{ fontFamily: F.base, fontSize: 13, lineHeight: 19, color: FG }}>
-            {que ? `En ${b.colonia.nombre} todavía no hay «${que}».` : `En ${b.colonia.nombre} todavía no hay negocios.`}
+            {que ? `En ${b.colonia.nombre} todavía no hay «${que}».` : b.grupo ? `En ${b.colonia.nombre} todavía no hay negocios de ${nombreCorto(b.grupo).toLowerCase()}.` : `En ${b.colonia.nombre} todavía no hay negocios.`}
             {primero && distancia(primero) ? ` El más cercano está a ${distancia(primero)}${primero.lugar.coloniaNombre ? `, en ${primero.lugar.coloniaNombre}` : ''}.` : ''}
           </Text>
         </Fade>
@@ -246,12 +356,12 @@ function ListaColonias({ b }: { b: Buscador }) {
   );
 }
 
-function SinNada({ que, alInvitar }: { que: string; alInvitar: () => void }) {
+function SinNada({ que, titulo, alInvitar }: { que: string; titulo?: string; alInvitar: () => void }) {
   return (
     <Fade desde={6} style={{ paddingTop: 20, paddingBottom: 12, alignItems: 'center' }}>
       <Ionicons name="storefront-outline" size={24} color={MUTED} />
-      <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG, marginTop: 6, textAlign: 'center' }}>«{que}» aún no está en Hazlo Cash</Text>
-      <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: MUTED, marginTop: 2, textAlign: 'center' }}>¿Lo conoces? Invítalo a sumarse.</Text>
+      <Text style={{ fontFamily: F.semi, fontSize: 14, color: FG, marginTop: 6, textAlign: 'center' }}>{titulo ?? `«${que}» aún no está en Hazlo Cash`}</Text>
+      <Text style={{ fontFamily: F.reg, fontSize: 12.5, color: MUTED, marginTop: 2, textAlign: 'center' }}>{titulo ? '¿Conoces uno? Invítalo a sumarse.' : '¿Lo conoces? Invítalo a sumarse.'}</Text>
       <PressableScale onPress={alInvitar} accessibilityRole="button" style={{ marginTop: 12, paddingHorizontal: 18, height: 40, borderRadius: 999, backgroundColor: FG, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontFamily: F.semi, fontSize: 13, color: '#fff' }}>Invitar a un negocio</Text>
       </PressableScale>
@@ -292,7 +402,7 @@ export function PanelBusqueda({
 
   // Cada vista empieza desde arriba.
   const lista = useRef<ScrollView>(null);
-  const clave = `${b.fase}|${b.que?.que ?? ''}|${b.colonia?.id ?? ''}`;
+  const clave = `${b.fase}|${b.que?.que ?? ''}|${b.colonia?.id ?? ''}|${b.grupo?.slug ?? ''}|${b.viendoCategorias}`;
   useEffect(() => {
     lista.current?.scrollTo({ y: 0, animated: false });
   }, [clave]);
@@ -317,6 +427,7 @@ export function PanelBusqueda({
             )}
           </Fade>
         )}
+        <Categorias b={b} />
         <Minimapa b={b} alAmpliar={alAmpliar} alAbrir={alAbrirLugar} />
 
         {b.error ? (
@@ -325,6 +436,8 @@ export function PanelBusqueda({
           <Fade key={clave}>
             {b.fase === 'colonia' ? (
               <ListaColonias b={b} />
+            ) : b.viendoCategorias ? (
+              <ListaCategorias b={b} />
             ) : b.fase === 'escribe' ? (
               <Escribiendo b={b} alAbrir={alAbrirLugar} alInvitar={alInvitar} />
             ) : b.fase === 'resultados' ? (
@@ -335,12 +448,12 @@ export function PanelBusqueda({
           </Fade>
         )}
 
-        {(b.fase === 'inicio' || b.fase === 'resultados') && !b.error && (
+        {(b.fase === 'inicio' || b.fase === 'resultados') && !b.viendoCategorias && !b.error && (
           <Fade delay={STAGGER * 4} desde={6} style={{ marginTop: 18 }}>
             <RegistrateParaVer alTocar={alRegistrarse} />
           </Fade>
         )}
-        {b.fase !== 'colonia' && (
+        {b.fase !== 'colonia' && !b.viendoCategorias && (
           <PressableScale onPress={alVerTodos} accessibilityRole="button" style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderTopWidth: b.fase === 'escribe' ? StyleSheet.hairlineWidth : 0, borderTopColor: 'rgba(13,13,13,0.08)' }}>
             <Text style={{ fontFamily: F.semi, fontSize: 12.5, color: FG }}>Ver todas las categorías</Text>
             <Icon name="chevR" size={13} color={FG} sw={2.2} />

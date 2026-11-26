@@ -259,6 +259,8 @@ export function LandingScreen({
   useSinRecorrer(buscando);
   // Atrás primero suelta lo buscado y luego cierra la caja.
   useAtras(buscando && (buscador.fase === 'resultados' || buscador.fase === 'colonia'), limpiar);
+  // La lista de categorías se cierra sola, sin soltar lo demás.
+  useAtras(buscando && buscador.viendoCategorias, () => buscador.abrirCategorias(false));
   // Fija: los gestos del minimapa la capturan.
   const abrirMapa = useCallback((lugar: string | null) => {
     Keyboard.dismiss();
